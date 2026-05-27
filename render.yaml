@@ -34,11 +34,11 @@ services:
       set -e
       echo "--- installing & building frontend ---"
       cd frontend
-      npm ci || npm install
+      npm install --include=dev
       npm run build
       echo "--- installing backend ---"
       cd ../backend
-      npm ci || npm install
+      npm install --omit=dev
     startCommand: cd backend && npm run start:prod
     healthCheckPath: /api/health
     envVars:
