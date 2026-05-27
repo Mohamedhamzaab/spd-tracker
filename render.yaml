@@ -1,0 +1,62 @@
+# ---------------------------------------------------------------------------
+# Render blueprint for the Safari Park Authority Engagement Tracker.
+# This is for a DEMO deployment - everything is on the free tier.
+#
+# What it provisions:
+#   - One PostgreSQL database (free)
+#   - One Node web service that builds the front end, runs migrations,
+#     seeds on first boot, and serves both the API and the React app on
+#     the same origin.
+#
+# Caveats for the free tier:
+#   - The web service spins down after ~15 min of inactivity; the first
+#     request after that takes ~30s to wake it up.
+#   - The free Postgres instance expires after 30 days.
+#   - There is no persistent disk on the free plan, so uploaded files do
+#     not survive restarts/redeploys (the database survives, only the
+#     contents of UPLOAD_DIR do not). Fine for a demo; for production
+#     attach a paid persistent disk and point UPLOAD_DIR at it.
+# ---------------------------------------------------------------------------
+
+databases:
+  - name: spd-tracker-db
+    plan: free
+    databaseName: spd_tracker
+    user: spd_user
+
+services:
+  - type: web
+    name: spd-tracker
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: |
+      set -e
+      echo "--- installing & building frontend ---"
+      cd frontend
+      npm ci || npm install
+      npm run build
+      echo "--- installing backend ---"
+      cd ../backend
+      npm ci || npm install
+    startCommand: cd backend && npm run start:prod
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: spd-tracker-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 12h
+      - key: UPLOAD_DIR
+        value: ./uploads
+      - key: MAX_UPLOAD_MB
+        value: "25"
+      - key: CORS_ORIGIN
+        value: "*"
+      - key: PGSSL
+        value: "true"
