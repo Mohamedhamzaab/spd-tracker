@@ -49,7 +49,9 @@ async function main() {
   } else {
     console.log('[init] Authorities already present - skipping seed.');
   }
-  await pool.end();
+  // NOTE: do NOT call pool.end() here. server.js shares the same pool
+  // via db.js, and ending it would make every subsequent query fail with
+  // "Cannot use a pool after calling end on the pool".
 
   console.log('[init] Starting API server...');
   require('./server');
