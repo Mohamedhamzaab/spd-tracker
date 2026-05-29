@@ -1,76 +1,158 @@
 // ---------------------------------------------------------------------------
-//  Outbound mail via nodemailer. SMTP credentials come from env. When SMTP
-//  isn't configured (typical local dev), the transport falls back to a
-//  console logger so flows still complete and the dev sees the link in the
-//  backend log.
+//  Outbound mail. Three transport modes, picked in this order:
 //
-//  Required env in production:
-//    SMTP_HOST       e.g. smtp.gmail.com
-//    SMTP_PORT       e.g. 587
-//    SMTP_SECURE     "true" for port 465, anything else = STARTTLS
-//    SMTP_USER       SMTP username
-//    SMTP_PASS       SMTP password / app password
-//    SMTP_FROM       e.g. "SPD Tracker <no-reply@spd-tracker.com>"
+//    1. Brevo HTTP API   if BREVO_API_KEY is set.
+//       Uses https://api.brevo.com/v3/smtp/email (port 443, JSON, ~200ms).
+//       Recommended on PaaS where outbound SMTP is unreliable.
+//
+//    2. SMTP via nodemailer   if SMTP_HOST / SMTP_USER / SMTP_PASS are set.
+//       Standard fallback for environments that prefer SMTP.
+//
+//    3. Console logger        otherwise (dev mode, no creds).
+//
+//  All sends are fire-and-forget: the caller does NOT await the network
+//  call. The user-creation / password-reset HTTP request returns
+//  immediately and the email goes out in the background. If the send fails
+//  the error is logged with a [mail] prefix so it shows up in `Logs`, but
+//  the HTTP request never blocks on SMTP/TLS handshakes or timeouts.
+//
+//  Required env:
 //    APP_URL         e.g. https://spd-tracker.onrender.com  (no trailing /)
+//    SMTP_FROM       e.g. 'SPD Tracker <no-reply@spd-tracker.com>'
+//
+//  For Brevo HTTP API mode:
+//    BREVO_API_KEY   long base64 string from https://app.brevo.com/settings/keys/api
+//
+//  For SMTP mode (legacy / alternative):
+//    SMTP_HOST, SMTP_PORT, SMTP_SECURE, SMTP_USER, SMTP_PASS
 // ---------------------------------------------------------------------------
 const nodemailer = require('nodemailer');
 
-const FROM = process.env.SMTP_FROM || 'SPD Tracker <no-reply@spd-tracker.local>';
+const FROM_RAW = process.env.SMTP_FROM || 'SPD Tracker <no-reply@spd-tracker.local>';
 const APP_URL = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
 
-let transporter = null;
-let mode = 'console';
+// Parse "Name <email>" into { name, email }; fall back to plain address.
+function parseFrom(raw) {
+  const m = raw.match(/^\s*(.+?)\s*<\s*([^>]+)\s*>\s*$/);
+  if (m) return { name: m[1].replace(/^"|"$/g, ''), email: m[2] };
+  return { name: undefined, email: raw.trim() };
+}
+const FROM = parseFrom(FROM_RAW);
 
+// --- Mode selection ---------------------------------------------------------
+function brevoConfigured() {
+  return !!process.env.BREVO_API_KEY;
+}
 function smtpConfigured() {
   return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
-function getTransport() {
-  if (transporter) return transporter;
-  if (smtpConfigured()) {
-    transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-    mode = 'smtp';
-  } else {
-    if (process.env.NODE_ENV === 'production') {
-      // Don't crash, but log loudly — production with no mail is a real bug.
-      console.error(
-        '[mail] SMTP not configured in production. Outgoing mail will be logged only.'
-      );
-    } else {
-      console.log('[mail] SMTP not configured. Outgoing mail will be logged to this terminal.');
-    }
-    transporter = {
-      sendMail: async ({ to, subject, text }) => {
-        console.log('\n──────────── [mail] outgoing ────────────');
-        console.log(`To:      ${to}`);
-        console.log(`Subject: ${subject}`);
-        console.log(text);
-        console.log('────────────────────────────────────────\n');
-        return { messageId: 'dev-' + Date.now() };
-      },
-    };
-    mode = 'console';
-  }
-  return transporter;
+let mode = 'console';
+if (brevoConfigured()) mode = 'brevo-http';
+else if (smtpConfigured()) mode = 'smtp';
+
+let smtpTransporter = null;
+function getSmtpTransport() {
+  if (smtpTransporter) return smtpTransporter;
+  smtpTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: Number(process.env.SMTP_PORT || 587),
+    secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
+    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    // Short timeouts so a hung connection doesn't pile up requests.
+    connectionTimeout: 8000,
+    socketTimeout: 8000,
+  });
+  return smtpTransporter;
 }
 
+// Startup announcement so the operator can confirm which mode is active.
+if (mode === 'brevo-http') {
+  console.log('[mail] mode=brevo-http (using Brevo HTTP API on port 443)');
+} else if (mode === 'smtp') {
+  console.log(`[mail] mode=smtp host=${process.env.SMTP_HOST} port=${process.env.SMTP_PORT || 587}`);
+} else if (process.env.NODE_ENV === 'production') {
+  console.error('[mail] mode=console - no Brevo or SMTP creds configured. Mail will be logged only.');
+} else {
+  console.log('[mail] mode=console (dev). Mail will be logged to this terminal.');
+}
+
+// --- Low-level send ---------------------------------------------------------
+async function sendViaBrevo({ to, subject, text }) {
+  const body = {
+    sender: FROM,
+    to: [{ email: to }],
+    subject,
+    textContent: text,
+  };
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'accept': 'application/json',
+      'content-type': 'application/json',
+      'api-key': process.env.BREVO_API_KEY,
+    },
+    body: JSON.stringify(body),
+    // Even though HTTPS rarely hangs, we don't want a stuck call to leak.
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Brevo HTTP ${res.status}: ${detail.slice(0, 200)}`);
+  }
+  return res.json().catch(() => ({}));
+}
+
+async function sendViaSmtp({ to, subject, text }) {
+  return getSmtpTransport().sendMail({
+    from: FROM_RAW,
+    to,
+    subject,
+    text,
+  });
+}
+
+function sendViaConsole({ to, subject, text }) {
+  console.log('\n──────────── [mail] outgoing ────────────');
+  console.log(`To:      ${to}`);
+  console.log(`Subject: ${subject}`);
+  console.log(text);
+  console.log('────────────────────────────────────────\n');
+  return Promise.resolve({ messageId: 'dev-' + Date.now() });
+}
+
+// Dispatcher. Fire-and-forget at the public API level — see send() below.
+async function doSend(msg) {
+  if (mode === 'brevo-http') return sendViaBrevo(msg);
+  if (mode === 'smtp') return sendViaSmtp(msg);
+  return sendViaConsole(msg);
+}
+
+// Public send: NEVER throws, NEVER blocks the caller. Logs success/failure.
+// Returns immediately (synchronously, conceptually) so HTTP handlers don't
+// stall on email delivery.
+function send(msg) {
+  // setImmediate keeps this off the request's event-loop tick.
+  setImmediate(() => {
+    doSend(msg)
+      .then(() => {
+        console.log(`[mail] sent ok via ${mode} -> ${msg.to} (${msg.subject})`);
+      })
+      .catch((err) => {
+        console.error(`[mail] FAILED via ${mode} -> ${msg.to}: ${err.message}`);
+      });
+  });
+}
+
+// --- Template helpers -------------------------------------------------------
 function url(path) {
   if (!path.startsWith('/')) path = '/' + path;
   return APP_URL + path;
 }
 
-async function sendInvite({ to, name, token, invitedByName }) {
+function sendInvite({ to, name, token, invitedByName }) {
   const link = url(`/accept-invite?token=${encodeURIComponent(token)}`);
-  await getTransport().sendMail({
-    from: FROM,
+  send({
     to,
     subject: 'You have been invited to the Safari Park Project tracker',
     text: [
@@ -89,10 +171,9 @@ async function sendInvite({ to, name, token, invitedByName }) {
   });
 }
 
-async function sendPasswordReset({ to, name, token }) {
+function sendPasswordReset({ to, name, token }) {
   const link = url(`/reset-password?token=${encodeURIComponent(token)}`);
-  await getTransport().sendMail({
-    from: FROM,
+  send({
     to,
     subject: 'Reset your SPD Tracker password',
     text: [
@@ -110,7 +191,7 @@ async function sendPasswordReset({ to, name, token }) {
 }
 
 function describe() {
-  return { mode, from: FROM, app_url: APP_URL };
+  return { mode, from: FROM_RAW, app_url: APP_URL };
 }
 
 module.exports = { sendInvite, sendPasswordReset, describe };
