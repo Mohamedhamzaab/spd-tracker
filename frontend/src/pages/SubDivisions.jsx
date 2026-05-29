@@ -2,14 +2,52 @@
 //  Sub-Divisions. Full register with a Quick-Add panel. The sequence number
 //  and reference (KM-S03) are assigned by the server, shown after saving.
 // ---------------------------------------------------------------------------
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog,
-  EngagementPill, useToast,
+  EngagementPill, useToast, useTableSort, SortableTH,
 } from '../components/ui.jsx';
+import ViewsBar from '../components/ViewsBar.jsx';
+import { useLive } from '../lib/liveStream.js';
+
+const SUB_LIVE_EVENTS = [
+  'data.subdivision.created', 'data.subdivision.updated', 'data.subdivision.deleted',
+  'data.communication.created', 'data.communication.updated', 'data.communication.deleted',
+];
+
+const ENGAGEMENT_STAGES = ['Identified', 'Contacted', 'Response Received', 'Outcome Secured'];
+
+function useDebouncedValue(value, ms) {
+  const [debounced, setDebounced] = useState(value);
+  const timer = useRef(null);
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(timer.current);
+  }, [value, ms]);
+  return debounced;
+}
+
+// Ladder order: earlier-on-the-ladder = lower rank.
+const ENGAGEMENT_RANK = {
+  'Identified':       0,
+  'Contacted':        1,
+  'Response Received':2,
+  'Outcome Secured':  3,
+};
+
+const SUB_COLS = {
+  sub_reference:     { value: (r) => r.sub_reference },
+  name:              { value: (r) => r.name },
+  authority_code:    { value: (r) => r.authority_code || '' },
+  discipline:        { value: (r) => r.discipline || '' },
+  engagement_status: { value: (r) => ENGAGEMENT_RANK[r.engagement_status] ?? -1, type: 'number' },
+  noc_status:        { value: (r) => r.noc_status || '' },
+  overdue_count:     { value: (r) => r.overdue_count, type: 'number', defaultDir: 'desc' },
+};
 
 export default function SubDivisions() {
   const { lists, isEditor } = useStore();
@@ -19,29 +57,50 @@ export default function SubDivisions() {
   const [rows, setRows] = useState(null);
   const [authorities, setAuthorities] = useState([]);
   const [error, setError] = useState('');
+
+  // Filters
   const [q, setQ] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statuses, setStatuses] = useState([]); // multi-select
+  const [authorityId, setAuthorityId] = useState('');
+  const [overdueOnly, setOverdueOnly] = useState(false);
+
   const [adding, setAdding] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [delRow, setDelRow] = useState(null);
 
-  function load() {
-    api.subDivisions().then(setRows).catch((e) => setError(e.message));
-  }
-  useEffect(() => {
-    load();
-    api.authorities().then(setAuthorities).catch(() => {});
-  }, []);
+  const qDebounced = useDebouncedValue(q, 250);
+  useEffect(() => { api.authorities().then(setAuthorities).catch(() => {}); }, []);
 
-  const filtered = (rows || []).filter((r) => {
-    if (statusFilter && r.engagement_status !== statusFilter) return false;
-    if (!q) return true;
-    const s = q.toLowerCase();
-    return (
-      r.name.toLowerCase().includes(s) ||
-      r.sub_reference.toLowerCase().includes(s) ||
-      (r.authority_name || '').toLowerCase().includes(s)
+  const params = useMemo(() => {
+    const p = {};
+    if (qDebounced) p.q = qDebounced;
+    if (statuses.length) p.status = statuses.join(',');
+    if (authorityId) p.authority_id = authorityId;
+    if (overdueOnly) p.overdue_only = 'true';
+    return p;
+  }, [qDebounced, statuses, authorityId, overdueOnly]);
+
+  function load(p) {
+    api.subDivisions(p).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(() => { setError(''); load(params); }, [params]);
+
+  // Live refresh on any sub-division or communication mutation upstream.
+  useLive(SUB_LIVE_EVENTS, () => load(params));
+
+  function toggleStatus(s) {
+    setStatuses((cur) =>
+      cur.includes(s) ? cur.filter((x) => x !== s) : [...cur, s]
     );
+  }
+  function clearFilters() {
+    setQ(''); setStatuses([]); setAuthorityId(''); setOverdueOnly(false);
+  }
+  const filtersActive = !!(q || statuses.length || authorityId || overdueOnly);
+
+  const { sorted, sortKey, sortDir, onSort } = useTableSort(rows || [], SUB_COLS, {
+    defaultKey: 'sub_reference',
+    defaultDir: 'asc',
   });
 
   return (
@@ -73,57 +132,97 @@ export default function SubDivisions() {
           </div>
         )}
 
-        <div className="toolbar">
+        <ViewsBar
+          target="sub_divisions"
+          currentParams={params}
+          onApply={(p) => {
+            setQ(p.q || '');
+            setStatuses(p.status ? String(p.status).split(',') : []);
+            setAuthorityId(p.authority_id ? String(p.authority_id) : '');
+            setOverdueOnly(p.overdue_only === 'true');
+          }}
+        />
+
+        <div className="filter-bar">
           <input
             className="search"
-            placeholder="Search by name, reference or authority"
+            placeholder="Search by name, reference, discipline, contact"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
           <select
             className="filter-select"
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={authorityId}
+            onChange={(e) => setAuthorityId(e.target.value)}
           >
-            <option value="">All statuses</option>
-            {['Identified', 'Contacted', 'Response Received', 'Outcome Secured'].map(
-              (s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              )
-            )}
+            <option value="">All authorities</option>
+            {authorities.map((a) => (
+              <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+            ))}
           </select>
+          <label className="check-row" style={{ background: 'var(--surface)', padding: '6px 10px', border: '1px solid var(--line)', borderRadius: 'var(--radius-sm)' }}>
+            <input
+              type="checkbox"
+              checked={overdueOnly}
+              onChange={(e) => setOverdueOnly(e.target.checked)}
+            />
+            <span>Overdue only</span>
+          </label>
+        </div>
+        <div className="filter-bar" style={{ marginTop: 10 }}>
+          <span className="section-note" style={{ marginRight: 4 }}>Status:</span>
+          {ENGAGEMENT_STAGES.map((s) => (
+            <button
+              key={s}
+              type="button"
+              className={'chip ' + (statuses.includes(s) ? 'chip-on' : '')}
+              onClick={() => toggleStatus(s)}
+            >
+              {s}
+            </button>
+          ))}
+          {filtersActive && (
+            <button className="btn btn-ghost" onClick={clearFilters} style={{ marginLeft: 'auto' }}>
+              Clear filters
+            </button>
+          )}
           <span className="section-note">
-            {filtered.length} of {(rows || []).length}
+            {rows ? rows.length : '…'} {rows && rows.length === 1 ? 'result' : 'results'}
           </span>
+          <button
+            className="btn btn-ghost"
+            onClick={() => api.downloadExport('/exports/sub-divisions.xlsx', 'sub-divisions.xlsx')}
+            title="Download all sub-divisions as .xlsx"
+          >
+            Export
+          </button>
         </div>
 
         {!rows ? (
           <Loading label="Loading sub-divisions" />
-        ) : filtered.length === 0 ? (
-          <Empty title="No sub-divisions found" />
+        ) : rows.length === 0 ? (
+          <Empty title="No sub-divisions match these filters" />
         ) : (
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>Reference</th>
-                  <th>Sub-Division</th>
-                  <th>Authority</th>
-                  <th>Discipline</th>
-                  <th>Status</th>
-                  <th>NOC Status</th>
-                  <th className="num">Overdue</th>
+                  <SortableTH id="sub_reference"     sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Reference</SortableTH>
+                  <SortableTH id="name"              sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Sub-Division</SortableTH>
+                  <SortableTH id="authority_code"    sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Authority</SortableTH>
+                  <SortableTH id="discipline"        sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Discipline</SortableTH>
+                  <SortableTH id="engagement_status" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Status</SortableTH>
+                  <SortableTH id="noc_status"        sortKey={sortKey} sortDir={sortDir} onSort={onSort}>NOC Status</SortableTH>
+                  <SortableTH id="overdue_count"     sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="num">Overdue</SortableTH>
                   {isEditor && <th></th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
+                {sorted.map((r) => (
                   <tr
                     key={r.id}
                     className="clickable"
-                    onClick={() => navigate('/sub-divisions/' + r.id)}
+                    onClick={() => navigate('/app/sub-divisions/' + r.id)}
                   >
                     <td className="mono">{r.sub_reference}</td>
                     <td className="cell-strong">{r.name}</td>
@@ -168,7 +267,7 @@ export default function SubDivisions() {
           onSaved={(ref) => {
             setAdding(false);
             toast('Sub-division added: ' + ref);
-            load();
+            load(params);
           }}
         />
       )}
@@ -181,7 +280,7 @@ export default function SubDivisions() {
           onSaved={() => {
             setEditRow(null);
             toast('Sub-division updated');
-            load();
+            load(params);
           }}
         />
       )}
@@ -194,7 +293,7 @@ export default function SubDivisions() {
             await api.deleteSub(delRow.id);
             setDelRow(null);
             toast('Sub-division deleted');
-            load();
+            load(params);
           }}
         />
       )}
@@ -202,7 +301,7 @@ export default function SubDivisions() {
   );
 }
 
-function SubForm({ lists, authorities, existing, onClose, onSaved }) {
+export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
   const editing = !!existing;
   const [values, setValues] = useState(
     editing

@@ -6,29 +6,51 @@ const express = require('express');
 const { query, withTransaction } = require('../db');
 const { wrap, httpError, ref } = require('../helpers');
 const { requireEditor } = require('../auth');
+const { logAudit } = require('../audit');
+const { publish } = require('../eventBus');
+const { softDeleteSubDivision, newGroupId } = require('../softDelete');
 
 const router = express.Router();
 
 // GET /api/sub-divisions  -  whole register, optionally filtered.
-//   ?authority_id=  ?status=  ?q=
+//   ?authority_id=
+//   ?status=Identified,Contacted,...    (subset, comma-separated)
+//   ?noc_status=Not Started,In Progress,...
+//   ?overdue_only=true
+//   ?q=keyword
 router.get(
   '/',
   wrap(async (req, res) => {
     const where = [];
     const params = [];
+
     if (req.query.authority_id) {
       params.push(Number(req.query.authority_id));
       where.push(`authority_id = $${params.length}`);
     }
-    if (req.query.status) {
-      params.push(req.query.status);
-      where.push(`engagement_status = $${params.length}`);
+    // Multi-status: ?status=Identified,Contacted → engagement_status IN (...).
+    // Walk the set without mutating it (mutation-during-map was buggy).
+    function inClause(column, value) {
+      const set = String(value).split(',').map((s) => s.trim()).filter(Boolean);
+      if (!set.length) return;
+      const placeholders = set.map((s) => {
+        params.push(s);
+        return '$' + params.length;
+      });
+      where.push(`${column} IN (${placeholders.join(',')})`);
+    }
+    if (req.query.status)     inClause('engagement_status', req.query.status);
+    if (req.query.noc_status) inClause('noc_status', req.query.noc_status);
+    if (req.query.overdue_only === 'true') {
+      where.push('overdue_count > 0');
     }
     if (req.query.q) {
-      params.push(`%${req.query.q.toLowerCase()}%`);
+      params.push(`%${String(req.query.q).toLowerCase()}%`);
       where.push(
         `(lower(name) LIKE $${params.length} OR lower(sub_reference) LIKE $${params.length}
-          OR lower(authority_name) LIKE $${params.length})`
+          OR lower(authority_name) LIKE $${params.length}
+          OR lower(coalesce(discipline,'')) LIKE $${params.length}
+          OR lower(coalesce(primary_contact,'')) LIKE $${params.length})`
       );
     }
     const sql =
@@ -114,6 +136,14 @@ router.post(
     });
 
     const row = await query('SELECT * FROM v_sub_division WHERE id = $1', [created]);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.subdivision.created',
+      target_type: 'sub_division',
+      target_id: row.rows[0].id,
+      payload: { sub_reference: row.rows[0].sub_reference, name: row.rows[0].name },
+      req,
+    });
     res.status(201).json(row.rows[0]);
   })
 );
@@ -161,6 +191,14 @@ router.put(
       ]
     );
     const row = await query('SELECT * FROM v_sub_division WHERE id = $1', [id]);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.subdivision.updated',
+      target_type: 'sub_division',
+      target_id: id,
+      payload: { sub_reference: row.rows[0].sub_reference, name: row.rows[0].name },
+      req,
+    });
     res.json(row.rows[0]);
   })
 );
@@ -171,9 +209,30 @@ router.delete(
   requireEditor,
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-    const found = await query('SELECT id FROM sub_divisions WHERE id = $1', [id]);
-    if (!found.rows[0]) throw httpError(404, 'Sub-division not found.');
-    await query('DELETE FROM sub_divisions WHERE id = $1', [id]);
+    let snapshot = null;
+    let group = null;
+    await withTransaction(async (client) => {
+      const found = await client.query(
+        'SELECT id, sub_reference, name FROM sub_divisions WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
+      if (!found.rows[0]) throw httpError(404, 'Sub-division not found.');
+      snapshot = found.rows[0];
+      group = newGroupId();
+      await softDeleteSubDivision(client, group, req.user.id, id);
+    });
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.subdivision.deleted',
+      target_type: 'sub_division',
+      target_id: id,
+      payload: {
+        sub_reference: snapshot.sub_reference,
+        name: snapshot.name,
+        deletion_group_id: group,
+      },
+      req,
+    });
     res.json({ ok: true });
   })
 );

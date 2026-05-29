@@ -6,36 +6,82 @@ const express = require('express');
 const { query, withTransaction } = require('../db');
 const { wrap, httpError, ref } = require('../helpers');
 const { requireEditor } = require('../auth');
+const { logAudit } = require('../audit');
+const { publish } = require('../eventBus');
+const { softDeleteCommunication, newGroupId } = require('../softDelete');
 
 const router = express.Router();
 
 // GET /api/communications  -  whole log, optionally filtered.
-//   ?sub_division_id=  ?direction=  ?overdue=true  ?q=
+//   ?sub_division_id=
+//   ?authority_id=
+//   ?direction=Outbound|Inbound
+//   ?overdue=true
+//   ?from=YYYY-MM-DD  ?to=YYYY-MM-DD
+//   ?status=overdue,awaiting,replied,logged  (subset, comma-separated)
+//   ?q=natural language search (Postgres websearch_to_tsquery)
+//
+// Status semantics — match the computed column on v_communication:
+//   overdue   is_overdue = TRUE
+//   awaiting  direction='Outbound' AND reply_needed AND NOT reply_received AND NOT overdue
+//   replied   direction='Outbound' AND reply_received
+//   logged    everything else
 router.get(
   '/',
   wrap(async (req, res) => {
     const where = [];
     const params = [];
-    if (req.query.sub_division_id) {
-      params.push(Number(req.query.sub_division_id));
-      where.push(`sub_division_id = $${params.length}`);
+    const add = (sql, ...vals) => {
+      let n = params.length;
+      const placed = sql.replace(/\?/g, () => '$' + (++n));
+      vals.forEach((v) => params.push(v));
+      where.push(placed);
+    };
+
+    if (req.query.sub_division_id) add('sub_division_id = ?', Number(req.query.sub_division_id));
+    if (req.query.authority_id) add('authority_id = ?', Number(req.query.authority_id));
+    if (req.query.direction) add('direction = ?', req.query.direction);
+    if (req.query.overdue === 'true') where.push('is_overdue = TRUE');
+    if (req.query.from) add('comm_date >= ?::date', req.query.from);
+    if (req.query.to) add('comm_date <= ?::date', req.query.to);
+
+    if (req.query.status) {
+      const set = String(req.query.status).split(',').map((s) => s.trim()).filter(Boolean);
+      const groups = [];
+      if (set.includes('overdue')) groups.push('is_overdue = TRUE');
+      if (set.includes('awaiting'))
+        groups.push("(direction = 'Outbound' AND reply_needed = TRUE AND reply_received = FALSE AND is_overdue = FALSE)");
+      if (set.includes('replied'))
+        groups.push("(direction = 'Outbound' AND reply_received = TRUE)");
+      if (set.includes('logged'))
+        groups.push("(direction = 'Inbound' OR (direction = 'Outbound' AND reply_needed = FALSE AND reply_received = FALSE))");
+      if (groups.length) where.push('(' + groups.join(' OR ') + ')');
     }
-    if (req.query.direction) {
-      params.push(req.query.direction);
-      where.push(`direction = $${params.length}`);
-    }
-    if (req.query.overdue === 'true') {
-      where.push('is_overdue = TRUE');
-    }
+
+    // FTS over the base `communications` table; we still SELECT from the
+    // enriched view so the result shape is unchanged.
     if (req.query.q) {
-      params.push(`%${req.query.q.toLowerCase()}%`);
-      const p = `$${params.length}`;
-      where.push(
-        `(lower(summary) LIKE ${p} OR lower(comm_code) LIKE ${p}
-          OR lower(submission_reference) LIKE ${p}
-          OR lower(sub_division_name) LIKE ${p})`
-      );
+      // websearch_to_tsquery handles quotes, OR/AND/NEGATE naturally.
+      // For very short queries (codes like "C-0012") fall back to ILIKE so
+      // the user still finds the row.
+      const q = String(req.query.q).trim();
+      if (q.length < 3) {
+        params.push('%' + q.toLowerCase() + '%');
+        where.push(`(lower(comm_code) LIKE $${params.length}
+                     OR lower(submission_reference) LIKE $${params.length}
+                     OR lower(sub_division_name) LIKE $${params.length}
+                     OR lower(authority_name) LIKE $${params.length})`);
+      } else {
+        params.push(q);
+        const p = '$' + params.length;
+        where.push(`(
+          id IN (SELECT id FROM communications WHERE search_tsv @@ websearch_to_tsquery('english', ${p}))
+          OR lower(sub_division_name) ILIKE '%' || lower(${p}) || '%'
+          OR lower(authority_name) ILIKE '%' || lower(${p}) || '%'
+        )`);
+      }
     }
+
     const sql =
       'SELECT * FROM v_communication' +
       (where.length ? ' WHERE ' + where.join(' AND ') : '') +
@@ -54,7 +100,9 @@ router.get(
     if (!row.rows[0]) throw httpError(404, 'Communication not found.');
     const docs = await query(
       `SELECT id, original_name, mime_type, size_bytes, uploaded_by, uploaded_at
-         FROM documents WHERE parent_type = 'communication' AND parent_id = $1
+         FROM documents
+        WHERE parent_type = 'communication' AND parent_id = $1
+          AND deleted_at IS NULL
         ORDER BY uploaded_at`,
       [id]
     );
@@ -126,6 +174,18 @@ router.post(
     });
 
     const row = await query('SELECT * FROM v_communication WHERE id = $1', [created]);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.communication.created',
+      target_type: 'communication',
+      target_id: row.rows[0].id,
+      payload: {
+        comm_code: row.rows[0].comm_code,
+        direction: row.rows[0].direction,
+        sub_division: row.rows[0].sub_reference,
+      },
+      req,
+    });
     res.status(201).json(row.rows[0]);
   })
 );
@@ -187,6 +247,17 @@ router.put(
       ]
     );
     const row = await query('SELECT * FROM v_communication WHERE id = $1', [id]);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.communication.updated',
+      target_type: 'communication',
+      target_id: id,
+      payload: {
+        comm_code: row.rows[0].comm_code,
+        direction: row.rows[0].direction,
+      },
+      req,
+    });
     res.json(row.rows[0]);
   })
 );
@@ -197,9 +268,30 @@ router.delete(
   requireEditor,
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-    const found = await query('SELECT id FROM communications WHERE id = $1', [id]);
-    if (!found.rows[0]) throw httpError(404, 'Communication not found.');
-    await query('DELETE FROM communications WHERE id = $1', [id]);
+    let snapshot = null;
+    let group = null;
+    await withTransaction(async (client) => {
+      const found = await client.query(
+        'SELECT id, comm_code, direction FROM communications WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
+      if (!found.rows[0]) throw httpError(404, 'Communication not found.');
+      snapshot = found.rows[0];
+      group = newGroupId();
+      await softDeleteCommunication(client, group, req.user.id, id);
+    });
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.communication.deleted',
+      target_type: 'communication',
+      target_id: id,
+      payload: {
+        comm_code: snapshot.comm_code,
+        direction: snapshot.direction,
+        deletion_group_id: group,
+      },
+      req,
+    });
     res.json({ ok: true });
   })
 );

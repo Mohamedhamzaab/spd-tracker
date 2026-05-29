@@ -10,6 +10,8 @@ import {
   Loading, Empty, ErrorBanner, Section, Modal, FormFields, ConfirmDialog,
   EngagementPill, StatusPill, DirectionPill, Pill, fmtDate, fileSize, useToast,
 } from '../components/ui.jsx';
+import AuditFeed from '../components/AuditFeed.jsx';
+import { SubForm } from './SubDivisions.jsx';
 
 export default function SubDivisionDetail() {
   const { id } = useParams();
@@ -21,6 +23,9 @@ export default function SubDivisionDetail() {
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
   const [openComm, setOpenComm] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [authorities, setAuthorities] = useState([]);
+  useEffect(() => { api.authorities().then(setAuthorities).catch(() => {}); }, []);
 
   function load() {
     api.subDivision(id).then(setData).catch((e) => setError(e.message));
@@ -51,14 +56,21 @@ export default function SubDivisionDetail() {
       <div className="topbar">
         <div>
           <div className="page-crumb">
-            <Link to="/sub-divisions">Sub-Divisions</Link> &nbsp;/&nbsp;{' '}
+            <Link to="/app/sub-divisions">Sub-Divisions</Link> &nbsp;/&nbsp;{' '}
             {data.sub_reference}
           </div>
           <div className="page-title">{data.name}</div>
         </div>
-        <button className="btn" onClick={() => navigate('/sub-divisions')}>
-          Back to register
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {isEditor && (
+            <button className="btn btn-primary" onClick={() => setEditing(true)}>
+              Edit sub-division
+            </button>
+          )}
+          <button className="btn" onClick={() => navigate('/app/sub-divisions')}>
+            Back to register
+          </button>
+        </div>
       </div>
       <div className="page stack-lg">
         <div className="card card-pad">
@@ -71,7 +83,7 @@ export default function SubDivisionDetail() {
               <Item
                 label="Authority"
                 value={
-                  <Link to={'/authorities/' + data.authority_id}>
+                  <Link to={'/app/authorities/' + data.authority_id}>
                     {data.authority_name}
                   </Link>
                 }
@@ -152,8 +164,26 @@ export default function SubDivisionDetail() {
             )}
           </Section>
         </div>
+
+        <div className="card card-pad">
+          <Section title="Recent activity" />
+          <AuditFeed targetType="sub_division" targetId={data.id} />
+        </div>
       </div>
 
+      {editing && (
+        <SubForm
+          lists={lists}
+          authorities={authorities}
+          existing={data}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            toast('Sub-division updated');
+            load();
+          }}
+        />
+      )}
       {adding && (
         <CommForm
           lists={lists}
@@ -190,23 +220,10 @@ function Item({ label, value }) {
 }
 
 /* ---- log a communication ------------------------------------------------ */
-export function CommForm({ lists, subId, onClose, onSaved }) {
-  const [values, setValues] = useState({
-    comm_date: new Date().toISOString().slice(0, 10),
-    direction: 'Outbound',
-    purpose: '',
-    mode: '',
-    submission_reference: '',
-    in_response_to: '',
-    summary: '',
-    reply_needed: false,
-    acc_link: '',
-  });
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-  const onChange = (n, v) => setValues((s) => ({ ...s, [n]: v }));
-
-  const fields = [
+// Field definitions are shared between create and edit so the two flows
+// always present an identical form.
+function commFieldDefs(lists) {
+  return [
     { name: 'comm_date', label: 'Date', type: 'date', required: true },
     { name: 'direction', label: 'Direction', type: 'select', required: true,
       options: lists.direction },
@@ -225,6 +242,42 @@ export function CommForm({ lists, subId, onClose, onSaved }) {
       type: 'checkbox', span: 2,
       help: 'Outbound items needing a reply are flagged overdue after 7 days.' },
   ];
+}
+
+function emptyCommValues() {
+  return {
+    comm_date: new Date().toISOString().slice(0, 10),
+    direction: 'Outbound',
+    purpose: '',
+    mode: '',
+    submission_reference: '',
+    in_response_to: '',
+    summary: '',
+    reply_needed: false,
+    acc_link: '',
+  };
+}
+
+function commValuesFromExisting(existing, parentCommCode) {
+  return {
+    comm_date: existing.comm_date ? String(existing.comm_date).slice(0, 10) : '',
+    direction: existing.direction || 'Outbound',
+    purpose: existing.purpose || '',
+    mode: existing.mode || '',
+    submission_reference: existing.submission_reference || '',
+    in_response_to: parentCommCode || '',
+    summary: existing.summary || '',
+    reply_needed: !!existing.reply_needed,
+    acc_link: existing.acc_link || '',
+  };
+}
+
+// Used in create mode (modal opened from a sub-division thread).
+export function CommForm({ lists, subId, onClose, onSaved }) {
+  const [values, setValues] = useState(emptyCommValues());
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const onChange = (n, v) => setValues((s) => ({ ...s, [n]: v }));
 
   async function save() {
     setError('');
@@ -258,7 +311,7 @@ export function CommForm({ lists, subId, onClose, onSaved }) {
       }
     >
       <ErrorBanner message={error} />
-      <FormFields fields={fields} values={values} onChange={onChange} disabled={busy} />
+      <FormFields fields={commFieldDefs(lists)} values={values} onChange={onChange} disabled={busy} />
     </Modal>
   );
 }
@@ -266,15 +319,64 @@ export function CommForm({ lists, subId, onClose, onSaved }) {
 /* ---- communication detail with documents -------------------------------- */
 export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   const toast = useToast();
+  const { lists } = useStore();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
+  // Edit mode: shares the modal shell, swaps the field grid for the form.
+  const [editing, setEditing] = useState(false);
+  const [values, setValues] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
+
   function load() {
     api.communication(commId).then(setData).catch((e) => setError(e.message));
   }
   useEffect(load, [commId]);
+
+  // Whenever the user clicks Edit, prefill the form from the current data,
+  // including the parent comm_code (looked up once) so the in-response-to
+  // field reads naturally instead of an internal id.
+  async function startEdit() {
+    setEditError('');
+    let parentCode = '';
+    if (data.in_response_to) {
+      try {
+        const parent = await api.communication(data.in_response_to);
+        parentCode = parent.comm_code || '';
+      } catch {
+        // not fatal — the field just renders empty
+      }
+    }
+    setValues(commValuesFromExisting(data, parentCode));
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setEditError('');
+  }
+
+  async function saveEdit() {
+    setEditError('');
+    if (!values.comm_date) { setEditError('A date is required.'); return; }
+    setSavingEdit(true);
+    try {
+      await api.updateComm(commId, values);
+      setEditing(false);
+      toast('Communication updated');
+      load();
+      onChanged && onChanged();
+    } catch (e) {
+      setEditError(e.message || 'Could not update.');
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  const onChangeField = (n, v) => setValues((s) => ({ ...s, [n]: v }));
 
   async function upload(files) {
     if (!files || !files.length) return;
@@ -311,14 +413,39 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
       sub={data ? data.sub_division_name : ''}
       onClose={onClose}
       footer={
-        <button className="btn" onClick={onClose}>
-          Close
-        </button>
+        editing ? (
+          <>
+            <button className="btn" onClick={cancelEdit} disabled={savingEdit}>
+              Cancel
+            </button>
+            <button className="btn btn-primary" onClick={saveEdit} disabled={savingEdit}>
+              {savingEdit ? 'Saving…' : 'Save changes'}
+            </button>
+          </>
+        ) : (
+          <>
+            {isEditor && (
+              <button className="btn" onClick={startEdit}>
+                Edit
+              </button>
+            )}
+            <button className="btn btn-primary" onClick={onClose}>
+              Close
+            </button>
+          </>
+        )
       }
     >
-      <ErrorBanner message={error} />
+      <ErrorBanner message={error || editError} />
       {!data ? (
         <Loading label="Loading" />
+      ) : editing && values ? (
+        <FormFields
+          fields={commFieldDefs(lists)}
+          values={values}
+          onChange={onChangeField}
+          disabled={savingEdit}
+        />
       ) : (
         <>
           <div className="detail-grid">

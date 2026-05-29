@@ -6,11 +6,16 @@ const express = require('express');
 const { query, withTransaction } = require('../db');
 const { wrap, httpError, ref } = require('../helpers');
 const { requireEditor } = require('../auth');
+const { logAudit } = require('../audit');
+const { publish } = require('../eventBus');
+const { softDeleteMeeting, newGroupId } = require('../softDelete');
 
 const router = express.Router();
 
 // GET /api/meetings  -  whole register, optionally filtered.
-//   ?authority_id=  ?q=
+//   ?authority_id=
+//   ?from=YYYY-MM-DD  ?to=YYYY-MM-DD
+//   ?q=natural language search (Postgres websearch_to_tsquery)
 router.get(
   '/',
   wrap(async (req, res) => {
@@ -20,24 +25,43 @@ router.get(
       params.push(Number(req.query.authority_id));
       where.push(`m.authority_id = $${params.length}`);
     }
-    if (req.query.q) {
-      params.push(`%${req.query.q.toLowerCase()}%`);
-      const p = `$${params.length}`;
-      where.push(
-        `(lower(a.name) LIKE ${p} OR lower(m.meeting_code) LIKE ${p}
-          OR lower(m.mom_reference) LIKE ${p} OR lower(m.location) LIKE ${p})`
-      );
+    if (req.query.from) {
+      params.push(req.query.from);
+      where.push(`m.meeting_date >= $${params.length}::date`);
     }
+    if (req.query.to) {
+      params.push(req.query.to);
+      where.push(`m.meeting_date <= $${params.length}::date`);
+    }
+    if (req.query.q) {
+      const q = String(req.query.q).trim();
+      if (q.length < 3) {
+        params.push('%' + q.toLowerCase() + '%');
+        const p = '$' + params.length;
+        where.push(`(lower(m.meeting_code) LIKE ${p}
+                     OR lower(m.mom_reference) LIKE ${p}
+                     OR lower(a.name) LIKE ${p})`);
+      } else {
+        params.push(q);
+        const p = '$' + params.length;
+        where.push(`(m.search_tsv @@ websearch_to_tsquery('english', ${p})
+                     OR lower(a.name) ILIKE '%' || lower(${p}) || '%')`);
+      }
+    }
+    // Filter soft-deleted meetings out of the main list. The Trash page
+    // queries the base table directly when it wants to see them.
+    where.push('m.deleted_at IS NULL');
     const sql =
       `SELECT m.*, a.code AS authority_code, a.name AS authority_name,
               sd.sub_reference AS primary_sub_reference,
               sd.name AS primary_sub_name,
               (SELECT count(*) FROM documents d
-                 WHERE d.parent_type = 'meeting' AND d.parent_id = m.id) AS document_count
+                 WHERE d.parent_type = 'meeting' AND d.parent_id = m.id
+                   AND d.deleted_at IS NULL) AS document_count
          FROM meetings m
-         JOIN authorities a ON a.id = m.authority_id
+         JOIN authorities a ON a.id = m.authority_id AND a.deleted_at IS NULL
          LEFT JOIN sub_divisions sd ON sd.id = m.primary_sub_id` +
-      (where.length ? ' WHERE ' + where.join(' AND ') : '') +
+      ' WHERE ' + where.join(' AND ') +
       ' ORDER BY m.meeting_date DESC, m.id DESC';
     const { rows } = await query(sql, params);
     res.json(rows);
@@ -55,13 +79,15 @@ router.get(
          FROM meetings m
          JOIN authorities a ON a.id = m.authority_id
          LEFT JOIN sub_divisions sd ON sd.id = m.primary_sub_id
-        WHERE m.id = $1`,
+        WHERE m.id = $1 AND m.deleted_at IS NULL`,
       [id]
     );
     if (!rows[0]) throw httpError(404, 'Meeting not found.');
     const docs = await query(
       `SELECT id, original_name, mime_type, size_bytes, uploaded_by, uploaded_at
-         FROM documents WHERE parent_type = 'meeting' AND parent_id = $1
+         FROM documents
+        WHERE parent_type = 'meeting' AND parent_id = $1
+          AND deleted_at IS NULL
         ORDER BY uploaded_at`,
       [id]
     );
@@ -135,6 +161,17 @@ router.post(
         WHERE m.id = $1`,
       [created]
     );
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.meeting.created',
+      target_type: 'meeting',
+      target_id: rows[0].id,
+      payload: {
+        meeting_code: rows[0].meeting_code,
+        authority_code: rows[0].authority_code,
+      },
+      req,
+    });
     res.status(201).json(rows[0]);
   })
 );
@@ -202,6 +239,17 @@ router.put(
         WHERE m.id = $1`,
       [id]
     );
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.meeting.updated',
+      target_type: 'meeting',
+      target_id: id,
+      payload: {
+        meeting_code: rows[0].meeting_code,
+        authority_code: rows[0].authority_code,
+      },
+      req,
+    });
     res.json(rows[0]);
   })
 );
@@ -212,9 +260,26 @@ router.delete(
   requireEditor,
   wrap(async (req, res) => {
     const id = Number(req.params.id);
-    const found = await query('SELECT id FROM meetings WHERE id = $1', [id]);
-    if (!found.rows[0]) throw httpError(404, 'Meeting not found.');
-    await query('DELETE FROM meetings WHERE id = $1', [id]);
+    let snapshot = null;
+    let group = null;
+    await withTransaction(async (client) => {
+      const found = await client.query(
+        'SELECT id, meeting_code FROM meetings WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
+      if (!found.rows[0]) throw httpError(404, 'Meeting not found.');
+      snapshot = found.rows[0];
+      group = newGroupId();
+      await softDeleteMeeting(client, group, req.user.id, id);
+    });
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.meeting.deleted',
+      target_type: 'meeting',
+      target_id: id,
+      payload: { meeting_code: snapshot.meeting_code, deletion_group_id: group },
+      req,
+    });
     res.json({ ok: true });
   })
 );

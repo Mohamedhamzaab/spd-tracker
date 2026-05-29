@@ -8,6 +8,9 @@ const path = require('path');
 const fs = require('fs');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const { logger, httpLogger, initSentry, captureException } = require('./logger');
+initSentry();
 
 const { router: authRouter, requireAuth } = require('./auth');
 const authorities = require('./routes/authorities');
@@ -16,28 +19,42 @@ const communications = require('./routes/communications');
 const meetings = require('./routes/meetings');
 const documents = require('./routes/documents');
 const dashboard = require('./routes/dashboard');
+const users = require('./routes/users');
+const audit = require('./routes/audit');
+const trash = require('./routes/trash');
+const exportsRouter = require('./routes/exports');
+const views = require('./routes/views');
+const stream = require('./routes/stream');
 const { router: lists } = require('./routes/lists');
 
 const app = express();
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
-app.use(express.json());
+// Behind Render's proxy, trust the first hop so req.ip reflects the client.
+app.set('trust proxy', 1);
 
-// Simple request log.
-app.use((req, res, next) => {
-  const started = Date.now();
-  res.on('finish', () => {
-    console.log(
-      `${new Date().toISOString()}  ${req.method} ${req.originalUrl}  ${res.statusCode}  ${Date.now() - started}ms`
-    );
-  });
-  next();
-});
+// Security headers. CSP is loosened in dev so Vite's HMR script + inline
+// styles still work; in production we keep helmet's defaults.
+const isProd = process.env.NODE_ENV === 'production';
+app.use(
+  helmet({
+    contentSecurityPolicy: isProd ? undefined : false,
+    crossOriginEmbedderPolicy: false, // allow R3F WebGL textures
+  })
+);
+app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+// 1 MB is plenty for our JSON payloads; uploads use multer separately.
+app.use(express.json({ limit: '1mb' }));
+
+// Structured access log via pino-http. JSON in production, pretty in dev.
+app.use(httpLogger());
 
 // Health check, useful for deployment monitoring.
 app.get('/api/health', (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
 // Authentication is open; everything else under /api needs a valid token.
 app.use('/api/auth', authRouter);
+// SSE handles its own auth (EventSource can't send headers, so it reads the
+// token from a query param) — mount it BEFORE requireAuth.
+app.use('/api/stream', stream);
 app.use('/api', requireAuth);
 app.use('/api/authorities', authorities);
 app.use('/api/sub-divisions', subdivisions);
@@ -45,6 +62,11 @@ app.use('/api/communications', communications);
 app.use('/api/meetings', meetings);
 app.use('/api/documents', documents);
 app.use('/api/dashboard', dashboard);
+app.use('/api/users', users);
+app.use('/api/audit', audit);
+app.use('/api/trash', trash);
+app.use('/api/exports', exportsRouter);
+app.use('/api/views', views);
 app.use('/api/lists', lists);
 
 // Serve the built front end if it has been built.
@@ -68,13 +90,24 @@ app.use((err, req, res, next) => {
     return res.status(413).json({ error: 'That file is larger than the upload limit.' });
   }
   const status = err.status || 500;
-  if (status >= 500) console.error('Server error:', err);
+  if (status >= 500) {
+    logger.error({ err, path: req.originalUrl, method: req.method }, 'Server error');
+    captureException(err, {
+      user: req.user ? { id: req.user.id, email: req.user.email, username: req.user.name, role: req.user.role } : undefined,
+      request: { method: req.method, path: req.originalUrl, ip: req.ip },
+    });
+  }
   res.status(status).json({ error: err.message || 'Something went wrong.' });
 });
 
 const PORT = Number(process.env.PORT) || 4000;
 app.listen(PORT, () => {
-  console.log(`SPD Tracker API listening on port ${PORT}`);
+  logger.info({ port: PORT }, `SPD Tracker API listening on port ${PORT}`);
+  try {
+    require('./digest').startScheduler();
+  } catch (err) {
+    logger.error({ err: err.message }, '[digest] failed to start scheduler');
+  }
 });
 
 module.exports = app;

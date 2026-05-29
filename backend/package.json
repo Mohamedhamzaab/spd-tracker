@@ -9,18 +9,37 @@
     "start:prod": "node src/init.js",
     "dev": "node --watch src/server.js",
     "migrate": "node src/migrate.js",
-    "seed": "node src/seed.js"
+    "seed": "node src/seed.js",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js",
+    "migrate-uploads": "node scripts/migrate-uploads-to-s3.js",
+    "digest": "node scripts/send-digest.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1056.0",
+    "@sentry/node": "^10.55.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
     "express": "^4.19.2",
+    "express-rate-limit": "^8.5.2",
+    "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.1.1",
-    "pg": "^8.12.0"
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.9",
+    "otplib": "^12.0.1",
+    "pdfkit": "^0.18.0",
+    "pg": "^8.12.0",
+    "pino": "^10.3.1",
+    "pino-http": "^11.0.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "pino-pretty": "^13.1.3"
   }
 }

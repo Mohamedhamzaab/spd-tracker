@@ -17,33 +17,42 @@ const { pool, withTransaction } = require('./db');
 
 // Starting accounts. Passwords here are first-login defaults and MUST be
 // changed by ECG IT before the platform is shared. See README.
+// password_must_change is set TRUE on every seeded account so the first
+// sign-in goes straight into the change-password flow.
 const USERS = [
+  {
+    name: 'SPD Super Admin',
+    email: 'superadmin@ecg.example',
+    password: 'ChangeMe-Super-1',
+    role: 'super_admin',
+    organisation: 'ECG',
+  },
   {
     name: 'Sherif El Daly',
     email: 'sherif.eldaly@ecg.example',
-    password: 'ChangeMe-Editor-1',
-    role: 'editor',
+    password: 'ChangeMe-Admin-1',
+    role: 'admin',
     organisation: 'ECG',
   },
   {
     name: 'ECG Project Administrator',
     email: 'spd.admin@ecg.example',
-    password: 'ChangeMe-Editor-2',
-    role: 'editor',
+    password: 'ChangeMe-Admin-2',
+    role: 'admin',
     organisation: 'ECG',
   },
   {
     name: 'Egis Reviewer',
     email: 'reviewer@egis.example',
-    password: 'ChangeMe-Viewer-1',
-    role: 'viewer',
+    password: 'ChangeMe-Reviewer-1',
+    role: 'reviewer',
     organisation: 'Egis',
   },
   {
     name: 'Safari Park Doha',
     email: 'client@safariparkdoha.example',
-    password: 'ChangeMe-Viewer-2',
-    role: 'viewer',
+    password: 'ChangeMe-Reviewer-2',
+    role: 'reviewer',
     organisation: 'Safari Park Doha',
   },
 ];
@@ -56,8 +65,9 @@ async function seedUsers(client) {
   for (const u of USERS) {
     const hash = await bcrypt.hash(u.password, 10);
     await client.query(
-      `INSERT INTO users (name, email, password_hash, role, organisation)
-       VALUES ($1,$2,$3,$4,$5)
+      `INSERT INTO users
+         (name, email, password_hash, role, organisation, password_must_change)
+       VALUES ($1,$2,$3,$4,$5,TRUE)
        ON CONFLICT (email) DO UPDATE
          SET name = EXCLUDED.name,
              role = EXCLUDED.role,

@@ -5,6 +5,9 @@ const express = require('express');
 const { query, withTransaction } = require('../db');
 const { wrap, httpError, suggestCode } = require('../helpers');
 const { requireEditor } = require('../auth');
+const { logAudit } = require('../audit');
+const { publish } = require('../eventBus');
+const { softDeleteAuthority, newGroupId } = require('../softDelete');
 
 const router = express.Router();
 
@@ -92,6 +95,14 @@ router.post(
     const created = await query('SELECT * FROM v_authority WHERE id = $1', [
       rows[0].id,
     ]);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.authority.created',
+      target_type: 'authority',
+      target_id: created.rows[0].id,
+      payload: { code: created.rows[0].code, name: created.rows[0].name },
+      req,
+    });
     res.status(201).json(created.rows[0]);
   })
 );
@@ -127,20 +138,46 @@ router.put(
       ]
     );
     const updated = await query('SELECT * FROM v_authority WHERE id = $1', [id]);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.authority.updated',
+      target_type: 'authority',
+      target_id: id,
+      payload: { code: updated.rows[0].code, name: updated.rows[0].name },
+      req,
+    });
     res.json(updated.rows[0]);
   })
 );
 
 // DELETE /api/authorities/:id  -  removes the authority and everything under it.
+// DELETE soft-deletes the authority and cascades the same deletion_group_id
+// down through sub-divisions, meetings, communications and documents so the
+// whole sub-tree can be restored atomically from Trash later.
 router.delete(
   '/:id',
   requireEditor,
   wrap(async (req, res) => {
     const id = Number(req.params.id);
+    let snapshot = null;
+    let group = null;
     await withTransaction(async (client) => {
-      const found = await client.query('SELECT id FROM authorities WHERE id = $1', [id]);
+      const found = await client.query(
+        'SELECT id, code, name FROM authorities WHERE id = $1 AND deleted_at IS NULL',
+        [id]
+      );
       if (!found.rows[0]) throw httpError(404, 'Authority not found.');
-      await client.query('DELETE FROM authorities WHERE id = $1', [id]);
+      snapshot = found.rows[0];
+      group = newGroupId();
+      await softDeleteAuthority(client, group, req.user.id, id);
+    });
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.authority.deleted',
+      target_type: 'authority',
+      target_id: id,
+      payload: { code: snapshot.code, name: snapshot.name, deletion_group_id: group },
+      req,
     });
     res.json({ ok: true });
   })

@@ -8,7 +8,18 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, useToast,
+  useTableSort, SortableTH,
 } from '../components/ui.jsx';
+
+const AUTH_COLS = {
+  code:                 { value: (r) => r.code },
+  name:                 { value: (r) => r.name },
+  category:             { value: (r) => r.category || '' },
+  influence_level:      { value: (r) => r.influence_level || '' },
+  sub_division_count:   { value: (r) => r.sub_division_count, type: 'number' },
+  sub_divisions_engaged:{ value: (r) => r.sub_divisions_engaged, type: 'number' },
+  outcome_secured_count:{ value: (r) => r.outcome_secured_count, type: 'number' },
+};
 
 export default function Authorities() {
   const { lists, isEditor } = useStore();
@@ -35,6 +46,11 @@ export default function Authorities() {
       r.code.toLowerCase().includes(s) ||
       (r.category || '').toLowerCase().includes(s)
     );
+  });
+
+  const { sorted, sortKey, sortDir, onSort } = useTableSort(filtered, AUTH_COLS, {
+    defaultKey: 'code',
+    defaultDir: 'asc',
   });
 
   return (
@@ -75,6 +91,13 @@ export default function Authorities() {
           <span className="section-note">
             {filtered.length} of {(rows || []).length}
           </span>
+          <button
+            className="btn btn-ghost"
+            onClick={() => api.downloadExport('/exports/authorities.xlsx', 'authorities.xlsx')}
+            title="Download all authorities as .xlsx"
+          >
+            Export
+          </button>
         </div>
 
         {!rows ? (
@@ -86,22 +109,22 @@ export default function Authorities() {
             <table>
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Authority</th>
-                  <th>Category</th>
-                  <th>Influence</th>
-                  <th className="num">Sub-Divisions</th>
-                  <th className="num">Engaged</th>
-                  <th className="num">Outcome</th>
+                  <SortableTH id="code"                 sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Code</SortableTH>
+                  <SortableTH id="name"                 sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Authority</SortableTH>
+                  <SortableTH id="category"             sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Category</SortableTH>
+                  <SortableTH id="influence_level"      sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Influence</SortableTH>
+                  <SortableTH id="sub_division_count"   sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="num">Sub-Divisions</SortableTH>
+                  <SortableTH id="sub_divisions_engaged" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="num">Engaged</SortableTH>
+                  <SortableTH id="outcome_secured_count" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="num">Outcome</SortableTH>
                   {isEditor && <th></th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => (
+                {sorted.map((r) => (
                   <tr
                     key={r.id}
                     className="clickable"
-                    onClick={() => navigate('/authorities/' + r.id)}
+                    onClick={() => navigate('/app/authorities/' + r.id)}
                   >
                     <td className="mono">{r.code}</td>
                     <td>
@@ -181,7 +204,7 @@ export default function Authorities() {
   );
 }
 
-function AuthorityForm({ lists, existing, onClose, onSaved }) {
+export function AuthorityForm({ lists, existing, onClose, onSaved }) {
   const editing = !!existing;
   const [values, setValues] = useState(
     editing

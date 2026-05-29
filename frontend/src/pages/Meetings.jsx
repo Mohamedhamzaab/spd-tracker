@@ -2,13 +2,40 @@
 //  Meetings. The register with an add form whose Primary Sub-Division list
 //  is filtered to the chosen authority's sub-divisions only.
 // ---------------------------------------------------------------------------
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
-  fmtDate, useToast,
+  fmtDate, useToast, useTableSort, SortableTH,
 } from '../components/ui.jsx';
+import ViewsBar from '../components/ViewsBar.jsx';
+import { useLive } from '../lib/liveStream.js';
+
+const MEETING_LIVE_EVENTS = [
+  'data.meeting.created', 'data.meeting.updated', 'data.meeting.deleted',
+];
+
+function useDebouncedValue(value, ms) {
+  const [debounced, setDebounced] = useState(value);
+  const timer = useRef(null);
+  useEffect(() => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(timer.current);
+  }, [value, ms]);
+  return debounced;
+}
+
+const MEETING_COLS = {
+  meeting_code:   { value: (r) => r.meeting_code },
+  meeting_date:   { value: (r) => r.meeting_date, type: 'date', defaultDir: 'desc' },
+  authority_name: { value: (r) => r.authority_name || '' },
+  primary_sub:    { value: (r) => r.primary_sub_reference || r.primary_sub_name || '' },
+  purpose:        { value: (r) => r.purpose || '' },
+  mode:           { value: (r) => r.mode || '' },
+  mom_reference:  { value: (r) => r.mom_reference || '' },
+};
 
 export default function Meetings() {
   const { lists, isEditor } = useStore();
@@ -16,28 +43,43 @@ export default function Meetings() {
   const [rows, setRows] = useState(null);
   const [authorities, setAuthorities] = useState([]);
   const [error, setError] = useState('');
+
+  // Filters
   const [q, setQ] = useState('');
+  const [authorityId, setAuthorityId] = useState('');
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
   const [adding, setAdding] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [delRow, setDelRow] = useState(null);
 
-  function load() {
-    api.meetings().then(setRows).catch((e) => setError(e.message));
-  }
-  useEffect(() => {
-    load();
-    api.authorities().then(setAuthorities).catch(() => {});
-  }, []);
+  const qDebounced = useDebouncedValue(q, 250);
+  useEffect(() => { api.authorities().then(setAuthorities).catch(() => {}); }, []);
 
-  const filtered = (rows || []).filter((r) => {
-    if (!q) return true;
-    const s = q.toLowerCase();
-    return (
-      (r.authority_name || '').toLowerCase().includes(s) ||
-      r.meeting_code.toLowerCase().includes(s) ||
-      (r.mom_reference || '').toLowerCase().includes(s) ||
-      (r.location || '').toLowerCase().includes(s)
-    );
+  const params = useMemo(() => {
+    const p = {};
+    if (qDebounced) p.q = qDebounced;
+    if (authorityId) p.authority_id = authorityId;
+    if (from) p.from = from;
+    if (to) p.to = to;
+    return p;
+  }, [qDebounced, authorityId, from, to]);
+
+  function load(p) {
+    api.meetings(p).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(() => { setError(''); load(params); }, [params]);
+  useLive(MEETING_LIVE_EVENTS, () => load(params));
+
+  function clearFilters() {
+    setQ(''); setAuthorityId(''); setFrom(''); setTo('');
+  }
+  const filtersActive = !!(q || authorityId || from || to);
+
+  const { sorted, sortKey, sortDir, onSort } = useTableSort(rows || [], MEETING_COLS, {
+    defaultKey: 'meeting_date',
+    defaultDir: 'desc',
   });
 
   return (
@@ -60,21 +102,61 @@ export default function Meetings() {
           tracker records the meeting and links to the MoM.
         </div>
 
-        <div className="toolbar">
+        <ViewsBar
+          target="meetings"
+          currentParams={params}
+          onApply={(p) => {
+            setQ(p.q || '');
+            setAuthorityId(p.authority_id ? String(p.authority_id) : '');
+            setFrom(p.from || '');
+            setTo(p.to || '');
+          }}
+        />
+
+        <div className="filter-bar">
           <input
             className="search"
-            placeholder="Search by authority, code, MoM reference or location"
+            placeholder='Search — try "kick-off" or "MoM-26-01"'
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
+          <select
+            className="filter-select"
+            value={authorityId}
+            onChange={(e) => setAuthorityId(e.target.value)}
+          >
+            <option value="">All authorities</option>
+            {authorities.map((a) => (
+              <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+            ))}
+          </select>
+          <div className="filter-date-pair">
+            <input className="filter-select" type="date" value={from}
+              onChange={(e) => setFrom(e.target.value)} aria-label="From date" />
+            <span className="filter-date-sep">→</span>
+            <input className="filter-select" type="date" value={to}
+              onChange={(e) => setTo(e.target.value)} aria-label="To date" />
+          </div>
+          {filtersActive && (
+            <button className="btn btn-ghost" onClick={clearFilters} style={{ marginLeft: 'auto' }}>
+              Clear filters
+            </button>
+          )}
           <span className="section-note">
-            {filtered.length} of {(rows || []).length}
+            {rows ? rows.length : '…'} {rows && rows.length === 1 ? 'result' : 'results'}
           </span>
+          <button
+            className="btn btn-ghost"
+            onClick={() => api.downloadExport('/exports/meetings.xlsx', 'meetings.xlsx')}
+            title="Download all meetings as .xlsx"
+          >
+            Export
+          </button>
         </div>
 
         {!rows ? (
           <Loading label="Loading meetings" />
-        ) : filtered.length === 0 ? (
+        ) : rows.length === 0 ? (
           <Empty
             title="No meetings logged"
             sub={isEditor ? 'Add the first one above.' : undefined}
@@ -84,18 +166,18 @@ export default function Meetings() {
             <table>
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Date</th>
-                  <th>Authority</th>
-                  <th>Primary Sub-Division</th>
-                  <th>Purpose</th>
-                  <th>Mode</th>
-                  <th>MoM</th>
+                  <SortableTH id="meeting_code"   sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Code</SortableTH>
+                  <SortableTH id="meeting_date"   sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Date</SortableTH>
+                  <SortableTH id="authority_name" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Authority</SortableTH>
+                  <SortableTH id="primary_sub"    sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Primary Sub-Division</SortableTH>
+                  <SortableTH id="purpose"        sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Purpose</SortableTH>
+                  <SortableTH id="mode"           sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Mode</SortableTH>
+                  <SortableTH id="mom_reference"  sortKey={sortKey} sortDir={sortDir} onSort={onSort}>MoM</SortableTH>
                   {isEditor && <th></th>}
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((m) => (
+                {sorted.map((m) => (
                   <tr key={m.id}>
                     <td className="mono">{m.meeting_code}</td>
                     <td>{fmtDate(m.meeting_date)}</td>
@@ -157,7 +239,7 @@ export default function Meetings() {
           onSaved={(code) => {
             setAdding(false);
             toast('Meeting added: ' + code);
-            load();
+            load(params);
           }}
         />
       )}
@@ -170,7 +252,7 @@ export default function Meetings() {
           onSaved={() => {
             setEditRow(null);
             toast('Meeting updated');
-            load();
+            load(params);
           }}
         />
       )}
@@ -183,7 +265,7 @@ export default function Meetings() {
             await api.deleteMeeting(delRow.id);
             setDelRow(null);
             toast('Meeting deleted');
-            load();
+            load(params);
           }}
         />
       )}

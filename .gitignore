@@ -14,6 +14,9 @@ backend/.env
 backend/uploads/
 !backend/uploads/.gitkeep
 
+# backups (timestamped pg_dumps — keep them off git)
+backend/backups/
+
 # logs & system noise
 *.log
 npm-debug.log*

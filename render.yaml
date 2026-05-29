@@ -60,3 +60,21 @@ services:
         value: "*"
       - key: PGSSL
         value: "true"
+      # Public URL of the front end — used to build invitation + reset links
+      # in outgoing emails. Change here if the service is renamed.
+      - key: APP_URL
+        value: https://spd-tracker.onrender.com
+      # Sensible defaults. Override in the Render dashboard if you want
+      # actual mail delivery, Sentry, S3, or the weekly digest. Leaving the
+      # SMTP_* block blank logs invite/reset emails to the service console
+      # instead of sending them.
+      - key: STORAGE_BACKEND
+        value: disk
+      - key: DIGEST_ENABLED
+        value: "false"
+      - key: LOG_LEVEL
+        value: info
+      # MFA_ENC_KEY must be added manually in the Render dashboard before any
+      # user enrols MFA — the server boots without it; only MFA setup fails.
+      # Generate with:
+      #   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"

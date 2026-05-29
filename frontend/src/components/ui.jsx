@@ -2,7 +2,107 @@
 //  Shared UI building blocks: layout pieces, table, pills, buttons, modal,
 //  a controlled form, file list, toast. Kept in one file so pages stay small.
 // ---------------------------------------------------------------------------
-import { useEffect, useState, createContext, useContext, useCallback } from 'react';
+import { useEffect, useState, createContext, useContext, useCallback, useMemo } from 'react';
+
+/* ---- sortable table helpers --------------------------------------------- */
+//
+// Usage:
+//   const cols = {
+//     comm_code: { value: r => r.comm_code },
+//     comm_date: { value: r => r.comm_date, type: 'date' },
+//     status:    { value: r => statusRank(r), type: 'number' },
+//   };
+//   const { sorted, sortKey, sortDir, onSort } = useTableSort(filtered, cols, {
+//     defaultKey: 'comm_date', defaultDir: 'desc',
+//   });
+//   <SortableTH id="comm_date" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>
+//     Date
+//   </SortableTH>
+//
+// Comparator types:
+//   'string' (default)  localeCompare, case-insensitive
+//   'number'            numeric
+//   'date'              parsed via Date
+// Or pass `compare: (a, b) => ...` for full control.
+//
+// Click toggles between asc and desc; default arrives on first render.
+
+function defaultCompare(type) {
+  if (type === 'number') return (a, b) => (Number(a) || 0) - (Number(b) || 0);
+  if (type === 'date') {
+    return (a, b) => {
+      const da = a ? new Date(a).getTime() : 0;
+      const db = b ? new Date(b).getTime() : 0;
+      return da - db;
+    };
+  }
+  return (a, b) =>
+    String(a ?? '').localeCompare(String(b ?? ''), undefined, { sensitivity: 'base' });
+}
+
+export function useTableSort(rows, columns, opts = {}) {
+  const { defaultKey = null, defaultDir = 'asc' } = opts;
+  const [sortKey, setSortKey] = useState(defaultKey);
+  const [sortDir, setSortDir] = useState(defaultDir);
+
+  const sorted = useMemo(() => {
+    if (!rows) return rows;
+    if (!sortKey || !columns[sortKey]) return rows;
+    const col = columns[sortKey];
+    const cmp = col.compare || defaultCompare(col.type);
+    const dir = sortDir === 'desc' ? -1 : 1;
+    // Stable sort: index pairs preserve relative order for equal keys.
+    return rows
+      .map((r, i) => [r, i])
+      .sort((a, b) => {
+        const va = col.value(a[0]);
+        const vb = col.value(b[0]);
+        const c = cmp(va, vb);
+        if (c !== 0) return c * dir;
+        return a[1] - b[1];
+      })
+      .map((p) => p[0]);
+  }, [rows, columns, sortKey, sortDir]);
+
+  const onSort = useCallback(
+    (key) => {
+      setSortDir((prevDir) => {
+        if (key === sortKey) return prevDir === 'asc' ? 'desc' : 'asc';
+        return columns[key]?.defaultDir || 'asc';
+      });
+      if (key !== sortKey) setSortKey(key);
+    },
+    [sortKey, columns]
+  );
+
+  return { sorted, sortKey, sortDir, onSort };
+}
+
+export function SortableTH({ id, sortKey, sortDir, onSort, children, className = '' }) {
+  const active = id === sortKey;
+  const arrow = active ? (sortDir === 'desc' ? '▾' : '▴') : '↕';
+  return (
+    <th
+      className={`th-sort ${active ? 'th-sort-active' : ''} ${className}`}
+      onClick={() => onSort(id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onSort(id);
+        }
+      }}
+      aria-sort={active ? (sortDir === 'desc' ? 'descending' : 'ascending') : 'none'}
+    >
+      <span className="th-sort-inner">
+        <span>{children}</span>
+        <span className="th-sort-arrow">{arrow}</span>
+      </span>
+    </th>
+  );
+}
+
 
 /* ---- formatting --------------------------------------------------------- */
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];

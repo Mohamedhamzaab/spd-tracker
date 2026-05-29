@@ -92,18 +92,29 @@ folder (front end on port 5173, proxying the API on 4000).
 
 ## Starting accounts
 
-The seed creates four accounts. **The passwords below are first-login defaults
-and must be changed before the platform is shared** - see DEPLOYMENT.md.
+The seed creates five accounts. **The passwords below are first-login
+defaults and must be changed before the platform is shared** — every seeded
+account is flagged `password_must_change`, so the change-password screen is
+forced on first sign-in. See DEPLOYMENT.md.
 
-| Role   | Email                              | Default password    |
-|--------|------------------------------------|---------------------|
-| Editor | sherif.eldaly@ecg.example          | ChangeMe-Editor-1   |
-| Editor | spd.admin@ecg.example              | ChangeMe-Editor-2   |
-| Viewer | reviewer@egis.example              | ChangeMe-Viewer-1   |
-| Viewer | client@safariparkdoha.example      | ChangeMe-Viewer-2   |
+| Role         | Email                              | Default password        |
+|--------------|------------------------------------|-------------------------|
+| Super-admin  | superadmin@ecg.example             | ChangeMe-Super-1        |
+| Admin        | sherif.eldaly@ecg.example          | ChangeMe-Admin-1        |
+| Admin        | spd.admin@ecg.example              | ChangeMe-Admin-2        |
+| Reviewer     | reviewer@egis.example              | ChangeMe-Reviewer-1     |
+| Reviewer     | client@safariparkdoha.example      | ChangeMe-Reviewer-2     |
 
-Replace the email addresses with the real ones for the people who will use
-the platform. How to do that is in DEPLOYMENT.md.
+After signing in as the super-admin and finishing MFA enrollment, invite the
+real ECG / Egis / Safari Park Doha users from the **Users** page
+(Administration → Users), then delete or disable the demo accounts you don't
+need. Roles:
+
+- **super_admin** — manages accounts (invite, change role, force reset,
+  clear MFA, delete). One or two trusted ECG IT staff.
+- **admin** — writes data. ECG staff who log communications, meetings,
+  documents.
+- **reviewer** — read-only. Client, Egis, Safari Park Doha.
 
 ---
 

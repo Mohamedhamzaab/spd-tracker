@@ -4,19 +4,43 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
+import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Section, EngagementPill,
+  useTableSort, SortableTH, useToast,
 } from '../components/ui.jsx';
+import AuditFeed from '../components/AuditFeed.jsx';
+import { AuthorityForm } from './Authorities.jsx';
+
+const ENGAGEMENT_RANK = {
+  'Identified': 0, 'Contacted': 1, 'Response Received': 2, 'Outcome Secured': 3,
+};
+
+const AUTH_SUB_COLS = {
+  sub_reference:     { value: (s) => s.sub_reference },
+  name:              { value: (s) => s.name },
+  discipline:        { value: (s) => s.discipline || '' },
+  engagement_status: { value: (s) => ENGAGEMENT_RANK[s.engagement_status] ?? -1, type: 'number' },
+  outbound_count:    { value: (s) => s.outbound_count, type: 'number', defaultDir: 'desc' },
+  inbound_count:     { value: (s) => s.inbound_count, type: 'number', defaultDir: 'desc' },
+  overdue_count:     { value: (s) => s.overdue_count, type: 'number', defaultDir: 'desc' },
+};
 
 export default function AuthorityDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { lists, isEditor } = useStore();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
 
+  function reload() {
+    api.authority(id).then(setData).catch((e) => setError(e.message));
+  }
   useEffect(() => {
     setData(null);
-    api.authority(id).then(setData).catch((e) => setError(e.message));
+    reload();
   }, [id]);
 
   if (error) {
@@ -34,19 +58,29 @@ export default function AuthorityDetail() {
   if (!data) return <Loading label="Loading authority" />;
 
   const subs = data.sub_divisions || [];
+  const { sorted: sortedSubs, sortKey, sortDir, onSort } = useTableSort(
+    subs, AUTH_SUB_COLS, { defaultKey: 'sub_reference', defaultDir: 'asc' }
+  );
 
   return (
     <>
       <div className="topbar">
         <div>
           <div className="page-crumb">
-            <Link to="/authorities">Authorities</Link> &nbsp;/&nbsp; {data.code}
+            <Link to="/app/authorities">Authorities</Link> &nbsp;/&nbsp; {data.code}
           </div>
           <div className="page-title">{data.name}</div>
         </div>
-        <button className="btn" onClick={() => navigate('/authorities')}>
-          Back to register
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {isEditor && (
+            <button className="btn btn-primary" onClick={() => setEditing(true)}>
+              Edit authority
+            </button>
+          )}
+          <button className="btn" onClick={() => navigate('/app/authorities')}>
+            Back to register
+          </button>
+        </div>
       </div>
       <div className="page stack-lg">
         <div className="card card-pad">
@@ -83,21 +117,21 @@ export default function AuthorityDetail() {
               <table>
                 <thead>
                   <tr>
-                    <th>Reference</th>
-                    <th>Sub-Division</th>
-                    <th>Discipline</th>
-                    <th>Status</th>
-                    <th className="num">Outbound</th>
-                    <th className="num">Responses</th>
-                    <th className="num">Overdue</th>
+                    <SortableTH id="sub_reference"     sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Reference</SortableTH>
+                    <SortableTH id="name"              sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Sub-Division</SortableTH>
+                    <SortableTH id="discipline"        sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Discipline</SortableTH>
+                    <SortableTH id="engagement_status" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Status</SortableTH>
+                    <SortableTH id="outbound_count"    sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="num">Outbound</SortableTH>
+                    <SortableTH id="inbound_count"     sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="num">Responses</SortableTH>
+                    <SortableTH id="overdue_count"     sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="num">Overdue</SortableTH>
                   </tr>
                 </thead>
                 <tbody>
-                  {subs.map((s) => (
+                  {sortedSubs.map((s) => (
                     <tr
                       key={s.id}
                       className="clickable"
-                      onClick={() => navigate('/sub-divisions/' + s.id)}
+                      onClick={() => navigate('/app/sub-divisions/' + s.id)}
                     >
                       <td className="mono">{s.sub_reference}</td>
                       <td>
@@ -120,7 +154,25 @@ export default function AuthorityDetail() {
             </div>
           )}
         </div>
+
+        <div className="card card-pad">
+          <Section title="Recent activity" />
+          <AuditFeed targetType="authority" targetId={data.id} />
+        </div>
       </div>
+
+      {editing && (
+        <AuthorityForm
+          lists={lists}
+          existing={data}
+          onClose={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            toast('Authority updated');
+            reload();
+          }}
+        />
+      )}
     </>
   );
 }
