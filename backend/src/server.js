@@ -25,6 +25,8 @@ const trash = require('./routes/trash');
 const exportsRouter = require('./routes/exports');
 const views = require('./routes/views');
 const stream = require('./routes/stream');
+const comments = require('./routes/comments');
+const tasks = require('./routes/tasks');
 const { router: lists } = require('./routes/lists');
 
 const app = express();
@@ -67,6 +69,8 @@ app.use('/api/audit', audit);
 app.use('/api/trash', trash);
 app.use('/api/exports', exportsRouter);
 app.use('/api/views', views);
+app.use('/api/comments', comments);
+app.use('/api/tasks', tasks);
 app.use('/api/lists', lists);
 
 // Serve the built front end if it has been built.

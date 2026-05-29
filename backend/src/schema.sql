@@ -295,6 +295,68 @@ CREATE TABLE IF NOT EXISTS saved_views (
 
 CREATE INDEX IF NOT EXISTS idx_saved_views_user ON saved_views(user_id, target);
 
+-- ---------------------------------------------------------------------------
+--  COMMENTS  -  free-text discussion threaded against a record. Soft-
+--  deletable. Author can edit their own (sets edited_at); author or
+--  super-admin can delete.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS comments (
+    id              SERIAL PRIMARY KEY,
+    parent_type     TEXT        NOT NULL CHECK (parent_type IN
+                      ('communication', 'sub_division', 'meeting', 'authority')),
+    parent_id       INTEGER     NOT NULL,
+    author_id       INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    body            TEXT        NOT NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    edited_at       TIMESTAMPTZ,
+    deleted_at      TIMESTAMPTZ,
+    deleted_by      INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    deletion_group_id UUID
+);
+
+CREATE INDEX IF NOT EXISTS idx_comments_parent
+    ON comments(parent_type, parent_id, created_at)
+    WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_comments_author
+    ON comments(author_id)
+    WHERE deleted_at IS NULL;
+
+-- ---------------------------------------------------------------------------
+--  TASKS  -  actionable follow-up items. Polymorphic to any record but
+--  most naturally hangs off a sub_division (engagement thread) or a
+--  communication (the specific event needing follow-up).
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS tasks (
+    id              SERIAL PRIMARY KEY,
+    parent_type     TEXT        NOT NULL CHECK (parent_type IN
+                      ('communication', 'sub_division', 'meeting', 'authority')),
+    parent_id       INTEGER     NOT NULL,
+    title           TEXT        NOT NULL,
+    description     TEXT,
+    status          TEXT        NOT NULL DEFAULT 'open'
+                                CHECK (status IN ('open', 'done')),
+    assignee_id     INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    due_date        DATE,
+    created_by      INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at    TIMESTAMPTZ,
+    completed_by    INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    deleted_at      TIMESTAMPTZ,
+    deleted_by      INTEGER     REFERENCES users(id) ON DELETE SET NULL,
+    deletion_group_id UUID
+);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_parent
+    ON tasks(parent_type, parent_id)
+    WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_tasks_assignee_open
+    ON tasks(assignee_id, due_date)
+    WHERE deleted_at IS NULL AND status = 'open';
+CREATE INDEX IF NOT EXISTS idx_tasks_overdue
+    ON tasks(due_date)
+    WHERE deleted_at IS NULL AND status = 'open' AND due_date IS NOT NULL;
+
 ALTER TABLE meetings       ADD COLUMN IF NOT EXISTS search_tsv tsvector
     GENERATED ALWAYS AS (
       setweight(to_tsvector('simple',  coalesce(meeting_code, '')),       'A') ||

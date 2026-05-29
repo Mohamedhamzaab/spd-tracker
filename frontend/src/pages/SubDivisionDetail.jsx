@@ -12,6 +12,8 @@ import {
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
 import { SubForm } from './SubDivisions.jsx';
+import CommentsThread from '../components/CommentsThread.jsx';
+import TasksPanel from '../components/TasksPanel.jsx';
 
 export default function SubDivisionDetail() {
   const { id } = useParams();
@@ -163,6 +165,16 @@ export default function SubDivisionDetail() {
               ))
             )}
           </Section>
+        </div>
+
+        <div className="card card-pad">
+          <Section title="Tasks" />
+          <TasksPanel parentType="sub_division" parentId={data.id} />
+        </div>
+
+        <div className="card card-pad">
+          <Section title="Discussion" />
+          <CommentsThread parentType="sub_division" parentId={data.id} />
         </div>
 
         <div className="card card-pad">
@@ -537,6 +549,13 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
                 </button>
               </div>
             )}
+          </div>
+
+          <div style={{ marginTop: 22 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>
+              Discussion
+            </div>
+            <CommentsThread parentType="communication" parentId={commId} />
           </div>
         </>
       )}

@@ -138,6 +138,30 @@ config-as-code changes.
 Production start command is `npm run start:prod` which runs `init.js`:
 applies schema, seeds only if the DB is empty, then starts the server.
 
+## i18n pattern
+
+Two locales: **en** (default) and **ar** (RTL). The infrastructure is in
+`frontend/src/lib/i18n.js` (i18next + react-i18next), with translation
+files at `frontend/src/locales/{en,ar}.json`. Only the high-traffic
+surfaces are wired so far (Login, sidebar nav, landing page); the rest of
+the app is still hard-coded English.
+
+**To translate a new surface:**
+
+1. Add matching keys to both `en.json` and `ar.json`.
+2. In the component:
+   ```js
+   import { useTranslation } from 'react-i18next';
+   const { t } = useTranslation();
+   ```
+   Replace literals with `t('namespace.key')` or `t('namespace.key', { name })`.
+3. No other code changes — `<html dir>` and persistence in localStorage
+   are already handled in `lib/i18n.js`.
+
+The Arabic file should have the same shape as the English one. Until a
+proper translation pass lands, placeholder English values are acceptable
+(they make untranslated strings obvious).
+
 ## What's open for development
 
 The platform is working end-to-end but there are clear next steps. Some

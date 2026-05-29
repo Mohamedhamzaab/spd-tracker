@@ -6,6 +6,7 @@
 import { Suspense, lazy } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { useStore } from '../lib/store.jsx';
 
 const HeroScene = lazy(() => import('../components/HeroScene.jsx'));
@@ -32,9 +33,10 @@ function Section({ children, className = '' }) {
 }
 
 export default function Landing() {
+  const { t } = useTranslation();
   const { user } = useStore();
   const ctaTo = user ? '/app' : '/login';
-  const ctaLabel = user ? 'Go to app' : 'Sign in';
+  const ctaLabel = user ? t('common.goToApp') : t('common.signIn');
 
   return (
     <div className="landing">
@@ -50,28 +52,22 @@ export default function Landing() {
           <div className="landing-brand-name">Authority Engagement</div>
         </div>
         <nav className="landing-top-nav">
-          <a href="#what" className="landing-nav-link">What it tracks</a>
-          <a href="#rules" className="landing-nav-link">How it works</a>
-          <a href="#who" className="landing-nav-link">Who uses it</a>
+          <a href="#what" className="landing-nav-link">{t('landing.topbar.whatItTracks')}</a>
+          <a href="#rules" className="landing-nav-link">{t('landing.topbar.howItWorks')}</a>
+          <a href="#who" className="landing-nav-link">{t('landing.topbar.whoUsesIt')}</a>
           <Link to={ctaTo} className="btn btn-primary landing-cta-top">{ctaLabel}</Link>
         </nav>
       </header>
 
       <Section className="landing-hero">
-        <div className="landing-eyebrow">ECG · Design Consultancy · Contract No. 6</div>
-        <h1 className="landing-h1">
-          A single, living record of every authority engagement on the Safari Park Project.
-        </h1>
-        <p className="landing-lede">
-          Sixteen statutory authorities. Twenty-three sub-divisions. Every communication, meeting,
-          and document tracked, timestamped, and visible to the people who need it — in one place,
-          in real time.
-        </p>
+        <div className="landing-eyebrow">{t('landing.hero.eyebrow')}</div>
+        <h1 className="landing-h1">{t('landing.hero.title')}</h1>
+        <p className="landing-lede">{t('landing.hero.lede')}</p>
         <div className="landing-cta-row">
           <Link to={ctaTo} className="btn btn-primary btn-lg">{ctaLabel}</Link>
-          <a href="#what" className="btn btn-ghost btn-lg">See what it tracks</a>
+          <a href="#what" className="btn btn-ghost btn-lg">{t('landing.hero.secondaryCta')}</a>
         </div>
-        <div className="landing-scroll-hint">Scroll</div>
+        <div className="landing-scroll-hint">{t('landing.hero.scroll')}</div>
       </Section>
 
       <Section className="landing-what" >
@@ -139,18 +135,15 @@ export default function Landing() {
       </Section>
 
       <Section className="landing-cta">
-        <h2 className="landing-h2 landing-h2-center">Ready when you are.</h2>
-        <p className="landing-body landing-body-center">
-          Sign in with the email your administrator provisioned. If you do not have an account
-          yet, ask the Safari Park Project administrator at ECG.
-        </p>
+        <h2 className="landing-h2 landing-h2-center">{t('landing.footer.title')}</h2>
+        <p className="landing-body landing-body-center">{t('landing.footer.body')}</p>
         <div className="landing-cta-row landing-cta-row-center">
           <Link to={ctaTo} className="btn btn-primary btn-lg">{ctaLabel}</Link>
         </div>
         <footer className="landing-foot">
-          <span>© ECG — Safari Park Project</span>
+          <span>{t('landing.footer.copyright')}</span>
           <span className="landing-foot-dot">·</span>
-          <span>Design Consultancy Services, Contract No. 6</span>
+          <span>{t('landing.footer.contract')}</span>
         </footer>
       </Section>
     </div>

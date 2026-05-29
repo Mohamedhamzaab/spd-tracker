@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------------------
 import { useState } from 'react';
 import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useStore } from './lib/store.jsx';
 import { Loading, ToastProvider, initials } from './components/ui.jsx';
 import Landing from './pages/Landing.jsx';
@@ -28,6 +29,7 @@ import MfaSetup from './pages/MfaSetup.jsx';
 import AuditLog from './pages/AuditLog.jsx';
 import Trash from './pages/Trash.jsx';
 import Reports from './pages/Reports.jsx';
+import Tasks from './pages/Tasks.jsx';
 
 const ROLE_LABEL = {
   super_admin: 'Super-admin',
@@ -36,15 +38,17 @@ const ROLE_LABEL = {
 };
 
 const NAV = [
-  { to: '/app', label: 'Dashboard', end: true },
-  { to: '/app/authorities', label: 'Authorities' },
-  { to: '/app/sub-divisions', label: 'Sub-Divisions' },
-  { to: '/app/communications', label: 'Communications' },
-  { to: '/app/meetings', label: 'Meetings' },
-  { to: '/app/reports', label: 'Reports' },
+  { to: '/app', i18nKey: 'nav.dashboard', end: true },
+  { to: '/app/authorities', i18nKey: 'nav.authorities' },
+  { to: '/app/sub-divisions', i18nKey: 'nav.subDivisions' },
+  { to: '/app/communications', i18nKey: 'nav.communications' },
+  { to: '/app/meetings', i18nKey: 'nav.meetings' },
+  { to: '/app/tasks', i18nKey: 'nav.tasks' },
+  { to: '/app/reports', i18nKey: 'nav.reports' },
 ];
 
 function Sidebar({ open, onClose }) {
+  const { t } = useTranslation();
   const { user, isSuperAdmin, signOut } = useStore();
   return (
     <aside className={'sidebar' + (open ? ' sidebar-open' : '')} onClick={(e) => {
@@ -57,7 +61,7 @@ function Sidebar({ open, onClose }) {
         <div className="brand-sub">Design Consultancy &middot; Contract No. 6</div>
       </div>
       <nav className="nav">
-        <div className="nav-section">Tracker</div>
+        <div className="nav-section">{t('nav.section.tracker')}</div>
         {NAV.map((n) => (
           <NavLink
             key={n.to}
@@ -65,38 +69,38 @@ function Sidebar({ open, onClose }) {
             end={n.end}
             className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
           >
-            {n.label}
+            {t(n.i18nKey)}
           </NavLink>
         ))}
         {isSuperAdmin && (
           <>
-            <div className="nav-section">Administration</div>
+            <div className="nav-section">{t('nav.section.administration')}</div>
             <NavLink
               to="/app/users"
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
-              Users
+              {t('nav.users')}
             </NavLink>
             <NavLink
               to="/app/audit"
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
-              Audit log
+              {t('nav.auditLog')}
             </NavLink>
             <NavLink
               to="/app/trash"
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
-              Trash
+              {t('nav.trash')}
             </NavLink>
           </>
         )}
-        <div className="nav-section">Account</div>
+        <div className="nav-section">{t('nav.section.account')}</div>
         <NavLink
           to="/app/me"
           className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
         >
-          My account
+          {t('nav.myAccount')}
         </NavLink>
       </nav>
       <div className="sidebar-foot">
@@ -166,6 +170,7 @@ function AppShell() {
             <Route path="communications" element={<Communications />} />
             <Route path="meetings" element={<Meetings />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="tasks" element={<Tasks />} />
             <Route path="me" element={<MyAccount />} />
             <Route path="change-password" element={<ChangePassword />} />
             <Route path="mfa-setup" element={<MfaSetup />} />

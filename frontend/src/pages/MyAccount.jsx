@@ -4,9 +4,11 @@
 // ---------------------------------------------------------------------------
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import { Section, Loading, fmtDate, Pill, Modal, useToast } from '../components/ui.jsx';
+import { setLanguage } from '../lib/i18n.js';
 
 const ROLE_LABEL = {
   super_admin: 'Super-admin',
@@ -20,6 +22,7 @@ const ROLE_TONE = {
 };
 
 export default function MyAccount() {
+  const { t, i18n } = useTranslation();
   const { user, onBackupCodesRegenerated } = useStore();
   const toast = useToast();
   const [meta, setMeta] = useState(null);
@@ -103,6 +106,32 @@ export default function MyAccount() {
                   <Pill tone="amber">Not enrolled</Pill>
                 )}
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="card card-pad">
+          <Section title={t('language.label')} />
+          <div className="mfa-summary">
+            <div>
+              <div className="dl">{t('language.label')}</div>
+              <div className="dv cell-sub">
+                {i18n.language === 'ar' ? t('language.ar') : t('language.en')}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className={'btn ' + (i18n.language === 'en' ? 'btn-primary' : '')}
+                onClick={() => setLanguage('en')}
+              >
+                {t('language.en')}
+              </button>
+              <button
+                className={'btn ' + (i18n.language === 'ar' ? 'btn-primary' : '')}
+                onClick={() => setLanguage('ar')}
+              >
+                {t('language.ar')}
+              </button>
             </div>
           </div>
         </div>

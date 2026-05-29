@@ -5,10 +5,12 @@
 // ---------------------------------------------------------------------------
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useStore } from '../lib/store.jsx';
 import { ErrorBanner } from '../components/ui.jsx';
 
 export default function Login() {
+  const { t } = useTranslation();
   const { signInPasswordStep, signInMfaStep } = useStore();
   const navigate = useNavigate();
 
@@ -75,16 +77,18 @@ export default function Login() {
       <div className="login-wrap">
         <form className="login-card" onSubmit={submitMfa}>
           <div className="login-mark">Safari Park Project</div>
-          <div className="login-title">Two-factor code</div>
+          <div className="login-title">{t('login.mfaTitle')}</div>
           <div className="login-sub">
             {useBackup
-              ? `Enter one of your backup codes for ${emailHint}.`
-              : `Enter the 6-digit code from your authenticator app for ${emailHint}.`}
+              ? t('login.mfaPromptBackup', { email: emailHint })
+              : t('login.mfaPromptCode', { email: emailHint })}
           </div>
           <ErrorBanner message={error} />
 
           <div className="field">
-            <label className="field-label">{useBackup ? 'Backup code' : 'Code'}</label>
+            <label className="field-label">
+              {useBackup ? t('login.mfaBackupLabel') : t('login.mfaCodeLabel')}
+            </label>
             <input
               className="input mfa-code-input"
               type="text"
@@ -103,7 +107,7 @@ export default function Login() {
             style={{ width: '100%', justifyContent: 'center', marginTop: 6 }}
             disabled={busy}
           >
-            {busy ? 'Verifying…' : 'Verify and sign in'}
+            {busy ? t('login.mfaVerifying') : t('login.mfaVerify')}
           </button>
 
           <div className="mfa-secondary">
@@ -112,10 +116,10 @@ export default function Login() {
               className="link-btn"
               onClick={() => { setUseBackup((v) => !v); setCode(''); }}
             >
-              {useBackup ? 'Use authenticator code instead' : 'Use a backup code instead'}
+              {useBackup ? t('login.mfaUseTotp') : t('login.mfaUseBackup')}
             </button>
             <button type="button" className="link-btn" onClick={startOver}>
-              Start over
+              {t('login.mfaStartOver')}
             </button>
           </div>
         </form>
@@ -127,13 +131,13 @@ export default function Login() {
     <div className="login-wrap">
       <form className="login-card" onSubmit={submitPassword}>
         <div className="login-mark">Safari Park Project</div>
-        <div className="login-title">Authority Engagement Tracker</div>
-        <div className="login-sub">Sign in to continue.</div>
+        <div className="login-title">{t('login.title')}</div>
+        <div className="login-sub">{t('login.subtitle')}</div>
 
         <ErrorBanner message={error} />
 
         <div className="field">
-          <label className="field-label" htmlFor="email">Email</label>
+          <label className="field-label" htmlFor="email">{t('login.emailLabel')}</label>
           <input
             id="email"
             className="input"
@@ -145,7 +149,7 @@ export default function Login() {
           />
         </div>
         <div className="field">
-          <label className="field-label" htmlFor="password">Password</label>
+          <label className="field-label" htmlFor="password">{t('login.passwordLabel')}</label>
           <input
             id="password"
             className="input"
@@ -161,10 +165,10 @@ export default function Login() {
           style={{ width: '100%', justifyContent: 'center', marginTop: 6 }}
           disabled={busy}
         >
-          {busy ? 'Signing in...' : 'Sign in'}
+          {busy ? t('login.submitting') : t('login.submit')}
         </button>
         <div style={{ marginTop: 16, textAlign: 'center', fontSize: 13 }}>
-          <Link to="/forgot-password">Forgot password?</Link>
+          <Link to="/forgot-password">{t('login.forgotPassword')}</Link>
         </div>
       </form>
     </div>

@@ -1,0 +1,76 @@
+{
+  "common": {
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "loading": "Loading",
+    "goToApp": "Go to app",
+    "back": "Back"
+  },
+  "login": {
+    "title": "Authority Engagement Tracker",
+    "subtitle": "Sign in to continue.",
+    "emailLabel": "Email",
+    "passwordLabel": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in...",
+    "forgotPassword": "Forgot password?",
+    "mfaTitle": "Two-factor code",
+    "mfaPromptCode": "Enter the 6-digit code from your authenticator app for {{email}}.",
+    "mfaPromptBackup": "Enter one of your backup codes for {{email}}.",
+    "mfaCodeLabel": "Code",
+    "mfaBackupLabel": "Backup code",
+    "mfaUseBackup": "Use a backup code instead",
+    "mfaUseTotp": "Use authenticator code instead",
+    "mfaStartOver": "Start over",
+    "mfaVerify": "Verify and sign in",
+    "mfaVerifying": "Verifying…"
+  },
+  "nav": {
+    "section": {
+      "tracker": "Tracker",
+      "administration": "Administration",
+      "account": "Account"
+    },
+    "dashboard": "Dashboard",
+    "authorities": "Authorities",
+    "subDivisions": "Sub-Divisions",
+    "communications": "Communications",
+    "meetings": "Meetings",
+    "tasks": "Tasks",
+    "reports": "Reports",
+    "users": "Users",
+    "auditLog": "Audit log",
+    "trash": "Trash",
+    "myAccount": "My account"
+  },
+  "landing": {
+    "topbar": {
+      "whatItTracks": "What it tracks",
+      "howItWorks": "How it works",
+      "whoUsesIt": "Who uses it"
+    },
+    "hero": {
+      "eyebrow": "ECG · Design Consultancy · Contract No. 6",
+      "title": "A single, living record of every authority engagement on the Safari Park Project.",
+      "lede": "Sixteen statutory authorities. Twenty-three sub-divisions. Every communication, meeting, and document tracked, timestamped, and visible to the people who need it — in one place, in real time.",
+      "secondaryCta": "See what it tracks",
+      "scroll": "Scroll"
+    },
+    "footer": {
+      "title": "Ready when you are.",
+      "body": "Sign in with the email your administrator provisioned. If you do not have an account yet, ask the Safari Park Project administrator at ECG.",
+      "copyright": "© ECG — Safari Park Project",
+      "contract": "Design Consultancy Services, Contract No. 6"
+    }
+  },
+  "language": {
+    "label": "Language",
+    "en": "English",
+    "ar": "العربية"
+  }
+}

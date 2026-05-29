@@ -129,6 +129,19 @@ export const api = {
   auditFor: (type, id, params) =>
     req('/audit/for/' + encodeURIComponent(type) + '/' + Number(id) + qs(params)),
 
+  // comments
+  comments: (parent_type, parent_id) =>
+    req('/comments' + qs({ parent_type, parent_id })),
+  createComment: (b) => req('/comments', { method: 'POST', body: b }),
+  updateComment: (id, b) => req('/comments/' + id, { method: 'PATCH', body: b }),
+  deleteComment: (id) => req('/comments/' + id, { method: 'DELETE' }),
+
+  // tasks
+  tasks: (params) => req('/tasks' + qs(params)),
+  createTask: (b) => req('/tasks', { method: 'POST', body: b }),
+  updateTask: (id, b) => req('/tasks/' + id, { method: 'PATCH', body: b }),
+  deleteTask: (id) => req('/tasks/' + id, { method: 'DELETE' }),
+
   // saved views
   views: (target) => req('/views' + qs(target ? { target } : null)),
   createView: (b) => req('/views', { method: 'POST', body: b }),
