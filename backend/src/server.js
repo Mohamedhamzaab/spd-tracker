@@ -125,6 +125,11 @@ app.listen(PORT, () => {
   } catch (err) {
     logger.error({ err: err.message }, '[digest] failed to start scheduler');
   }
+  try {
+    require('./taskNotify').startScheduler();
+  } catch (err) {
+    logger.error({ err: err.message }, '[task-reminders] failed to start scheduler');
+  }
 });
 
 module.exports = app;

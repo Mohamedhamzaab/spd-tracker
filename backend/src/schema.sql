@@ -357,6 +357,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_overdue
     ON tasks(due_date)
     WHERE deleted_at IS NULL AND status = 'open' AND due_date IS NOT NULL;
 
+-- Stamped when a "due tomorrow" reminder email has been sent, so the daily
+-- reminder job never emails the same task twice. Reset to NULL when the due
+-- date changes or the task is reopened, so a fresh reminder can fire.
+ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+
 ALTER TABLE meetings       ADD COLUMN IF NOT EXISTS search_tsv tsvector
     GENERATED ALWAYS AS (
       setweight(to_tsvector('simple',  coalesce(meeting_code, '')),       'A') ||

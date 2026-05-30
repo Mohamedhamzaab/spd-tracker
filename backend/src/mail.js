@@ -263,6 +263,67 @@ function sendPasswordReset({ to, name, token }) {
   });
 }
 
+// Task assignment — fire-and-forget (sent from inside an HTTP request, must
+// not block or fail the create/update). Links to the recipient's task board.
+function sendTaskAssigned({ to, name, taskTitle, assignedByName, parentLabel, dueDate }) {
+  const link = url('/app/tasks');
+  const due = dueDate ? ` It's due ${dueDate}.` : '';
+  const intro = `${assignedByName || 'A colleague'} assigned you a task${parentLabel ? ` on ${parentLabel}` : ''}: “${taskTitle}”.${due}`;
+  send({
+    to,
+    subject: `New task assigned to you: ${taskTitle}`,
+    text: [
+      `Hi ${name || 'there'},`,
+      '',
+      intro,
+      '',
+      `Open your tasks: ${link}`,
+      '',
+      'You can mark it done from your task list when it’s handled.',
+      '',
+      '— SPD Tracker',
+    ].join('\n'),
+    html: htmlShell({
+      heading: `Hi ${name || 'there'},`,
+      intro,
+      ctaLabel: 'Open your tasks',
+      ctaUrl: link,
+      note: 'You can mark it done from your task list when it’s handled.',
+      footnote: 'Safari Park Project · Authority Engagement Tracker · ecgportal.dev',
+    }),
+  });
+}
+
+// Task reminder — sent the day before the due date by the daily scheduler.
+// Awaitable so the job can log per-recipient outcome; resolves/rejects.
+function sendTaskReminder({ to, name, taskTitle, parentLabel, dueDate }) {
+  const link = url('/app/tasks');
+  const intro = `Reminder: your task${parentLabel ? ` on ${parentLabel}` : ''} — “${taskTitle}” — is due tomorrow${dueDate ? ` (${dueDate})` : ''}.`;
+  return sendNow({
+    to,
+    subject: `Reminder: “${taskTitle}” is due tomorrow`,
+    text: [
+      `Hi ${name || 'there'},`,
+      '',
+      intro,
+      '',
+      `Open your tasks: ${link}`,
+      '',
+      'If it’s already handled, mark it done to stop further reminders.',
+      '',
+      '— SPD Tracker',
+    ].join('\n'),
+    html: htmlShell({
+      heading: `Hi ${name || 'there'},`,
+      intro,
+      ctaLabel: 'Open your tasks',
+      ctaUrl: link,
+      note: 'If it’s already handled, mark it done to stop further reminders.',
+      footnote: 'Safari Park Project · Authority Engagement Tracker · ecgportal.dev',
+    }),
+  });
+}
+
 function describe() {
   return { mode, from: FROM_RAW, app_url: APP_URL };
 }
@@ -275,4 +336,8 @@ function sendNow(msg) {
   return doSend(msg);
 }
 
-module.exports = { send, sendNow, sendInvite, sendPasswordReset, describe, APP_URL };
+module.exports = {
+  send, sendNow, sendInvite, sendPasswordReset,
+  sendTaskAssigned, sendTaskReminder,
+  describe, APP_URL,
+};

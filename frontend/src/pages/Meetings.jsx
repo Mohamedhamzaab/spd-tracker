@@ -10,6 +10,7 @@ import {
   fmtDate, useToast, useTableSort, SortableTH,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
+import TasksPanel from '../components/TasksPanel.jsx';
 import { useLive } from '../lib/liveStream.js';
 
 const MEETING_LIVE_EVENTS = [
@@ -400,6 +401,12 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
     >
       <ErrorBanner message={error} />
       <FormFields fields={fields} values={values} onChange={onChange} disabled={busy} />
+      {editing && (
+        <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+          <div className="section-title" style={{ marginBottom: 10 }}>Tasks</div>
+          <TasksPanel parentType="meeting" parentId={existing.id} />
+        </div>
+      )}
     </Modal>
   );
 }

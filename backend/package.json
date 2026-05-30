@@ -14,7 +14,8 @@
     "restore": "node scripts/restore.js",
     "migrate-uploads": "node scripts/migrate-uploads-to-s3.js",
     "renumber-comms": "node scripts/renumber-communications.js",
-    "digest": "node scripts/send-digest.js"
+    "digest": "node scripts/send-digest.js",
+    "task-reminders": "node scripts/send-task-reminders.js"
   },
   "engines": {
     "node": ">=18"

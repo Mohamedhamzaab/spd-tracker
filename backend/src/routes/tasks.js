@@ -21,6 +21,7 @@ const { query } = require('../db');
 const { wrap, httpError } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
+const taskNotify = require('../taskNotify');
 
 const PARENTS = new Set(['communication', 'sub_division', 'meeting', 'authority']);
 
@@ -132,7 +133,21 @@ router.post(
       req,
     });
     const out = await query(`${BASE_SELECT} WHERE t.id = $1`, [rows[0].id]);
-    res.status(201).json({ task: shape(out.rows[0]) });
+    const task = shape(out.rows[0]);
+
+    // Email the assignee — unless the creator assigned it to themselves.
+    if (task.assignee && task.assignee.id !== req.user.id) {
+      await taskNotify.notifyAssignment({
+        assignee: task.assignee,
+        taskTitle: task.title,
+        assignedByName: req.user.name,
+        parentType: task.parent_type,
+        parentId: task.parent_id,
+        dueDate: task.due_date,
+      });
+    }
+
+    res.status(201).json({ task });
   })
 );
 
@@ -182,6 +197,12 @@ router.patch(
       sets.push(`completed_at = NULL`, `completed_by = NULL`);
     }
 
+    // Allow a fresh "due tomorrow" reminder to fire again whenever the due
+    // date is changed or a completed task is reopened.
+    if (patch.due_date !== undefined || (patch.status === 'open' && current.status === 'done')) {
+      sets.push('reminder_sent_at = NULL');
+    }
+
     if (sets.length === 1) {
       // Only updated_at — no-op patch.
       const out = await query(`${BASE_SELECT} WHERE t.id = $1`, [id]);
@@ -204,7 +225,27 @@ router.patch(
       req,
     });
     const out = await query(`${BASE_SELECT} WHERE t.id = $1`, [id]);
-    res.json({ task: shape(out.rows[0]) });
+    const task = shape(out.rows[0]);
+
+    // If the task was re-assigned to a different person (not the actor), let
+    // them know by email.
+    const reassigned =
+      patch.assignee_id !== undefined &&
+      patch.assignee_id &&
+      patch.assignee_id !== current.assignee_id &&
+      patch.assignee_id !== req.user.id;
+    if (reassigned && task.assignee) {
+      await taskNotify.notifyAssignment({
+        assignee: task.assignee,
+        taskTitle: task.title,
+        assignedByName: req.user.name,
+        parentType: task.parent_type,
+        parentId: task.parent_id,
+        dueDate: task.due_date,
+      });
+    }
+
+    res.json({ task });
   })
 );
 

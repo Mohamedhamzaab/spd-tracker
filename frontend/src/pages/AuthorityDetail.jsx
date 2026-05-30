@@ -10,6 +10,7 @@ import {
   useTableSort, SortableTH, useToast,
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
+import TasksPanel from '../components/TasksPanel.jsx';
 import { AuthorityForm } from './Authorities.jsx';
 
 const ENGAGEMENT_RANK = {
@@ -155,6 +156,11 @@ export default function AuthorityDetail() {
               </table>
             </div>
           )}
+        </div>
+
+        <div className="card card-pad">
+          <Section title="Tasks" />
+          <TasksPanel parentType="authority" parentId={data.id} />
         </div>
 
         <div className="card card-pad">

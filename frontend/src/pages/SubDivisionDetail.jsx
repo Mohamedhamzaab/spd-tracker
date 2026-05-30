@@ -589,6 +589,13 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
 
           <div style={{ marginTop: 22 }}>
             <div className="section-title" style={{ marginBottom: 10 }}>
+              Tasks
+            </div>
+            <TasksPanel parentType="communication" parentId={commId} />
+          </div>
+
+          <div style={{ marginTop: 22 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>
               Discussion
             </div>
             <CommentsThread parentType="communication" parentId={commId} />
