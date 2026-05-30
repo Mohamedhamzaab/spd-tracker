@@ -7,7 +7,6 @@ const { query, withTransaction } = require('../db');
 const { wrap, httpError, ref } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
-const { publish } = require('../eventBus');
 const { softDeleteCommunication, newGroupId } = require('../softDelete');
 
 const router = express.Router();
@@ -45,6 +44,30 @@ router.get(
     if (req.query.from) add('comm_date >= ?::date', req.query.from);
     if (req.query.to) add('comm_date <= ?::date', req.query.to);
 
+    // Reply-linkage filter.
+    //   linked=replies   → rows that ARE a reply to something (in_response_to set)
+    //   linked=originals → rows that are NOT a reply (a standalone / outbound)
+    //   linked=answered  → rows that HAVE received a reply
+    //   linked=unanswered→ outbound rows still awaiting a reply
+    if (req.query.linked) {
+      const v = String(req.query.linked);
+      if (v === 'replies') where.push('in_response_to IS NOT NULL');
+      else if (v === 'originals') where.push('in_response_to IS NULL');
+      else if (v === 'answered') where.push('reply_received = TRUE');
+      else if (v === 'unanswered')
+        where.push("direction = 'Outbound' AND reply_needed = TRUE AND reply_received = FALSE");
+    }
+
+    // Find everything in one thread: ?in_response_to=C-0002 returns the parent
+    // plus every reply that points at it. Accepts a comm_code.
+    if (req.query.in_response_to) {
+      const code = String(req.query.in_response_to).trim().toUpperCase();
+      add(
+        '(comm_code = ? OR in_response_to_code = ?)',
+        code, code
+      );
+    }
+
     if (req.query.status) {
       const set = String(req.query.status).split(',').map((s) => s.trim()).filter(Boolean);
       const groups = [];
@@ -68,6 +91,7 @@ router.get(
       if (q.length < 3) {
         params.push('%' + q.toLowerCase() + '%');
         where.push(`(lower(comm_code) LIKE $${params.length}
+                     OR lower(coalesce(in_response_to_code,'')) LIKE $${params.length}
                      OR lower(submission_reference) LIKE $${params.length}
                      OR lower(sub_division_name) LIKE $${params.length}
                      OR lower(authority_name) LIKE $${params.length})`);
@@ -82,10 +106,12 @@ router.get(
       }
     }
 
+    // Default order is by code (natural register order). The frontend can
+    // re-sort client-side, but By-Code is the sane landing order.
     const sql =
       'SELECT * FROM v_communication' +
       (where.length ? ' WHERE ' + where.join(' AND ') : '') +
-      ' ORDER BY comm_date DESC, id DESC';
+      ' ORDER BY comm_code ASC';
     const { rows } = await query(sql, params);
     res.json(rows);
   })

@@ -418,7 +418,7 @@ function EditModal({ user, onClose, onSubmit }) {
             <input
               type="checkbox"
               checked={isDisabled}
-              onChange={(e) => setIsDisabled(e.target.value)}
+              onChange={(e) => setIsDisabled(e.target.checked)}
             />
             <span>Disabled (cannot sign in)</span>
           </label>

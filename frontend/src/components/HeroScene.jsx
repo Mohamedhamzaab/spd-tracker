@@ -81,7 +81,7 @@ function Globe({ scrollRef, reducedMotion }) {
       {/* Wireframe shell */}
       <mesh>
         <icosahedronGeometry args={[1, 3]} />
-        <meshBasicMaterial color="#2e75b5" wireframe transparent opacity={0.18} />
+        <meshBasicMaterial color="#6366f1" wireframe transparent opacity={0.18} />
       </mesh>
       {/* Inner solid for depth */}
       <mesh scale={0.985}>
@@ -99,14 +99,14 @@ function Globe({ scrollRef, reducedMotion }) {
         {nodes.map((n, i) => (
           <mesh key={i} position={n}>
             <sphereGeometry args={[0.022, 16, 16]} />
-            <meshBasicMaterial color="#7ec4ff" />
+            <meshBasicMaterial color="#38bdf8" />
           </mesh>
         ))}
       </group>
       {/* Arcs between nearest neighbours */}
       {arcs.map((g, i) => (
         <line key={i} geometry={g}>
-          <lineBasicMaterial color="#2e75b5" transparent opacity={0.55} />
+          <lineBasicMaterial color="#6366f1" transparent opacity={0.55} />
         </line>
       ))}
     </group>

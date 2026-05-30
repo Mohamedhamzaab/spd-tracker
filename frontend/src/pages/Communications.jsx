@@ -34,10 +34,19 @@ function commStatusRank(c) {
   return 3;
 }
 
+const LINKED_OPTIONS = [
+  { value: '',           label: 'All communications' },
+  { value: 'replies',    label: 'Replies only (responses)' },
+  { value: 'originals',  label: 'Originals only (not a reply)' },
+  { value: 'answered',   label: 'Answered (got a reply)' },
+  { value: 'unanswered', label: 'Unanswered (awaiting reply)' },
+];
+
 const COMM_COLS = {
   comm_code:        { value: (r) => r.comm_code },
   comm_date:        { value: (r) => r.comm_date, type: 'date', defaultDir: 'desc' },
   direction:        { value: (r) => r.direction },
+  linked:           { value: (r) => r.in_response_to_code || r.reply_code || '' },
   sub_division_name:{ value: (r) => r.sub_division_name },
   purpose:          { value: (r) => r.purpose || '' },
   summary:          { value: (r) => r.summary || '' },
@@ -66,6 +75,8 @@ export default function Communications() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [authorityId, setAuthorityId] = useState('');
+  const [linked, setLinked] = useState('');
+  const [thread, setThread] = useState(''); // a comm_code — shows that whole thread
 
   // Data state
   const [rows, setRows] = useState(null);
@@ -89,8 +100,10 @@ export default function Communications() {
     if (from) p.from = from;
     if (to) p.to = to;
     if (authorityId) p.authority_id = authorityId;
+    if (linked) p.linked = linked;
+    if (thread) p.in_response_to = thread;
     return p;
-  }, [qDebounced, direction, statuses, from, to, authorityId]);
+  }, [qDebounced, direction, statuses, from, to, authorityId, linked, thread]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,8 +121,8 @@ export default function Communications() {
   });
 
   const { sorted, sortKey, sortDir, onSort } = useTableSort(rows || [], COMM_COLS, {
-    defaultKey: 'comm_date',
-    defaultDir: 'desc',
+    defaultKey: 'comm_code',
+    defaultDir: 'asc',
   });
 
   function toggleStatus(key) {
@@ -120,10 +133,10 @@ export default function Communications() {
 
   function clearFilters() {
     setQ(''); setDirection(''); setStatuses([]);
-    setFrom(''); setTo(''); setAuthorityId('');
+    setFrom(''); setTo(''); setAuthorityId(''); setLinked(''); setThread('');
   }
 
-  const filtersActive = !!(q || direction || statuses.length || from || to || authorityId);
+  const filtersActive = !!(q || direction || statuses.length || from || to || authorityId || linked || thread);
 
   return (
     <>
@@ -150,6 +163,7 @@ export default function Communications() {
             setFrom(p.from || '');
             setTo(p.to || '');
             setAuthorityId(p.authority_id ? String(p.authority_id) : '');
+            setLinked(p.linked || '');
           }}
         />
 
@@ -177,6 +191,16 @@ export default function Communications() {
             <option value="">All authorities</option>
             {authorities.map((a) => (
               <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
+            ))}
+          </select>
+          <select
+            className="filter-select"
+            value={linked}
+            onChange={(e) => setLinked(e.target.value)}
+            title="Filter by reply linkage"
+          >
+            {LINKED_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
           <div className="filter-date-pair">
@@ -227,6 +251,15 @@ export default function Communications() {
           </button>
         </div>
 
+        {thread && (
+          <div className="thread-banner">
+            Showing the thread for <span className="mono">{thread}</span> (the original and its replies).
+            <button type="button" className="link-btn" onClick={() => setThread('')}>
+              Clear
+            </button>
+          </div>
+        )}
+
         {!rows ? (
           <Loading label="Loading communications" />
         ) : rows.length === 0 ? (
@@ -239,6 +272,7 @@ export default function Communications() {
                   <SortableTH id="comm_code"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Code</SortableTH>
                   <SortableTH id="comm_date"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Date</SortableTH>
                   <SortableTH id="direction"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Direction</SortableTH>
+                  <SortableTH id="linked"            sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Linked</SortableTH>
                   <SortableTH id="sub_division_name" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Sub-Division</SortableTH>
                   <SortableTH id="purpose"           sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Purpose</SortableTH>
                   <SortableTH id="summary"           sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Summary</SortableTH>
@@ -256,6 +290,29 @@ export default function Communications() {
                     <td>{fmtDate(c.comm_date)}</td>
                     <td>
                       <DirectionPill direction={c.direction} />
+                    </td>
+                    <td>
+                      {c.in_response_to_code ? (
+                        <button
+                          type="button"
+                          className="link-chip"
+                          title={`Reply to ${c.in_response_to_code} — click to see the thread`}
+                          onClick={(e) => { e.stopPropagation(); setThread(c.in_response_to_code); }}
+                        >
+                          ↩ {c.in_response_to_code}
+                        </button>
+                      ) : c.reply_code ? (
+                        <button
+                          type="button"
+                          className="link-chip link-chip-fwd"
+                          title={`Answered by ${c.reply_code} — click to see the thread`}
+                          onClick={(e) => { e.stopPropagation(); setThread(c.comm_code); }}
+                        >
+                          → {c.reply_code}
+                        </button>
+                      ) : (
+                        <span className="cell-sub">—</span>
+                      )}
                     </td>
                     <td>
                       <div className="cell-strong">{c.sub_division_name}</div>

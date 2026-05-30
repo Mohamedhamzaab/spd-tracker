@@ -15,8 +15,9 @@ const jwt = require('jsonwebtoken');
 const { query } = require('../db');
 const { subscribe } = require('../eventBus');
 const { httpError } = require('../helpers');
-
-const SECRET = process.env.JWT_SECRET || 'insecure-development-secret';
+// Share auth.js's resolved secret so there is one source of truth (and the
+// production boot-guard there applies — no silent dev-fallback divergence).
+const { JWT_SECRET: SECRET } = require('../auth');
 
 const router = express.Router();
 

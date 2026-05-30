@@ -441,10 +441,19 @@ SELECT
     (SELECT count(*) FROM documents d
        WHERE d.parent_type = 'communication'
          AND d.parent_id = c.id
-         AND d.deleted_at IS NULL) AS document_count
+         AND d.deleted_at IS NULL) AS document_count,
+    -- The code of the communication THIS row replies to (for inbound replies).
+    parent.comm_code AS in_response_to_code,
+    -- The code of the reply that answered THIS row (for outbound that got a
+    -- reply). Earliest live reply wins if there is more than one.
+    (SELECT r.comm_code FROM communications r
+       WHERE r.in_response_to = c.id AND r.deleted_at IS NULL
+       ORDER BY r.comm_date, r.id LIMIT 1) AS reply_code
 FROM communications c
 JOIN sub_divisions sd ON sd.id = c.sub_division_id AND sd.deleted_at IS NULL
 JOIN authorities  a  ON a.id  = sd.authority_id   AND a.deleted_at  IS NULL
+LEFT JOIN communications parent
+       ON parent.id = c.in_response_to AND parent.deleted_at IS NULL
 WHERE c.deleted_at IS NULL;
 
 -- Sub-division with rolled-up counts, engagement-ladder status, last activity.

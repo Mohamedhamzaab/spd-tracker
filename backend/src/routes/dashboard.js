@@ -23,20 +23,22 @@ const MEETING_MODES = ['In Person', 'Online', 'Hybrid'];
 router.get(
   '/',
   wrap(async (req, res) => {
+    // Every base-table count filters deleted_at IS NULL so trashed rows do
+    // not over-count against the view-based figures on the same screen.
     const totals = await query(`
       SELECT
-        (SELECT count(*) FROM authorities)                                  AS total_authorities,
-        (SELECT count(*) FROM sub_divisions)                                AS total_sub_divisions,
+        (SELECT count(*) FROM authorities WHERE deleted_at IS NULL)          AS total_authorities,
+        (SELECT count(*) FROM sub_divisions WHERE deleted_at IS NULL)        AS total_sub_divisions,
         (SELECT count(*) FROM v_sub_division
            WHERE engagement_status <> 'Identified')                         AS sub_divisions_engaged,
         (SELECT count(*) FROM v_sub_division
            WHERE engagement_status = 'Outcome Secured')                     AS outcome_secured,
-        (SELECT count(*) FROM communications)                               AS communications_logged,
+        (SELECT count(*) FROM communications WHERE deleted_at IS NULL)       AS communications_logged,
         (SELECT count(*) FROM v_communication
            WHERE direction = 'Outbound' AND reply_needed = TRUE
              AND reply_received = FALSE)                                    AS awaiting_reply,
         (SELECT count(*) FROM v_communication WHERE is_overdue)             AS overdue_communications,
-        (SELECT count(*) FROM meetings)                                     AS meetings_logged
+        (SELECT count(*) FROM meetings WHERE deleted_at IS NULL)            AS meetings_logged
     `);
     const t = totals.rows[0];
     const num = (v) => Number(v) || 0;
@@ -56,7 +58,8 @@ router.get(
     }));
 
     const catRows = await query(`
-      SELECT category, count(*) AS count FROM authorities GROUP BY category
+      SELECT category, count(*) AS count FROM authorities
+        WHERE deleted_at IS NULL GROUP BY category
     `);
     const catMap = Object.fromEntries(
       catRows.rows.map((r) => [r.category, num(r.count)])
@@ -67,7 +70,8 @@ router.get(
     }));
 
     const mPurposeRows = await query(`
-      SELECT purpose, count(*) AS count FROM meetings GROUP BY purpose
+      SELECT purpose, count(*) AS count FROM meetings
+        WHERE deleted_at IS NULL GROUP BY purpose
     `);
     const mPurposeMap = Object.fromEntries(
       mPurposeRows.rows.map((r) => [r.purpose, num(r.count)])
@@ -78,7 +82,8 @@ router.get(
     }));
 
     const mModeRows = await query(`
-      SELECT mode, count(*) AS count FROM meetings GROUP BY mode
+      SELECT mode, count(*) AS count FROM meetings
+        WHERE deleted_at IS NULL GROUP BY mode
     `);
     const mModeMap = Object.fromEntries(
       mModeRows.rows.map((r) => [r.mode, num(r.count)])
@@ -119,21 +124,24 @@ router.get(
       `
       SELECT
         (SELECT count(*) FROM communications
-           WHERE ($1::date IS NULL OR comm_date >= $1)
+           WHERE deleted_at IS NULL
+             AND ($1::date IS NULL OR comm_date >= $1)
              AND ($2::date IS NULL OR comm_date <= $2))            AS communications,
         (SELECT count(*) FROM communications
-           WHERE direction = 'Outbound'
+           WHERE deleted_at IS NULL AND direction = 'Outbound'
              AND ($1::date IS NULL OR comm_date >= $1)
              AND ($2::date IS NULL OR comm_date <= $2))            AS outbound,
         (SELECT count(*) FROM communications
-           WHERE direction = 'Inbound'
+           WHERE deleted_at IS NULL AND direction = 'Inbound'
              AND ($1::date IS NULL OR comm_date >= $1)
              AND ($2::date IS NULL OR comm_date <= $2))            AS inbound,
         (SELECT count(*) FROM meetings
-           WHERE ($1::date IS NULL OR meeting_date >= $1)
+           WHERE deleted_at IS NULL
+             AND ($1::date IS NULL OR meeting_date >= $1)
              AND ($2::date IS NULL OR meeting_date <= $2))         AS meetings,
         (SELECT count(*) FROM sub_divisions
-           WHERE ($1::date IS NULL OR date_identified >= $1)
+           WHERE deleted_at IS NULL
+             AND ($1::date IS NULL OR date_identified >= $1)
              AND ($2::date IS NULL OR date_identified <= $2))      AS sub_divisions_identified
       `,
       [from, to]

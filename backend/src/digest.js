@@ -92,9 +92,9 @@ function fmtDate(d) {
 function digestHtml(user, data) {
   const link = (path) => `${APP_URL}${path}`;
   const kpi = (label, value) =>
-    `<td style="padding:14px 18px;background:#EEF3F8;border-radius:10px;width:25%">
-       <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#1F4E79;text-transform:uppercase">${esc(label)}</div>
-       <div style="font-size:26px;font-weight:600;color:#173A5A;margin-top:4px;letter-spacing:-0.02em">${esc(value)}</div>
+    `<td style="padding:14px 18px;background:#EEF2FF;border-radius:10px;width:25%">
+       <div style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4F46E5;text-transform:uppercase">${esc(label)}</div>
+       <div style="font-size:26px;font-weight:600;color:#3730A3;margin-top:4px;letter-spacing:-0.02em">${esc(value)}</div>
      </td>`;
 
   const row = (cells, opts = {}) =>
@@ -104,9 +104,9 @@ function digestHtml(user, data) {
 
   const overdueRows = data.overdue.length
     ? data.overdue.map((r) => row([
-        `<a href="${link('/app/communications')}" style="color:#1F4E79;text-decoration:none;font-family:monospace">${esc(r.comm_code)}</a>`,
+        `<a href="${link('/app/communications')}" style="color:#4F46E5;text-decoration:none;font-family:monospace">${esc(r.comm_code)}</a>`,
         `<span style="color:#6E6E73">${esc(fmtDate(r.comm_date))}</span>`,
-        `<span style="color:#1F4E79;font-weight:600">${esc(r.authority_code)}</span>`,
+        `<span style="color:#4F46E5;font-weight:600">${esc(r.authority_code)}</span>`,
         esc(r.sub_reference),
         `<span style="color:#6E6E73">${esc((r.summary || '').slice(0, 120))}</span>`,
       ])).join('')
@@ -114,7 +114,7 @@ function digestHtml(user, data) {
 
   const recentRows = data.recentComms.length
     ? data.recentComms.map((r) => row([
-        `<a href="${link('/app/communications')}" style="color:#1F4E79;text-decoration:none;font-family:monospace">${esc(r.comm_code)}</a>`,
+        `<a href="${link('/app/communications')}" style="color:#4F46E5;text-decoration:none;font-family:monospace">${esc(r.comm_code)}</a>`,
         `<span style="color:#6E6E73">${esc(fmtDate(r.comm_date))}</span>`,
         `<span>${esc(r.direction)}</span>`,
         `${esc(r.authority_code)} · ${esc(r.sub_reference)}`,
@@ -124,16 +124,16 @@ function digestHtml(user, data) {
 
   const meetingRows = data.recentMeetings.length
     ? data.recentMeetings.map((r) => row([
-        `<a href="${link('/app/meetings')}" style="color:#1F4E79;text-decoration:none;font-family:monospace">${esc(r.meeting_code)}</a>`,
+        `<a href="${link('/app/meetings')}" style="color:#4F46E5;text-decoration:none;font-family:monospace">${esc(r.meeting_code)}</a>`,
         `<span style="color:#6E6E73">${esc(fmtDate(r.meeting_date))}</span>`,
-        `<span style="color:#1F4E79;font-weight:600">${esc(r.authority_code)}</span>`,
+        `<span style="color:#4F46E5;font-weight:600">${esc(r.authority_code)}</span>`,
         esc(r.authority_name),
         `<span style="color:#6E6E73">${esc(r.purpose || '')}</span>`,
       ])).join('')
     : null;
 
   const ladderHtml = data.ladder.map((l) =>
-    `<span style="display:inline-block;padding:5px 12px;border-radius:999px;background:#EEF3F8;color:#1F4E79;font-size:12px;font-weight:600;margin:0 6px 6px 0">
+    `<span style="display:inline-block;padding:5px 12px;border-radius:999px;background:#EEF2FF;color:#4F46E5;font-size:12px;font-weight:600;margin:0 6px 6px 0">
        ${esc(l.engagement_status)} · ${l.n}
      </span>`
   ).join('');
@@ -141,7 +141,7 @@ function digestHtml(user, data) {
   return `<!doctype html>
 <html><body style="margin:0;padding:0;background:#F4F6F9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1d1d1f">
   <div style="max-width:680px;margin:0 auto;background:#fff">
-    <div style="background:#1F4E79;color:#fff;padding:28px 36px">
+    <div style="background:#4F46E5;color:#fff;padding:28px 36px">
       <div style="font-size:10px;font-weight:700;letter-spacing:0.16em">SAFARI PARK PROJECT · WEEKLY DIGEST</div>
       <div style="margin-top:6px;font-size:22px;font-weight:600;letter-spacing:-0.02em">Hi ${esc(user.name.split(' ')[0])}, here is the week's engagement summary.</div>
     </div>
@@ -155,21 +155,21 @@ function digestHtml(user, data) {
         </tr>
       </table>
 
-      <h2 style="font-size:14px;font-weight:700;color:#1F4E79;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Engagement Ladder</h2>
+      <h2 style="font-size:14px;font-weight:700;color:#4F46E5;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Engagement Ladder</h2>
       <div>${ladderHtml}</div>
 
-      <h2 style="font-size:14px;font-weight:700;color:#1F4E79;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Overdue (${data.totals.overdue})</h2>
+      <h2 style="font-size:14px;font-weight:700;color:#4F46E5;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Overdue (${data.totals.overdue})</h2>
       <table style="width:100%;border-collapse:collapse">${overdueRows}</table>
 
-      <h2 style="font-size:14px;font-weight:700;color:#1F4E79;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Logged this week (${data.totals.comms_this_week})</h2>
+      <h2 style="font-size:14px;font-weight:700;color:#4F46E5;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Logged this week (${data.totals.comms_this_week})</h2>
       <table style="width:100%;border-collapse:collapse">${recentRows}</table>
 
       ${meetingRows ? `
-      <h2 style="font-size:14px;font-weight:700;color:#1F4E79;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Meetings this week</h2>
+      <h2 style="font-size:14px;font-weight:700;color:#4F46E5;letter-spacing:0.06em;text-transform:uppercase;margin:28px 0 10px">Meetings this week</h2>
       <table style="width:100%;border-collapse:collapse">${meetingRows}</table>` : ''}
 
       <div style="margin-top:34px;padding-top:18px;border-top:1px solid #E8E8EB;font-size:12px;color:#6E6E73">
-        <a href="${link('/app')}" style="color:#1F4E79;text-decoration:none;font-weight:600">Open the tracker →</a>
+        <a href="${link('/app')}" style="color:#4F46E5;text-decoration:none;font-weight:600">Open the tracker →</a>
         <br>
         You're receiving this because you have an account on the SPD Tracker.
       </div>

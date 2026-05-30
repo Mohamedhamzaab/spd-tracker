@@ -4,7 +4,7 @@
 //  Pagination via limit/offset; default 50 rows per page.
 //  Each row expands to show the raw payload + IP + user-agent.
 // ---------------------------------------------------------------------------
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '../lib/api.js';
 import {
   Section, Loading, Empty, ErrorBanner, Pill, fmtDate,
@@ -197,9 +197,8 @@ export default function AuditLog() {
                 {events.map((ev) => {
                   const open = expanded === ev.id;
                   return (
-                    <>
+                    <React.Fragment key={ev.id}>
                       <tr
-                        key={ev.id}
                         className="clickable"
                         onClick={() => setExpanded(open ? null : ev.id)}
                       >
@@ -222,7 +221,7 @@ export default function AuditLog() {
                         <td className="audit-chev">{open ? '▴' : '▾'}</td>
                       </tr>
                       {open && (
-                        <tr key={ev.id + 'x'} className="audit-expanded">
+                        <tr className="audit-expanded">
                           <td colSpan={6}>
                             <div className="audit-payload">
                               <div>
@@ -241,7 +240,7 @@ export default function AuditLog() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

@@ -17,7 +17,6 @@ const { query } = require('../db');
 const { wrap, httpError } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
-const { publish } = require('../eventBus');
 const { newGroupId } = require('../softDelete');
 const storage = require('../storage');
 

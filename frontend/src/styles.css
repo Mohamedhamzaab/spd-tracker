@@ -1,34 +1,81 @@
 /* ===========================================================================
    Safari Park Project - Authority Engagement Tracker
-   Design system. Restrained, light, hairline-bordered. ECG navy as the single
-   accent. System font stack so it renders as SF Pro on Apple devices.
+   Design system — "Modern Slate & Indigo". Slate neutrals, indigo primary,
+   sky secondary, higher contrast. The --navy* variable names are retained
+   (the whole app references them) but now hold indigo values, so the entire
+   UI re-skins from these tokens. A dark theme overrides the neutrals below.
    =========================================================================== */
 
 :root {
-  --bg: #fbfbfd;
+  /* Neutrals — slate ramp */
+  --bg: #f8fafc;          /* slate-50  */
   --surface: #ffffff;
-  --ink: #1d1d1f;
-  --muted: #6e6e73;
-  --faint: #86868b;
-  --line: #e8e8eb;
-  --line-strong: #d6d6da;
-  --navy: #1f4e79;
-  --navy-deep: #173a5a;
-  --navy-soft: #eef3f8;
-  --accent: #2e75b5;
-  --green: #1d7a4d;
-  --green-bg: #e6f4ec;
-  --amber: #8a6100;
-  --amber-bg: #fbefd3;
-  --red: #b42318;
-  --red-bg: #fbe7e5;
-  --grey-bg: #f0f0f2;
+  --ink: #0f172a;         /* slate-900 */
+  --muted: #64748b;       /* slate-500 */
+  --faint: #94a3b8;       /* slate-400 */
+  --line: #e2e8f0;        /* slate-200 */
+  --line-strong: #cbd5e1; /* slate-300 */
+  --grey-bg: #f1f5f9;     /* slate-100 */
+
+  /* Primary — indigo. (Variable names kept as --navy* for compatibility.) */
+  --navy: #4f46e5;        /* indigo-600 — primary accent */
+  --navy-deep: #3730a3;   /* indigo-800 — hover/pressed   */
+  --navy-soft: #eef2ff;   /* indigo-50  — tints/active bg  */
+
+  /* Secondary accent — sky */
+  --accent: #0ea5e9;      /* sky-500 */
+
+  /* Text/icon color that sits on top of a --navy (primary) fill. */
+  --on-primary: #ffffff;
+
+  /* Semantic */
+  --green: #16a34a;
+  --green-bg: #dcfce7;
+  --amber: #b45309;       /* amber-700 (readable on light) */
+  --amber-bg: #fef3c7;
+  --red: #dc2626;
+  --red-bg: #fee2e2;
+
   --radius: 14px;
   --radius-sm: 9px;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.04);
-  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 8px 24px rgba(15, 23, 42, 0.06);
+  --shadow-soft: 0 1px 2px rgba(15, 23, 42, 0.06);
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;
+  color-scheme: light;
+}
+
+/* --- Dark theme ----------------------------------------------------------
+   Overrides only the neutrals + tints; the indigo/sky/semantic accents stay
+   (lightly brightened where needed for contrast on dark surfaces). Applied
+   by setting <html data-theme="dark"> (see lib/theme.js). */
+html[data-theme="dark"] {
+  --bg: #0b1120;          /* slate-950-ish */
+  --surface: #131c2e;     /* raised panel  */
+  --ink: #e6edf6;
+  --muted: #94a3b8;
+  --faint: #64748b;
+  --line: #243044;
+  --line-strong: #334155;
+  --grey-bg: #1b2538;
+
+  --navy: #6366f1;        /* indigo-500 — saturated enough for white text */
+  --navy-deep: #818cf8;   /* indigo-400 — hover lifts lighter */
+  --navy-soft: #1e2540;   /* deep indigo-tinted panel         */
+
+  --accent: #38bdf8;      /* sky-400 */
+  --on-primary: #ffffff;  /* white still reads on indigo-500 */
+
+  --green: #4ade80;
+  --green-bg: #14331f;
+  --amber: #fbbf24;
+  --amber-bg: #3a2c0a;
+  --red: #f87171;
+  --red-bg: #3a1a1a;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -113,7 +160,7 @@ a:hover { text-decoration: underline; }
 .user-chip { display: flex; align-items: center; gap: 10px; }
 .avatar {
   width: 32px; height: 32px; border-radius: 50%;
-  background: var(--navy); color: #fff;
+  background: var(--navy); color: var(--on-primary);
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 600; flex-shrink: 0;
 }
@@ -126,7 +173,7 @@ a:hover { text-decoration: underline; }
   background: var(--bg); border: 1px solid var(--line);
   border-radius: var(--radius-sm); padding: 7px; cursor: pointer;
 }
-.signout:hover { background: #fff; color: var(--ink); }
+.signout:hover { background: var(--grey-bg); color: var(--ink); }
 
 /* ---- Main column -------------------------------------------------------- */
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -135,7 +182,7 @@ a:hover { text-decoration: underline; }
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px 36px 18px;
   border-bottom: 1px solid var(--line);
-  background: rgba(251, 251, 253, 0.85);
+  background: var(--surface);
   backdrop-filter: saturate(180%) blur(12px);
   position: sticky; top: 0; z-index: 20;
 }
@@ -285,10 +332,10 @@ td.mono { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--nav
 .btn:hover { background: var(--bg); }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .btn-primary {
-  background: var(--navy); border-color: var(--navy); color: #fff;
+  background: var(--navy); border-color: var(--navy); color: var(--on-primary);
 }
 .btn-primary:hover { background: var(--navy-deep); }
-.btn-danger { color: var(--red); border-color: var(--red-bg); background: #fff; }
+.btn-danger { color: var(--red); border-color: var(--red-bg); background: var(--surface); }
 .btn-danger:hover { background: var(--red-bg); }
 .btn-sm { padding: 5px 11px; font-size: 12px; }
 .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
@@ -414,7 +461,7 @@ td.mono { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--nav
 .toast {
   position: fixed; bottom: 24px; left: 50%;
   transform: translateX(-50%);
-  background: var(--ink); color: #fff;
+  background: var(--ink); color: var(--surface);
   font-size: 13px; font-weight: 500;
   padding: 11px 20px; border-radius: 24px;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
@@ -745,7 +792,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   padding: 10px 4px 14px;
 }
 .audit-payload-pre {
-  background: #fff;
+  background: var(--grey-bg);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 10px 12px;
@@ -833,7 +880,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   transition: background 100ms ease, border-color 100ms ease, color 100ms ease;
 }
 .chip:hover { border-color: var(--line-strong); color: var(--ink); }
-.chip-on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.chip-on { background: var(--navy); color: var(--on-primary); border-color: var(--navy); }
 .chip-red.chip-on    { background: var(--red);    border-color: var(--red); }
 .chip-green.chip-on  { background: var(--green);  border-color: var(--green); }
 .chip-amber.chip-on  { background: var(--amber);  border-color: var(--amber); }
@@ -1004,6 +1051,32 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   border-bottom-color: var(--navy);
 }
 
+/* ---- Reply-linkage chip (Communications "Linked" column) --------------- */
+.link-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  border: 1px solid var(--line);
+  background: var(--navy-soft);
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.link-chip:hover { border-color: var(--navy); }
+.link-chip-fwd { background: var(--green-bg); color: var(--green); }
+.link-chip-fwd:hover { border-color: var(--green); }
+.thread-banner {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--navy-soft); color: var(--navy-deep);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 14px; font-size: 13px;
+  margin-bottom: 12px;
+}
+.thread-banner .link-btn { margin-left: auto; }
+
 /* Sortable table headers — clickable label + small arrow indicator. */
 .th-sort {
   cursor: pointer;
@@ -1073,7 +1146,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
 }
 .landing-brand-mark {
   font-size: 10px; font-weight: 700; letter-spacing: 0.16em;
-  text-transform: uppercase; color: #7ec4ff;
+  text-transform: uppercase; color: #38bdf8;
 }
 .landing-brand-name {
   font-size: 15px; font-weight: 600; letter-spacing: -0.01em; margin-top: 2px;
@@ -1104,7 +1177,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
 .landing-hero { min-height: 100vh; padding-top: 40px; }
 .landing-eyebrow {
   font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
-  text-transform: uppercase; color: #7ec4ff; margin-bottom: 22px;
+  text-transform: uppercase; color: #38bdf8; margin-bottom: 22px;
 }
 .landing-h1 {
   font-size: clamp(36px, 6vw, 72px);
@@ -1139,7 +1212,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
 /* Generic section headings */
 .landing-kicker {
   font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
-  text-transform: uppercase; color: #7ec4ff; margin-bottom: 14px;
+  text-transform: uppercase; color: #38bdf8; margin-bottom: 14px;
 }
 .landing-h2 {
   font-size: clamp(28px, 4vw, 44px);
@@ -1171,7 +1244,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   -webkit-backdrop-filter: blur(8px);
 }
 .landing-stat-n {
-  font-size: 40px; font-weight: 600; letter-spacing: -0.03em; color: #7ec4ff;
+  font-size: 40px; font-weight: 600; letter-spacing: -0.03em; color: #38bdf8;
 }
 .landing-stat-l {
   margin-top: 6px; font-size: 12px; letter-spacing: 0.06em;
@@ -1195,7 +1268,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   display: inline-flex; align-items: center; justify-content: center;
   width: 28px; height: 28px; border-radius: 50%;
   background: rgba(126, 196, 255, 0.18);
-  color: #7ec4ff; font-weight: 700; font-size: 13px;
+  color: #38bdf8; font-weight: 700; font-size: 13px;
   flex-shrink: 0;
 }
 .landing-ladder-h { font-weight: 600; color: #f4f7fb; font-size: 15px; }
@@ -1218,7 +1291,7 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase;
   color: #c7d0dd; background: rgba(255, 255, 255, 0.06); border-radius: 999px;
 }
-.landing-role-editor { color: #7ec4ff; background: rgba(126, 196, 255, 0.12); }
+.landing-role-editor { color: #38bdf8; background: rgba(126, 196, 255, 0.12); }
 .landing-role-org {
   margin-top: 14px; font-size: 18px; font-weight: 600; color: #f4f7fb;
   letter-spacing: -0.01em;

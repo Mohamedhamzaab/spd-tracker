@@ -26,9 +26,9 @@ const { logAudit } = require('../audit');
 const router = express.Router();
 
 // --- shared styling ----------------------------------------------------------
-const NAVY = 'FF1F4E79';
-const NAVY_DARK = 'FF173A5A';
-const NAVY_SOFT = 'FFEEF3F8';
+const NAVY = 'FF4F46E5';
+const NAVY_DARK = 'FF3730A3';
+const NAVY_SOFT = 'FFEEF2FF';
 const RED = 'FFB42318';
 const AMBER = 'FF8A6100';
 const GREEN = 'FF1D7A4D';
@@ -160,6 +160,7 @@ function buildCommunicationsSheet(book, rows) {
     { header: 'Mode',             key: 'mode',                 width: 14 },
     { header: 'Submission Ref',   key: 'submission_reference', width: 28 },
     { header: 'In Response To',   key: 'in_response_to_code',  width: 14 },
+    { header: 'Replied By',       key: 'reply_code',           width: 12 },
     { header: 'Summary',          key: 'summary',              width: 60 },
     { header: 'Reply Needed',     key: 'reply_needed_str',     width: 12 },
     { header: 'Reply Received',   key: 'reply_received_str',   width: 14 },
@@ -416,13 +417,13 @@ router.get(
 // --- PDF helpers ------------------------------------------------------------
 function pdfHeader(doc, { title, subtitle }) {
   // Navy stripe
-  doc.rect(0, 0, doc.page.width, 70).fill('#1F4E79');
+  doc.rect(0, 0, doc.page.width, 70).fill('#4F46E5');
   doc.fillColor('white');
   doc.font('Helvetica-Bold').fontSize(10)
     .text('SAFARI PARK PROJECT', 40, 18, { characterSpacing: 1.4 });
   doc.font('Helvetica-Bold').fontSize(18).text(title, 40, 32);
   if (subtitle) {
-    doc.font('Helvetica').fontSize(10).fillColor('#EEF3F8').text(subtitle, 40, 56);
+    doc.font('Helvetica').fontSize(10).fillColor('#EEF2FF').text(subtitle, 40, 56);
   }
   doc.fillColor('black');
   doc.font('Helvetica').fontSize(9).text(
@@ -435,7 +436,7 @@ function pdfHeader(doc, { title, subtitle }) {
 
 function pdfSection(doc, title) {
   doc.moveDown(0.6);
-  doc.fillColor('#1F4E79').font('Helvetica-Bold').fontSize(13).text(title);
+  doc.fillColor('#4F46E5').font('Helvetica-Bold').fontSize(13).text(title);
   doc.strokeColor('#D6D6DA').lineWidth(0.5)
     .moveTo(40, doc.y + 4).lineTo(doc.page.width - 40, doc.y + 4).stroke();
   doc.moveDown(0.6);
@@ -447,10 +448,10 @@ function pdfKpiTiles(doc, kpis) {
   const y = doc.y;
   kpis.forEach((kpi, i) => {
     const x = 40 + i * (tileW + 10);
-    doc.rect(x, y, tileW, 56).fill('#EEF3F8');
-    doc.fillColor('#1F4E79').font('Helvetica-Bold').fontSize(9)
+    doc.rect(x, y, tileW, 56).fill('#EEF2FF');
+    doc.fillColor('#4F46E5').font('Helvetica-Bold').fontSize(9)
       .text(kpi.label.toUpperCase(), x + 12, y + 8, { characterSpacing: 0.6 });
-    doc.fillColor('#173A5A').font('Helvetica-Bold').fontSize(22)
+    doc.fillColor('#3730A3').font('Helvetica-Bold').fontSize(22)
       .text(String(kpi.value), x + 12, y + 22);
   });
   doc.y = y + 64;
@@ -477,7 +478,7 @@ function pdfTable(doc, columns, rows, opts = {}) {
 
     let x = left;
     if (isHeader) {
-      doc.rect(left, doc.y - 2, right - left, cellH).fill('#1F4E79');
+      doc.rect(left, doc.y - 2, right - left, cellH).fill('#4F46E5');
       doc.fillColor('white');
     } else {
       doc.fillColor('black');

@@ -481,6 +481,18 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
                 )
               }
             />
+            {data.in_response_to_code && (
+              <DItem
+                label="In response to"
+                value={<span className="mono">↩ {data.in_response_to_code}</span>}
+              />
+            )}
+            {data.reply_code && (
+              <DItem
+                label="Answered by"
+                value={<span className="mono">→ {data.reply_code}</span>}
+              />
+            )}
           </div>
           {data.submission_reference && (
             <DRow label="Submission Reference" value={data.submission_reference} />

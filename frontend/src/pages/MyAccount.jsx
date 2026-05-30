@@ -9,6 +9,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import { Section, Loading, fmtDate, Pill, Modal, useToast } from '../components/ui.jsx';
 import { setLanguage } from '../lib/i18n.js';
+import { getTheme, setTheme } from '../lib/theme.js';
 
 const ROLE_LABEL = {
   super_admin: 'Super-admin',
@@ -28,6 +29,12 @@ export default function MyAccount() {
   const [meta, setMeta] = useState(null);
   const [regenerating, setRegenerating] = useState(false);
   const [newCodes, setNewCodes] = useState(null);
+  const [theme, setThemeState] = useState(getTheme());
+
+  function changeTheme(next) {
+    setTheme(next);
+    setThemeState(next);
+  }
 
   async function reload() {
     try {
@@ -131,6 +138,30 @@ export default function MyAccount() {
                 onClick={() => setLanguage('ar')}
               >
                 {t('language.ar')}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="card card-pad">
+          <Section title="Appearance" />
+          <div className="mfa-summary">
+            <div>
+              <div className="dl">Theme</div>
+              <div className="dv cell-sub">{theme === 'dark' ? 'Dark' : 'Light'}</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button
+                className={'btn ' + (theme === 'light' ? 'btn-primary' : '')}
+                onClick={() => changeTheme('light')}
+              >
+                Light
+              </button>
+              <button
+                className={'btn ' + (theme === 'dark' ? 'btn-primary' : '')}
+                onClick={() => changeTheme('dark')}
+              >
+                Dark
               </button>
             </div>
           </div>

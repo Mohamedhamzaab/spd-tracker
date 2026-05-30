@@ -12,7 +12,7 @@ const helmet = require('helmet');
 const { logger, httpLogger, initSentry, captureException } = require('./logger');
 initSentry();
 
-const { router: authRouter, requireAuth } = require('./auth');
+const { router: authRouter, requireAuth, requireClearedGates } = require('./auth');
 const authorities = require('./routes/authorities');
 const subdivisions = require('./routes/subdivisions');
 const communications = require('./routes/communications');
@@ -42,7 +42,10 @@ app.use(
     crossOriginEmbedderPolicy: false, // allow R3F WebGL textures
   })
 );
-app.use(cors({ origin: process.env.CORS_ORIGIN || '*' }));
+// In production a wildcard CORS origin is never acceptable — require an
+// explicit CORS_ORIGIN. In dev, fall back to "*" for convenience.
+const corsOrigin = process.env.CORS_ORIGIN || (isProd ? false : '*');
+app.use(cors({ origin: corsOrigin }));
 // 1 MB is plenty for our JSON payloads; uploads use multer separately.
 app.use(express.json({ limit: '1mb' }));
 
@@ -58,6 +61,10 @@ app.use('/api/auth', authRouter);
 // token from a query param) — mount it BEFORE requireAuth.
 app.use('/api/stream', stream);
 app.use('/api', requireAuth);
+// After auth, enforce the account gates (must-change-password, MFA enrollment)
+// on the whole data API. The /api/auth/* router above is exempt because it is
+// mounted before this point, so the gate-clearing endpoints stay reachable.
+app.use('/api', requireClearedGates);
 app.use('/api/authorities', authorities);
 app.use('/api/sub-divisions', subdivisions);
 app.use('/api/communications', communications);
@@ -101,7 +108,13 @@ app.use((err, req, res, next) => {
       request: { method: req.method, path: req.originalUrl, ip: req.ip },
     });
   }
-  res.status(status).json({ error: err.message || 'Something went wrong.' });
+  // Thrown httpErrors carry a safe, user-facing message. Unexpected 500s may
+  // carry raw driver/internal text — return a generic message to the client
+  // and keep the detail in the log/Sentry only.
+  const clientMessage = status >= 500
+    ? 'Something went wrong. Please try again.'
+    : (err.message || 'Something went wrong.');
+  res.status(status).json({ error: clientMessage });
 });
 
 const PORT = Number(process.env.PORT) || 4000;

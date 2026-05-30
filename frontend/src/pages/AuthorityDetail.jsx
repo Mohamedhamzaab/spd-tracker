@@ -43,6 +43,13 @@ export default function AuthorityDetail() {
     reload();
   }, [id]);
 
+  // Hooks must run on every render in the same order — compute the sort
+  // BEFORE any conditional early-return below.
+  const subs = data ? (data.sub_divisions || []) : [];
+  const { sorted: sortedSubs, sortKey, sortDir, onSort } = useTableSort(
+    subs, AUTH_SUB_COLS, { defaultKey: 'sub_reference', defaultDir: 'asc' }
+  );
+
   if (error) {
     return (
       <>
@@ -56,11 +63,6 @@ export default function AuthorityDetail() {
     );
   }
   if (!data) return <Loading label="Loading authority" />;
-
-  const subs = data.sub_divisions || [];
-  const { sorted: sortedSubs, sortKey, sortDir, onSort } = useTableSort(
-    subs, AUTH_SUB_COLS, { defaultKey: 'sub_reference', defaultDir: 'asc' }
-  );
 
   return (
     <>

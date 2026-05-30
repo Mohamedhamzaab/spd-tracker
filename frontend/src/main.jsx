@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { StoreProvider } from './lib/store.jsx';
 import './lib/i18n.js';
+import './lib/theme.js';
 import './styles.css';
 
 createRoot(document.getElementById('root')).render(

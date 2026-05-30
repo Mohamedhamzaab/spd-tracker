@@ -6,7 +6,6 @@ const { query, withTransaction } = require('../db');
 const { wrap, httpError, suggestCode } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
-const { publish } = require('../eventBus');
 const { softDeleteAuthority, newGroupId } = require('../softDelete');
 
 const router = express.Router();

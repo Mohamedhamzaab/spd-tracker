@@ -102,7 +102,8 @@ async function requireAuth(req, res, next) {
     }
 
     const { rows } = await query(
-      `SELECT id, name, email, role, organisation, token_version, is_disabled
+      `SELECT id, name, email, role, organisation, token_version, is_disabled,
+              password_must_change, mfa_enrolled_at
        FROM users WHERE id = $1`,
       [payload.id]
     );
@@ -120,11 +121,31 @@ async function requireAuth(req, res, next) {
       email: fresh.email,
       role: fresh.role,
       organisation: fresh.organisation,
+      // Account-gate flags — read by requireClearedGates below. Kept off the
+      // public user object the routes return.
+      password_must_change: !!fresh.password_must_change,
+      mfa_enrolled: !!fresh.mfa_enrolled_at,
     };
     next();
   } catch (err) {
     next(err);
   }
+}
+
+// Enforce the account gates server-side. The /api/auth/* router is mounted
+// BEFORE the global requireAuth, so the endpoints that CLEAR these gates
+// (change-password, mfa/start, mfa/confirm, me) are naturally exempt — this
+// middleware only guards the data API under /api. Without it the gates were
+// frontend-only: a held session token could still hit every endpoint.
+function requireClearedGates(req, res, next) {
+  if (!req.user) return next(httpError(401, 'Sign in to continue.'));
+  if (req.user.password_must_change) {
+    return next(httpError(403, 'You must change your password before continuing.'));
+  }
+  if (!req.user.mfa_enrolled) {
+    return next(httpError(403, 'You must finish setting up two-factor authentication before continuing.'));
+  }
+  next();
 }
 
 function requireAdmin(req, res, next) {
@@ -549,6 +570,7 @@ router.post(
 // stamp mfa_enrolled_at. From here on every sign-in requires a code.
 router.post(
   '/mfa/confirm',
+  tokenLimiter, // throttle TOTP-code guessing during enrollment
   requireAuth,
   wrap(async (req, res) => {
     const code = (req.body.code || '').trim();
@@ -739,6 +761,7 @@ router.post(
 module.exports = {
   router,
   requireAuth,
+  requireClearedGates,
   requireAdmin,
   requireSuperAdmin,
   requireEditor,
@@ -747,4 +770,7 @@ module.exports = {
   signMfaChallengeJwt,
   hashPassword,
   checkPassword,
+  // Exported so stream.js shares one secret-resolution path (no dev fallback
+  // divergence). Treat as read-only.
+  JWT_SECRET: SECRET,
 };
