@@ -194,10 +194,14 @@ function htmlShell({ heading, intro, ctaLabel, ctaUrl, note, footnote }) {
 </body></html>`;
 }
 
-function sendInvite({ to, name, token, invitedByName }) {
+// Invite is sent awaitably (super-admin action, not enumeration-sensitive) so
+// the caller can tell the admin whether the email actually went out. Never
+// throws — resolves to { ok, mode, error } so a failed send doesn't fail the
+// user-creation request (the account is still created as invite-pending).
+async function sendInvite({ to, name, token, invitedByName }) {
   const link = url(`/accept-invite?token=${encodeURIComponent(token)}`);
   const intro = `${invitedByName || 'A super-admin'} has invited you to the Safari Park Project Authority Engagement Tracker. Set your password to get started — the link is valid for 72 hours and can be used once.`;
-  send({
+  const msg = {
     to,
     subject: 'You have been invited to the Safari Park Project tracker',
     text: [
@@ -219,7 +223,16 @@ function sendInvite({ to, name, token, invitedByName }) {
       note: "If you weren't expecting this invitation, ignore this email — nothing has been created until you click the link.",
       footnote: 'Safari Park Project · Authority Engagement Tracker · ecgportal.dev',
     }),
-  });
+  };
+  if (REPLY_TO && !msg.replyTo) msg.replyTo = REPLY_TO;
+  try {
+    await doSend(msg);
+    console.log(`[mail] invite sent ok via ${mode} -> ${to}`);
+    return { ok: true, mode };
+  } catch (err) {
+    console.error(`[mail] invite FAILED via ${mode} -> ${to}: ${err.message}`);
+    return { ok: false, mode, error: err.message };
+  }
 }
 
 function sendPasswordReset({ to, name, token }) {

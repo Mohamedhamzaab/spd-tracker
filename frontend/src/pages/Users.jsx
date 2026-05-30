@@ -83,18 +83,35 @@ export default function Users() {
   async function onInvite(values) {
     try {
       const data = await api.createUser(values);
-      toast(`${data.user.email} invited. ${describeMail(data.mail)}`);
       setShowInvite(false);
       reload();
+      if (data.email_sent) {
+        toast(`${data.user.email} invited. ${describeMail(data.mail)}`);
+      } else if (data.mail && data.mail.mode === 'console') {
+        toast(`${data.user.email} created. ${describeMail(data.mail)}`);
+      } else {
+        // Account created, but the email bounced/was rejected. Make it loud.
+        setError(
+          `${data.user.email} was created (invite-pending), but the invitation email could NOT be delivered`
+          + (data.email_error ? `: ${data.email_error}` : '.')
+          + ' Check the address, or use "Resend invite". Corporate domains often need ecgportal.dev authenticated (SPF/DKIM/DMARC).'
+        );
+      }
     } catch (err) {
       throw new Error(err.message || 'Invite failed.');
     }
   }
 
   async function onResendInvite(id) {
+    setError('');
     try {
-      await api.resendInvite(id);
-      toast('Invitation resent.');
+      const r = await api.resendInvite(id);
+      if (r.email_sent) toast('Invitation resent.');
+      else setError(
+        'The invitation email could NOT be delivered'
+        + (r.email_error ? `: ${r.email_error}` : '.')
+        + ' The address may be rejecting mail from ecgportal.dev (SPF/DKIM/DMARC not yet set).'
+      );
     } catch (err) {
       setError(err.message || 'Failed to resend invitation.');
     }

@@ -94,29 +94,28 @@ router.post(
     const created = rows[0];
 
     const token = await tokens.issue(created.id, 'invite');
-    try {
-      await mail.sendInvite({
-        to: created.email,
-        name: created.name,
-        token,
-        invitedByName: req.user.name,
-      });
-    } catch (err) {
-      console.error('[users] invite mail failed:', err.message);
-    }
+    const sendResult = await mail.sendInvite({
+      to: created.email,
+      name: created.name,
+      token,
+      invitedByName: req.user.name,
+    });
 
     await logAudit({
       actor_id: req.user.id,
-      event: 'invite.sent',
+      event: sendResult.ok ? 'invite.sent' : 'invite.send_failed',
       target_type: 'user',
       target_id: created.id,
-      payload: { email: created.email, role: created.role },
+      payload: { email: created.email, role: created.role,
+        delivered: sendResult.ok, error: sendResult.error || null },
       req,
     });
 
     res.status(201).json({
       user: publicUser(created),
       mail: mail.describe(),
+      email_sent: sendResult.ok,
+      email_error: sendResult.error || null,
     });
   })
 );
@@ -132,25 +131,22 @@ router.post(
     if (u.password_hash) throw httpError(400, 'This user has already accepted their invitation.');
 
     const token = await tokens.issue(u.id, 'invite');
-    try {
-      await mail.sendInvite({
-        to: u.email,
-        name: u.name,
-        token,
-        invitedByName: req.user.name,
-      });
-    } catch (err) {
-      console.error('[users] resend invite mail failed:', err.message);
-    }
+    const sendResult = await mail.sendInvite({
+      to: u.email,
+      name: u.name,
+      token,
+      invitedByName: req.user.name,
+    });
     await logAudit({
       actor_id: req.user.id,
-      event: 'invite.sent',
+      event: sendResult.ok ? 'invite.sent' : 'invite.send_failed',
       target_type: 'user',
       target_id: u.id,
-      payload: { email: u.email, resend: true },
+      payload: { email: u.email, resend: true, delivered: sendResult.ok,
+        error: sendResult.error || null },
       req,
     });
-    res.json({ ok: true });
+    res.json({ ok: true, email_sent: sendResult.ok, email_error: sendResult.error || null });
   })
 );
 
