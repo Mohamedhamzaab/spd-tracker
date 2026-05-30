@@ -8,7 +8,7 @@ Guidance for Claude Code when working in this repository.
 tracks ECG's engagement with statutory authorities and utility providers on
 the Safari Park Project (Design Consultancy Services, Contract No. 6).
 
-- **Live demo:** https://spd-tracker.onrender.com
+- **Live demo:** https://ecgportal.dev
 - **GitHub:** https://github.com/Mohamedhamzaab/spd-tracker
 
 Three-level data model carried over from the prior Excel tracker:

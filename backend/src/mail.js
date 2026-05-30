@@ -17,8 +17,8 @@
 //  the HTTP request never blocks on SMTP/TLS handshakes or timeouts.
 //
 //  Required env:
-//    APP_URL         e.g. https://spd-tracker.onrender.com  (no trailing /)
-//    SMTP_FROM       e.g. 'SPD Tracker <no-reply@spd-tracker.com>'
+//    APP_URL         e.g. https://ecgportal.dev  (no trailing /)
+//    SMTP_FROM       e.g. 'SPD Tracker <no-reply@ecgportal.dev>'
 //
 //  For Brevo HTTP API mode:
 //    BREVO_API_KEY   long base64 string from https://app.brevo.com/settings/keys/api
@@ -28,7 +28,7 @@
 // ---------------------------------------------------------------------------
 const nodemailer = require('nodemailer');
 
-const FROM_RAW = process.env.SMTP_FROM || 'SPD Tracker <no-reply@spd-tracker.local>';
+const FROM_RAW = process.env.SMTP_FROM || 'SPD Tracker <no-reply@ecgportal.dev>';
 const APP_URL = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
 
 // Parse "Name <email>" into { name, email }; fall back to plain address.

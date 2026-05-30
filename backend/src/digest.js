@@ -237,7 +237,7 @@ async function sendDigestTo(user, data) {
     };
   }
   await send({
-    from: process.env.SMTP_FROM || 'SPD Tracker <no-reply@spd-tracker.local>',
+    from: process.env.SMTP_FROM || 'SPD Tracker <no-reply@ecgportal.dev>',
     to: user.email,
     subject,
     text,

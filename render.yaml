@@ -61,9 +61,9 @@ services:
       - key: PGSSL
         value: "true"
       # Public URL of the front end — used to build invitation + reset links
-      # in outgoing emails. Change here if the service is renamed.
+      # in outgoing emails. Update if the service moves to a different host.
       - key: APP_URL
-        value: https://spd-tracker.onrender.com
+        value: https://ecgportal.dev
       # Sensible defaults. Override in the Render dashboard if you want
       # actual mail delivery, Sentry, S3, or the weekly digest. Leaving the
       # SMTP_* block blank logs invite/reset emails to the service console
