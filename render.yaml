@@ -65,15 +65,29 @@ services:
       - key: APP_URL
         value: https://ecgportal.dev
       # Sensible defaults. Override in the Render dashboard if you want
-      # actual mail delivery, Sentry, S3, or the weekly digest. Leaving the
+      # actual mail delivery, Sentry, or the weekly digest. Leaving the
       # SMTP_* block blank logs invite/reset emails to the service console
       # instead of sending them.
-      - key: STORAGE_BACKEND
-        value: disk
       - key: DIGEST_ENABLED
         value: "false"
       - key: LOG_LEVEL
         value: info
+      # Document storage. Managed entirely in the dashboard (sync: false) so a
+      # blueprint re-sync never resets your choice. Unset → defaults to local
+      # disk (ephemeral). For permanent storage set STORAGE_BACKEND=s3 plus the
+      # S3_* values in the dashboard — see STORAGE-SETUP.md.
+      - key: STORAGE_BACKEND
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_REGION
+        sync: false
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
       # MFA_ENC_KEY must be added manually in the Render dashboard before any
       # user enrols MFA — the server boots without it; only MFA setup fails.
       # Generate with:
