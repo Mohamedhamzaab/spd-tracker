@@ -41,8 +41,10 @@ const USER_COLS = {
 
 function describeMail(m) {
   if (!m) return '';
-  if (m.mode === 'smtp') return 'Invitation email sent.';
-  return 'Invitation logged to the backend console (SMTP not configured).';
+  // brevo-http and smtp both mean the email was actually dispatched.
+  if (m.mode === 'brevo-http' || m.mode === 'smtp') return 'Invitation email sent.';
+  // console mode = dev / no creds: link only in server logs.
+  return 'Invitation logged to the backend console (no email transport configured).';
 }
 
 const ROLE_LABEL = {
@@ -416,7 +418,7 @@ function EditModal({ user, onClose, onSubmit }) {
             <input
               type="checkbox"
               checked={isDisabled}
-              onChange={(e) => setIsDisabled(e.target.checked)}
+              onChange={(e) => setIsDisabled(e.target.value)}
             />
             <span>Disabled (cannot sign in)</span>
           </label>
