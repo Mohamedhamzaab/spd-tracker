@@ -10,7 +10,7 @@ import {
   Loading, Empty, ErrorBanner, DirectionPill, Pill, fmtDate, useToast,
   useTableSort, SortableTH,
 } from '../components/ui.jsx';
-import { CommDetail } from './SubDivisionDetail.jsx';
+import { CommDetail, CommForm } from './SubDivisionDetail.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import { useLive } from '../lib/liveStream.js';
 
@@ -65,8 +65,8 @@ function useDebouncedValue(value, ms) {
 }
 
 export default function Communications() {
-  const { isEditor } = useStore();
-  useToast();
+  const { isEditor, lists } = useStore();
+  const toast = useToast();
 
   // Filter state
   const [q, setQ] = useState('');
@@ -81,8 +81,10 @@ export default function Communications() {
   // Data state
   const [rows, setRows] = useState(null);
   const [authorities, setAuthorities] = useState([]);
+  const [subDivisions, setSubDivisions] = useState([]);
   const [error, setError] = useState('');
   const [openComm, setOpenComm] = useState(null);
+  const [adding, setAdding] = useState(false);
 
   const qDebounced = useDebouncedValue(q, 250);
 
@@ -90,6 +92,13 @@ export default function Communications() {
   useEffect(() => {
     api.authorities().then(setAuthorities).catch(() => {});
   }, []);
+
+  // Sub-divisions — loaded once, only needed so editors can log a new
+  // communication straight from this page (the picker in the modal).
+  useEffect(() => {
+    if (!isEditor) return;
+    api.subDivisions().then(setSubDivisions).catch(() => {});
+  }, [isEditor]);
 
   // Refetch whenever any committed filter changes.
   const params = useMemo(() => {
@@ -145,6 +154,15 @@ export default function Communications() {
           <div className="page-crumb">Tracker</div>
           <div className="page-title">Communications</div>
         </div>
+        {isEditor && (
+          <button
+            className="btn btn-primary"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setAdding(true)}
+          >
+            + Log Communication
+          </button>
+        )}
       </div>
       <div className="page">
         <ErrorBanner message={error} />
@@ -356,6 +374,20 @@ export default function Communications() {
           onClose={() => setOpenComm(null)}
           onChanged={() => {
             // Re-trigger the fetch by updating a sibling.
+            setRows(null);
+            api.communications(params).then(setRows).catch((e) => setError(e.message));
+          }}
+        />
+      )}
+
+      {adding && (
+        <CommForm
+          lists={lists}
+          subDivisions={subDivisions}
+          onClose={() => setAdding(false)}
+          onSaved={(code) => {
+            setAdding(false);
+            toast(`Logged ${code}.`);
             setRows(null);
             api.communications(params).then(setRows).catch((e) => setError(e.message));
           }}

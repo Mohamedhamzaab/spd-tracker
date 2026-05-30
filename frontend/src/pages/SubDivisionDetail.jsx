@@ -234,8 +234,22 @@ function Item({ label, value }) {
 /* ---- log a communication ------------------------------------------------ */
 // Field definitions are shared between create and edit so the two flows
 // always present an identical form.
-function commFieldDefs(lists) {
-  return [
+function commFieldDefs(lists, subDivisions) {
+  const defs = [];
+  // When the form is opened outside a specific sub-division (e.g. from the
+  // Communications list page) the caller passes the list of sub-divisions so
+  // the user can choose which one this communication belongs to.
+  if (subDivisions) {
+    defs.push({
+      name: 'sub_division_id', label: 'Sub-Division', type: 'select', required: true,
+      span: 2, placeholder: 'Choose a sub-division…',
+      options: subDivisions.map((s) => ({
+        value: s.id,
+        label: `${s.sub_reference} — ${s.name}`,
+      })),
+    });
+  }
+  defs.push(
     { name: 'comm_date', label: 'Date', type: 'date', required: true },
     { name: 'direction', label: 'Direction', type: 'select', required: true,
       options: lists.direction },
@@ -253,7 +267,8 @@ function commFieldDefs(lists) {
     { name: 'reply_needed', label: 'A reply is needed for this communication',
       type: 'checkbox', span: 2,
       help: 'Outbound items needing a reply are flagged overdue after 7 days.' },
-  ];
+  );
+  return defs;
 }
 
 function emptyCommValues() {
@@ -284,8 +299,10 @@ function commValuesFromExisting(existing, parentCommCode) {
   };
 }
 
-// Used in create mode (modal opened from a sub-division thread).
-export function CommForm({ lists, subId, onClose, onSaved }) {
+// Used in create mode. Opened either from a sub-division thread (subId is
+// fixed) or from the Communications list page (subDivisions is supplied so the
+// user picks one).
+export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
   const [values, setValues] = useState(emptyCommValues());
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -293,10 +310,12 @@ export function CommForm({ lists, subId, onClose, onSaved }) {
 
   async function save() {
     setError('');
+    const targetSub = subId || Number(values.sub_division_id);
+    if (!targetSub) return setError('Please choose a sub-division.');
     if (!values.comm_date) return setError('A date is required.');
     setBusy(true);
     try {
-      const created = await api.createComm({ ...values, sub_division_id: subId });
+      const created = await api.createComm({ ...values, sub_division_id: targetSub });
       onSaved(created.comm_code);
     } catch (e) {
       setError(e.message);
@@ -323,7 +342,12 @@ export function CommForm({ lists, subId, onClose, onSaved }) {
       }
     >
       <ErrorBanner message={error} />
-      <FormFields fields={commFieldDefs(lists)} values={values} onChange={onChange} disabled={busy} />
+      <FormFields
+        fields={commFieldDefs(lists, subId ? null : subDivisions)}
+        values={values}
+        onChange={onChange}
+        disabled={busy}
+      />
     </Modal>
   );
 }
