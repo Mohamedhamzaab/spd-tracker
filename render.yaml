@@ -57,7 +57,7 @@ services:
       - key: MAX_UPLOAD_MB
         value: "25"
       - key: CORS_ORIGIN
-        value: "*"
+        value: https://ecgportal.dev
       - key: PGSSL
         value: "true"
       # Public URL of the front end — used to build invitation + reset links
