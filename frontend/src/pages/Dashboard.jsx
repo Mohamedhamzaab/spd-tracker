@@ -2,17 +2,31 @@
 //  Dashboard. Live read-only overview: KPIs, engagement ladder, authorities
 //  by category, meetings summary, and a date-window period view.
 // ---------------------------------------------------------------------------
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
 import {
   Loading, ErrorBanner, Section, Kpi, BarChart, pct,
 } from '../components/ui.jsx';
+import { useLive } from '../lib/liveStream.js';
 
 function isoDaysAgo(n) {
   const d = new Date();
   d.setDate(d.getDate() - n);
   return d.toISOString().slice(0, 10);
 }
+
+// Any of these upstream changes can move a dashboard figure, so we refetch
+// when one fires — the board stays live without a manual reload.
+const DASH_LIVE_EVENTS = [
+  'data.authority.created', 'data.authority.updated', 'data.authority.deleted',
+  'data.authority.restored', 'data.authority.purged',
+  'data.subdivision.created', 'data.subdivision.updated', 'data.subdivision.deleted',
+  'data.subdivision.restored', 'data.subdivision.purged',
+  'data.communication.created', 'data.communication.updated', 'data.communication.deleted',
+  'data.communication.restored', 'data.communication.purged',
+  'data.meeting.created', 'data.meeting.updated', 'data.meeting.deleted',
+  'data.meeting.restored', 'data.meeting.purged',
+];
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -21,13 +35,23 @@ export default function Dashboard() {
   const [to, setTo] = useState(isoDaysAgo(0));
   const [period, setPeriod] = useState(null);
 
-  useEffect(() => {
+  const loadTotals = useCallback(() => {
     api.dashboard().then(setData).catch((e) => setError(e.message));
   }, []);
 
-  useEffect(() => {
+  useEffect(() => { loadTotals(); }, [loadTotals]);
+
+  // Refetch the headline figures + charts whenever underlying data changes.
+  useLive(DASH_LIVE_EVENTS, loadTotals);
+
+  const loadPeriod = useCallback(() => {
     api.period(from, to).then(setPeriod).catch(() => setPeriod(null));
   }, [from, to]);
+
+  useEffect(() => { loadPeriod(); }, [loadPeriod]);
+
+  // The period view counts the same records, so keep it live too.
+  useLive(DASH_LIVE_EVENTS, loadPeriod);
 
   if (error) {
     return (

@@ -4,20 +4,29 @@
 const express = require('express');
 const { query } = require('../db');
 const { wrap } = require('../helpers');
+const { LISTS } = require('./lists');
 
 const router = express.Router();
 
+// The engagement ladder is a fixed, ordered funnel over the computed
+// engagement_status values (not a user-editable dropdown).
 const LADDER = ['Identified', 'Contacted', 'Response Received', 'Outcome Secured'];
-const CATEGORIES = [
-  'Government Ministry',
-  'Statutory or Regulatory Authority',
-  'Utility Provider',
-  'Service Provider',
-  'Certification Body',
-  'Adjacent Operator',
-];
-const MEETING_PURPOSES = ['Data Collection', 'Consultation', 'NOC'];
-const MEETING_MODES = ['In Person', 'Online', 'Hybrid'];
+
+// Category / purpose / mode buckets are taken straight from the canonical
+// reference lists the entry forms use — so adding a new option there makes it
+// appear on the dashboard automatically, with no second list to keep in sync.
+const CATEGORIES = LISTS.authority_category;
+const MEETING_PURPOSES = LISTS.meeting_purpose;
+const MEETING_MODES = LISTS.meeting_mode;
+
+// Return the canonical order, then append any values actually present in the
+// data that aren't in the canonical list (sorted) — so an unexpected or
+// legacy value is still charted instead of being silently dropped.
+function withExtras(canonical, dataKeys) {
+  const seen = new Set(canonical);
+  const extras = dataKeys.filter((k) => k && !seen.has(k)).sort();
+  return [...canonical, ...extras];
+}
 
 // GET /api/dashboard  -  every figure the dashboard shows, in one response.
 router.get(
@@ -51,7 +60,7 @@ router.get(
     const ladderMap = Object.fromEntries(
       ladderRows.rows.map((r) => [r.status, num(r.count)])
     );
-    const ladder = LADDER.map((status) => ({
+    const ladder = withExtras(LADDER, Object.keys(ladderMap)).map((status) => ({
       status,
       count: ladderMap[status] || 0,
       share: totalSub ? (ladderMap[status] || 0) / totalSub : 0,
@@ -64,7 +73,7 @@ router.get(
     const catMap = Object.fromEntries(
       catRows.rows.map((r) => [r.category, num(r.count)])
     );
-    const byCategory = CATEGORIES.map((category) => ({
+    const byCategory = withExtras(CATEGORIES, Object.keys(catMap)).map((category) => ({
       category,
       count: catMap[category] || 0,
     }));
@@ -76,7 +85,7 @@ router.get(
     const mPurposeMap = Object.fromEntries(
       mPurposeRows.rows.map((r) => [r.purpose, num(r.count)])
     );
-    const meetingsByPurpose = MEETING_PURPOSES.map((purpose) => ({
+    const meetingsByPurpose = withExtras(MEETING_PURPOSES, Object.keys(mPurposeMap)).map((purpose) => ({
       purpose,
       count: mPurposeMap[purpose] || 0,
     }));
@@ -88,7 +97,7 @@ router.get(
     const mModeMap = Object.fromEntries(
       mModeRows.rows.map((r) => [r.mode, num(r.count)])
     );
-    const meetingsByMode = MEETING_MODES.map((mode) => ({
+    const meetingsByMode = withExtras(MEETING_MODES, Object.keys(mModeMap)).map((mode) => ({
       mode,
       count: mModeMap[mode] || 0,
     }));
