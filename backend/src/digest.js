@@ -203,46 +203,24 @@ function digestText(user, data) {
 }
 
 // --- runner -----------------------------------------------------------------
-const transport = require('./mail');
-
+// Route through mail.js (imported above) so the digest uses the same
+// transport as the rest of the app (Brevo HTTP API / SMTP / console). The old
+// path here had its own nodemailer transport that silently ignored Brevo mode.
 async function sendDigestTo(user, data) {
-  await transport.describe; // ensure module loaded
   const subject = `SPD Tracker — Weekly digest (${data.totals.overdue} overdue)`;
   const html = digestHtml(user, data);
   const text = digestText(user, data);
 
-  // We don't expose this from mail.js directly, so reach into nodemailer-via-mail
-  // by composing through transport's sendMail signature.
-  // mail.js exposes sendInvite / sendPasswordReset that go through the same
-  // transport. Use the underlying transporter for arbitrary HTML.
-  // The cleanest path is to add a helper in mail.js; until then, monkey here:
-  const nodemailer = require('nodemailer');
-  let send;
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    const t = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT || 587),
-      secure: String(process.env.SMTP_SECURE || '').toLowerCase() === 'true',
-      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-    });
-    send = (opts) => t.sendMail(opts);
-  } else {
-    // Console fallback — same shape as mail.js's dev mode.
-    send = async (opts) => {
-      console.log('\n──────────── [digest] outgoing ────────────');
-      console.log(`To:      ${opts.to}`);
-      console.log(`Subject: ${opts.subject}`);
-      console.log(opts.text);
-      console.log('────────────────────────────────────────\n');
-    };
-  }
-  await send({
-    from: process.env.SMTP_FROM || 'SPD Tracker <no-reply@ecgportal.dev>',
-    to: user.email,
-    subject,
-    text,
-    html,
-  });
+  // List-Unsubscribe belongs on bulk/periodic mail (not the transactional
+  // auth emails). Gmail/Outlook treat its presence as a positive trust
+  // signal. We point it at the app's account page (no public unsub endpoint
+  // yet) plus a mailto so one-click unsubscribe still resolves.
+  const headers = {
+    'List-Unsubscribe': `<${mail.APP_URL}/app/me>, <mailto:${process.env.MAIL_REPLY_TO || 'no-reply@ecgportal.dev'}?subject=unsubscribe-digest>`,
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+  };
+
+  await mail.sendNow({ to: user.email, subject, text, html, headers });
 }
 
 async function alreadySentThisWeek(userId) {

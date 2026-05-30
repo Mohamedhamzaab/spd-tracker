@@ -30,6 +30,9 @@ const nodemailer = require('nodemailer');
 
 const FROM_RAW = process.env.SMTP_FROM || 'SPD Tracker <no-reply@ecgportal.dev>';
 const APP_URL = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+// Optional human inbox for replies — improves trust + lets recipients reply.
+// e.g. MAIL_REPLY_TO=support@ecgportal.dev. Falls back to the From address.
+const REPLY_TO = (process.env.MAIL_REPLY_TO || '').trim();
 
 // Parse "Name <email>" into { name, email }; fall back to plain address.
 function parseFrom(raw) {
@@ -78,13 +81,19 @@ if (mode === 'brevo-http') {
 }
 
 // --- Low-level send ---------------------------------------------------------
-async function sendViaBrevo({ to, subject, text }) {
+// Every transport accepts: { to, subject, text, html?, headers?, replyTo? }.
+// Sending both text and html (multipart/alternative) reads as a normal,
+// well-formed message rather than a bare link — a meaningful spam-score win.
+async function sendViaBrevo({ to, subject, text, html, headers, replyTo }) {
   const body = {
     sender: FROM,
     to: [{ email: to }],
     subject,
     textContent: text,
   };
+  if (html) body.htmlContent = html;
+  if (replyTo) body.replyTo = { email: replyTo };
+  if (headers && Object.keys(headers).length) body.headers = headers;
   const res = await fetch('https://api.brevo.com/v3/smtp/email', {
     method: 'POST',
     headers: {
@@ -103,12 +112,15 @@ async function sendViaBrevo({ to, subject, text }) {
   return res.json().catch(() => ({}));
 }
 
-async function sendViaSmtp({ to, subject, text }) {
+async function sendViaSmtp({ to, subject, text, html, headers, replyTo }) {
   return getSmtpTransport().sendMail({
     from: FROM_RAW,
     to,
     subject,
     text,
+    ...(html ? { html } : {}),
+    ...(replyTo ? { replyTo } : {}),
+    ...(headers && Object.keys(headers).length ? { headers } : {}),
   });
 }
 
@@ -132,6 +144,8 @@ async function doSend(msg) {
 // Returns immediately (synchronously, conceptually) so HTTP handlers don't
 // stall on email delivery.
 function send(msg) {
+  // Default a Reply-To if one is configured and the caller didn't set one.
+  if (REPLY_TO && !msg.replyTo) msg.replyTo = REPLY_TO;
   // setImmediate keeps this off the request's event-loop tick.
   setImmediate(() => {
     doSend(msg)
@@ -150,36 +164,74 @@ function url(path) {
   return APP_URL + path;
 }
 
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Branded, single-column HTML shell with a primary button. Inline styles
+// only (email clients strip <style>). Indigo header to match the app.
+function htmlShell({ heading, intro, ctaLabel, ctaUrl, note, footnote }) {
+  return `<!doctype html>
+<html><body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0f172a">
+  <div style="max-width:560px;margin:0 auto;background:#ffffff">
+    <div style="background:#4f46e5;color:#ffffff;padding:22px 32px">
+      <div style="font-size:10px;font-weight:700;letter-spacing:0.16em">SAFARI PARK PROJECT</div>
+      <div style="margin-top:4px;font-size:17px;font-weight:600">Authority Engagement Tracker</div>
+    </div>
+    <div style="padding:28px 32px">
+      <h1 style="font-size:19px;font-weight:600;margin:0 0 14px;color:#0f172a">${esc(heading)}</h1>
+      <p style="font-size:14px;line-height:1.6;color:#334155;margin:0 0 22px">${esc(intro)}</p>
+      <a href="${ctaUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:12px 22px;border-radius:8px">${esc(ctaLabel)}</a>
+      <p style="font-size:12.5px;line-height:1.6;color:#64748b;margin:22px 0 0">${esc(note)}</p>
+      <p style="font-size:12px;line-height:1.5;color:#94a3b8;margin:18px 0 0">Or paste this link into your browser:<br><span style="color:#4f46e5;word-break:break-all">${ctaUrl}</span></p>
+    </div>
+    <div style="padding:16px 32px;border-top:1px solid #e2e8f0;font-size:11.5px;color:#94a3b8">
+      ${esc(footnote)}
+    </div>
+  </div>
+</body></html>`;
+}
+
 function sendInvite({ to, name, token, invitedByName }) {
   const link = url(`/accept-invite?token=${encodeURIComponent(token)}`);
+  const intro = `${invitedByName || 'A super-admin'} has invited you to the Safari Park Project Authority Engagement Tracker. Set your password to get started — the link is valid for 72 hours and can be used once.`;
   send({
     to,
     subject: 'You have been invited to the Safari Park Project tracker',
     text: [
       `Hi ${name || 'there'},`,
       '',
-      `${invitedByName || 'A super-admin'} has invited you to the Safari Park Project Authority Engagement Tracker.`,
-      '',
-      'Click the link below to set your password and sign in. The link is valid for 72 hours and can only be used once.',
+      intro,
       '',
       link,
       '',
-      'If you weren\'t expecting this invitation, ignore this email — nothing has been created until you click the link.',
+      "If you weren't expecting this invitation, ignore this email — nothing has been created until you click the link.",
       '',
       '— SPD Tracker',
     ].join('\n'),
+    html: htmlShell({
+      heading: `Hi ${name || 'there'},`,
+      intro,
+      ctaLabel: 'Set your password',
+      ctaUrl: link,
+      note: "If you weren't expecting this invitation, ignore this email — nothing has been created until you click the link.",
+      footnote: 'Safari Park Project · Authority Engagement Tracker · ecgportal.dev',
+    }),
   });
 }
 
 function sendPasswordReset({ to, name, token }) {
   const link = url(`/reset-password?token=${encodeURIComponent(token)}`);
+  const intro = 'A password reset was requested for your SPD Tracker account. Set a new password using the button below — the link is valid for one hour and can be used once.';
   send({
     to,
     subject: 'Reset your SPD Tracker password',
     text: [
       `Hi ${name || 'there'},`,
       '',
-      'A password reset was requested for your SPD Tracker account. Click the link below to set a new password. The link is valid for one hour and can only be used once.',
+      intro,
       '',
       link,
       '',
@@ -187,6 +239,14 @@ function sendPasswordReset({ to, name, token }) {
       '',
       '— SPD Tracker',
     ].join('\n'),
+    html: htmlShell({
+      heading: `Hi ${name || 'there'},`,
+      intro,
+      ctaLabel: 'Reset password',
+      ctaUrl: link,
+      note: 'If you did not request this, you can ignore this email — your existing password still works.',
+      footnote: 'Safari Park Project · Authority Engagement Tracker · ecgportal.dev',
+    }),
   });
 }
 
@@ -194,4 +254,12 @@ function describe() {
   return { mode, from: FROM_RAW, app_url: APP_URL };
 }
 
-module.exports = { sendInvite, sendPasswordReset, describe };
+// Awaitable send for non-request contexts (digest scheduler / CLI), where
+// we WANT to wait for the network call so a short-lived process doesn't exit
+// before delivery. Resolves on success, rejects on failure.
+function sendNow(msg) {
+  if (REPLY_TO && !msg.replyTo) msg.replyTo = REPLY_TO;
+  return doSend(msg);
+}
+
+module.exports = { send, sendNow, sendInvite, sendPasswordReset, describe, APP_URL };
