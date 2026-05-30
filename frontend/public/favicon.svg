@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Authority Engagement Tracker">
+  <!-- Brand tile -->
+  <rect x="2" y="2" width="60" height="60" rx="15" fill="#4f46e5"/>
+  <!-- Document + approval check + stamp, drawn in white line-art -->
+  <g fill="none" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Page -->
+    <rect x="12.5" y="11.5" width="25" height="34" rx="3.5"/>
+    <!-- Approval check inside a circle -->
+    <circle cx="25" cy="22.5" r="6.6"/>
+    <path d="M21.7 22.6 L24.1 25.1 L28.5 19.8" stroke-width="2.7"/>
+    <!-- Text lines -->
+    <path d="M18 34.2 H32" stroke-width="2.7"/>
+    <path d="M18 39.4 H27.5" stroke-width="2.7"/>
+    <!-- Stamp (tilted), overlapping the page corner -->
+    <g transform="translate(43.5 41) rotate(16)">
+      <rect x="-4.6" y="-19" width="9.2" height="6.6" rx="3.3"/>
+      <path d="M-3.4 -12.4 L-7.8 -3.8 L7.8 -3.8 L3.4 -12.4"/>
+      <rect x="-9.2" y="-4" width="18.4" height="5.6" rx="2.8"/>
+    </g>
+  </g>
+</svg>
