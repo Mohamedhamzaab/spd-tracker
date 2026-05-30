@@ -90,7 +90,7 @@ echo
 echo "Then open http://localhost:5173"
 echo
 echo "Seeded accounts (passwords are first-login defaults — change before sharing):"
-echo "  super_admin  superadmin@ecg.example           ChangeMe-Super-1"
+echo "  super_admin  mohamedhamza.ab@gmail.com         ChangeMe-Super-1"
 echo "  admin        sherif.eldaly@ecg.example        ChangeMe-Admin-1"
 echo "  admin        spd.admin@ecg.example            ChangeMe-Admin-2"
 echo "  reviewer     reviewer@egis.example            ChangeMe-Reviewer-1"

@@ -99,7 +99,7 @@ forced on first sign-in. See DEPLOYMENT.md.
 
 | Role         | Email                              | Default password        |
 |--------------|------------------------------------|-------------------------|
-| Super-admin  | superadmin@ecg.example             | ChangeMe-Super-1        |
+| Super-admin  | mohamedhamza.ab@gmail.com           | ChangeMe-Super-1        |
 | Admin        | sherif.eldaly@ecg.example          | ChangeMe-Admin-1        |
 | Admin        | spd.admin@ecg.example              | ChangeMe-Admin-2        |
 | Reviewer     | reviewer@egis.example              | ChangeMe-Reviewer-1     |

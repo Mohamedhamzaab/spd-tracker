@@ -21,8 +21,8 @@ const { pool, withTransaction } = require('./db');
 // sign-in goes straight into the change-password flow.
 const USERS = [
   {
-    name: 'SPD Super Admin',
-    email: 'superadmin@ecg.example',
+    name: 'Mohamed Hamza',
+    email: 'mohamedhamza.ab@gmail.com',
     password: 'ChangeMe-Super-1',
     role: 'super_admin',
     organisation: 'ECG',
