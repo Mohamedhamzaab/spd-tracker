@@ -300,6 +300,13 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
   const [subOptions, setSubOptions] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // Create mode: files chosen before the meeting exists are held here and
+  // uploaded right after the meeting is created. If the upload step fails we
+  // keep the created id so re-trying never makes a duplicate meeting.
+  const [pendingFiles, setPendingFiles] = useState([]);
+  const [createdId, setCreatedId] = useState(null);
+  const [createdCode, setCreatedCode] = useState(null);
+  const pendingRef = useRef(null);
 
   // Dependent dropdown: load this authority's sub-divisions when it changes.
   useEffect(() => {
@@ -371,12 +378,33 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
       if (editing) {
         await api.updateMeeting(existing.id, payload);
         onSaved(existing.meeting_code);
-      } else {
-        const created = await api.createMeeting(payload);
-        onSaved(created.meeting_code);
+        return;
       }
+
+      // Create once. If a previous attempt already created the meeting (but
+      // the file upload failed), reuse it instead of creating a duplicate.
+      let meetingId = createdId;
+      let meetingCode = createdCode;
+      if (!meetingId) {
+        const created = await api.createMeeting(payload);
+        meetingId = created.id;
+        meetingCode = created.meeting_code;
+        setCreatedId(meetingId);
+        setCreatedCode(meetingCode);
+      }
+
+      if (pendingFiles.length) {
+        // A failure here throws to the catch; the meeting still exists, so the
+        // user can click again to retry just the upload (no duplicate).
+        await api.uploadDocs('meeting', meetingId, pendingFiles);
+      }
+      onSaved(meetingCode);
     } catch (e) {
-      setError(e.message);
+      setError(
+        createdId
+          ? 'Meeting saved, but the documents failed to upload. Click "Add meeting" again to retry, or attach them later by editing the meeting. (' + e.message + ')'
+          : e.message
+      );
     } finally {
       setBusy(false);
     }
@@ -401,7 +429,7 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
     >
       <ErrorBanner message={error} />
       <FormFields fields={fields} values={values} onChange={onChange} disabled={busy} />
-      {editing && (
+      {editing ? (
         <>
           <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
             <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
@@ -412,6 +440,52 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
             <TasksPanel parentType="meeting" parentId={existing.id} />
           </div>
         </>
+      ) : (
+        <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+          <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
+          {pendingFiles.length === 0 && (
+            <div className="section-note" style={{ marginBottom: 10 }}>
+              Attach presentations or shared files now — they upload when you click “Add meeting”.
+            </div>
+          )}
+          {pendingFiles.map((f, i) => (
+            <div className="doc-chip" key={i}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="doc-name">{f.name}</div>
+                <div className="doc-meta">{fileSize(f.size)}</div>
+              </div>
+              <button
+                type="button"
+                className="btn btn-sm btn-ghost"
+                disabled={busy}
+                onClick={() => setPendingFiles((fs) => fs.filter((_, j) => j !== i))}
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+          <div style={{ marginTop: 10 }}>
+            <input
+              ref={pendingRef}
+              type="file"
+              multiple
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const picked = Array.from(e.target.files || []);
+                setPendingFiles((fs) => [...fs, ...picked]);
+                if (pendingRef.current) pendingRef.current.value = '';
+              }}
+            />
+            <button
+              type="button"
+              className="btn"
+              disabled={busy}
+              onClick={() => pendingRef.current && pendingRef.current.click()}
+            >
+              + Add document
+            </button>
+          </div>
+        </div>
       )}
     </Modal>
   );

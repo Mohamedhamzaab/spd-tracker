@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
-  Section, Loading, Empty, ErrorBanner, Pill, fmtDate, useToast,
+  Section, Loading, Empty, ErrorBanner, Modal, FormFields, Pill, fmtDate, useToast,
 } from '../components/ui.jsx';
 import { useLive } from '../lib/liveStream.js';
 
@@ -29,11 +29,14 @@ const PARENT_LINK = {
 };
 
 export default function Tasks() {
-  const { user } = useStore();
+  const { user, isEditor } = useStore();
   const toast = useToast();
   const [tab, setTab] = useState('mine_open');
   const [tasks, setTasks] = useState(null);
   const [error, setError] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [subDivisions, setSubDivisions] = useState([]);
+  const [users, setUsers] = useState([]);
 
   const params = useMemo(() => TABS.find((t) => t.key === tab).params, [tab]);
 
@@ -47,6 +50,15 @@ export default function Tasks() {
 
   useEffect(() => { reload(); }, [reload]);
   useLive(LIVE, reload);
+
+  // Editors can create a task here against any sub-division and assign it to a
+  // project member — load both lists once. (The user list is super-admin only;
+  // if it 403s the assignee dropdown just falls back to "Unassigned".)
+  useEffect(() => {
+    if (!isEditor) return;
+    api.subDivisions().then(setSubDivisions).catch(() => setSubDivisions([]));
+    api.users().then((r) => setUsers(r.users || [])).catch(() => setUsers([]));
+  }, [isEditor]);
 
   async function toggle(t) {
     try {
@@ -63,6 +75,15 @@ export default function Tasks() {
           <div className="page-crumb">Tracker</div>
           <div className="page-title">Tasks</div>
         </div>
+        {isEditor && (
+          <button
+            className="btn btn-primary"
+            style={{ marginLeft: 'auto' }}
+            onClick={() => setCreating(true)}
+          >
+            + New task
+          </button>
+        )}
       </div>
 
       <div className="page stack-lg">
@@ -127,6 +148,99 @@ export default function Tasks() {
           </ul>
         )}
       </div>
+
+      {creating && (
+        <NewTaskModal
+          subDivisions={subDivisions}
+          users={users}
+          currentUserId={user.id}
+          onClose={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            toast('Task created.');
+            reload();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+// Create a task from the Tasks page: pick the sub-division it relates to and
+// (optionally) assign it to a project member. The assignee is emailed
+// automatically by the server when they're not the creator.
+function NewTaskModal({ subDivisions, users, currentUserId, onClose, onCreated }) {
+  const [values, setValues] = useState({
+    sub_division_id: '',
+    title: '',
+    description: '',
+    assignee_id: String(currentUserId),
+    due_date: '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const onChange = (n, v) => setValues((s) => ({ ...s, [n]: v }));
+
+  const fields = [
+    {
+      name: 'sub_division_id', label: 'Sub-Division', type: 'select', required: true, span: 2,
+      placeholder: 'Choose a sub-division…',
+      options: subDivisions.map((s) => ({
+        value: String(s.id), label: `${s.sub_reference} — ${s.name}`,
+      })),
+    },
+    { name: 'title', label: 'Title', required: true, span: 2,
+      placeholder: 'e.g. Chase KAHRAMAA for TSE data' },
+    { name: 'description', label: 'Notes', type: 'textarea', span: 2 },
+    {
+      name: 'assignee_id', label: 'Assignee', type: 'select', span: 2,
+      placeholder: 'Unassigned',
+      options: users.map((u) => ({ value: String(u.id), label: `${u.name} · ${u.email}` })),
+      help: 'The assignee is emailed when the task is created.',
+    },
+    { name: 'due_date', label: 'Due date', type: 'date', span: 2,
+      help: 'A reminder is sent the day before the due date.' },
+  ];
+
+  async function save() {
+    setError('');
+    if (!values.sub_division_id) return setError('Please choose a sub-division.');
+    if (!values.title.trim()) return setError('A title is required.');
+    setBusy(true);
+    try {
+      await api.createTask({
+        parent_type: 'sub_division',
+        parent_id: Number(values.sub_division_id),
+        title: values.title.trim(),
+        description: values.description.trim() || null,
+        assignee_id: values.assignee_id ? Number(values.assignee_id) : null,
+        due_date: values.due_date || null,
+      });
+      onCreated();
+    } catch (e) {
+      setError(e.message || 'Could not create the task.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Modal
+      wide
+      title="New Task"
+      sub="Attach a follow-up to a sub-division and assign it to a member"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+          <button className="btn btn-primary" onClick={save} disabled={busy}>
+            {busy ? 'Creating…' : 'Create task'}
+          </button>
+        </>
+      }
+    >
+      <ErrorBanner message={error} />
+      <FormFields fields={fields} values={values} onChange={onChange} disabled={busy} />
+    </Modal>
   );
 }
