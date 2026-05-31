@@ -6,7 +6,7 @@
 //  Anything else falls back to Landing.
 // ---------------------------------------------------------------------------
 import { useState } from 'react';
-import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, NavLink, Navigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useStore } from './lib/store.jsx';
 import { Loading, ToastProvider, initials } from './components/ui.jsx';
@@ -56,7 +56,9 @@ function Sidebar({ open, onClose }) {
       if (e.target.tagName === 'A' && onClose) onClose();
     }}>
       <div className="brand">
-        <div className="brand-mark">Safari Park Project</div>
+        <Link to="/" className="brand-mark brand-home" title="Go to the landing page">
+          Safari Park Project
+        </Link>
         <div className="brand-name">Authority Engagement</div>
         <div className="brand-sub">Design Consultancy &middot; Contract No. 6</div>
       </div>
@@ -154,7 +156,9 @@ function AppShell() {
           >
             <span /><span /><span />
           </button>
-          <div className="mobile-brand">Safari Park Project</div>
+          <Link to="/" className="mobile-brand brand-home" title="Go to the landing page">
+            Safari Park Project
+          </Link>
         </header>
         {drawerOpen && (
           <div className="drawer-scrim" onClick={() => setDrawerOpen(false)} />

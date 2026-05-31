@@ -126,6 +126,11 @@ a:hover { text-decoration: underline; }
   color: var(--ink);
 }
 .brand-sub { margin-top: 2px; font-size: 11.5px; color: var(--faint); }
+/* "Safari Park Project" doubles as a link to the public landing page.
+   Keeps each element's own colour; just removes the default link underline
+   and adds a gentle hover cue. */
+.brand-home { text-decoration: none; cursor: pointer; display: inline-block; transition: opacity 0.15s ease; }
+.brand-home:hover { opacity: 0.6; }
 
 .nav { padding: 8px 12px; flex: 1; }
 .nav-item {
