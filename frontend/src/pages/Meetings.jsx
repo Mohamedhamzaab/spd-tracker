@@ -7,7 +7,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
-  fmtDate, useToast, useTableSort, SortableTH,
+  fmtDate, fileSize, useToast, useTableSort, SortableTH,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
@@ -402,11 +402,111 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
       <ErrorBanner message={error} />
       <FormFields fields={fields} values={values} onChange={onChange} disabled={busy} />
       {editing && (
-        <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
-          <div className="section-title" style={{ marginBottom: 10 }}>Tasks</div>
-          <TasksPanel parentType="meeting" parentId={existing.id} />
-        </div>
+        <>
+          <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
+            <MeetingDocs meetingId={existing.id} />
+          </div>
+          <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>Tasks</div>
+            <TasksPanel parentType="meeting" parentId={existing.id} />
+          </div>
+        </>
       )}
     </Modal>
+  );
+}
+
+// Attachments for one meeting — presentations, shared/received files, etc.
+// Backend already supports parent_type='meeting' on documents; this is the UI.
+function MeetingDocs({ meetingId }) {
+  const { isEditor } = useStore();
+  const toast = useToast();
+  const [docs, setDocs] = useState(null);
+  const [error, setError] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
+
+  function load() {
+    api.meeting(meetingId)
+      .then((m) => setDocs(m.documents || []))
+      .catch((e) => setError(e.message));
+  }
+  useEffect(() => { load(); }, [meetingId]);
+
+  async function upload(files) {
+    if (!files || !files.length) return;
+    setUploading(true);
+    setError('');
+    try {
+      await api.uploadDocs('meeting', meetingId, files);
+      toast(files.length > 1 ? 'Documents uploaded' : 'Document uploaded');
+      load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
+
+  async function removeDoc(docId) {
+    try {
+      await api.deleteDoc(docId);
+      toast('Document removed');
+      load();
+    } catch (e) {
+      setError(e.message);
+    }
+  }
+
+  if (!docs) return <Loading label="Loading documents" />;
+
+  return (
+    <div>
+      <ErrorBanner message={error} />
+      {docs.length === 0 && (
+        <div className="section-note" style={{ marginBottom: 10 }}>
+          No documents attached yet.
+        </div>
+      )}
+      {docs.map((d) => (
+        <div className="doc-chip" key={d.id}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="doc-name">{d.original_name}</div>
+            <div className="doc-meta">
+              {fileSize(d.size_bytes)}
+              {d.uploaded_by ? ' · ' + d.uploaded_by : ''}
+            </div>
+          </div>
+          <button className="btn btn-sm" onClick={() => api.downloadDoc(d.id, d.original_name)}>
+            Download
+          </button>
+          {isEditor && (
+            <button className="btn btn-sm btn-ghost" onClick={() => removeDoc(d.id)}>
+              Remove
+            </button>
+          )}
+        </div>
+      ))}
+      {isEditor && (
+        <div style={{ marginTop: 10 }}>
+          <input
+            ref={fileRef}
+            type="file"
+            multiple
+            style={{ display: 'none' }}
+            onChange={(e) => upload(e.target.files)}
+          />
+          <button
+            className="btn"
+            disabled={uploading}
+            onClick={() => fileRef.current && fileRef.current.click()}
+          >
+            {uploading ? 'Uploading...' : '+ Upload document'}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
