@@ -138,6 +138,7 @@ export const api = {
 
   // tasks
   tasks: (params) => req('/tasks' + qs(params)),
+  taskAssignees: () => req('/tasks/assignees'),
   createTask: (b) => req('/tasks', { method: 'POST', body: b }),
   updateTask: (id, b) => req('/tasks/' + id, { method: 'PATCH', body: b }),
   deleteTask: (id) => req('/tasks/' + id, { method: 'DELETE' }),

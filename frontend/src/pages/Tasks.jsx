@@ -52,12 +52,12 @@ export default function Tasks() {
   useLive(LIVE, reload);
 
   // Editors can create a task here against any sub-division and assign it to a
-  // project member — load both lists once. (The user list is super-admin only;
-  // if it 403s the assignee dropdown just falls back to "Unassigned".)
+  // project member — load both lists once. taskAssignees is editor-accessible
+  // (admins included), unlike the super-admin-only user-management API.
   useEffect(() => {
     if (!isEditor) return;
     api.subDivisions().then(setSubDivisions).catch(() => setSubDivisions([]));
-    api.users().then((r) => setUsers(r.users || [])).catch(() => setUsers([]));
+    api.taskAssignees().then((r) => setUsers(r.users || [])).catch(() => setUsers([]));
   }, [isEditor]);
 
   async function toggle(t) {

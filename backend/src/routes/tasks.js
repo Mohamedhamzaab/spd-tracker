@@ -59,6 +59,22 @@ const BASE_SELECT = `
   LEFT JOIN users c ON c.id = t.created_by
 `;
 
+// GET /api/tasks/assignees  -  the people a task can be assigned to. Editor+
+// only, and intentionally minimal (id/name/email of active accounts) so admins
+// can populate the assignee dropdown without the super-admin user-management API.
+router.get(
+  '/assignees',
+  requireEditor,
+  wrap(async (_req, res) => {
+    const { rows } = await query(
+      `SELECT id, name, email FROM users
+        WHERE is_disabled = FALSE
+        ORDER BY name`
+    );
+    res.json({ users: rows });
+  })
+);
+
 router.get(
   '/',
   wrap(async (req, res) => {

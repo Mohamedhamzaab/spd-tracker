@@ -31,12 +31,11 @@ export default function TasksPanel({ parentType, parentId }) {
   useEffect(() => { reload(); }, [reload]);
   useLive(LIVE, reload);
 
-  // Assignee dropdown — only super-admin can pull the full user list,
-  // but a public listing for assignment isn't sensitive. Use users API
-  // when admin; otherwise just allow self-assignment.
+  // Assignee dropdown — any editor (admin or super-admin) can pull the
+  // minimal "assignable members" list (id/name/email of active accounts).
   useEffect(() => {
     if (!isAdmin) return;
-    api.users()
+    api.taskAssignees()
       .then((r) => setUsers(r.users || []))
       .catch(() => setUsers([]));
   }, [isAdmin]);
