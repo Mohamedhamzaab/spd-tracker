@@ -362,6 +362,22 @@ CREATE INDEX IF NOT EXISTS idx_tasks_overdue
 -- date changes or the task is reopened, so a fresh reminder can fire.
 ALTER TABLE tasks ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
 
+-- Communications: an optional "related to" link — a different letter / thread
+-- this one relates to. Distinct from in_response_to, which is a direct reply.
+ALTER TABLE communications
+  ADD COLUMN IF NOT EXISTS related_to INTEGER REFERENCES communications(id) ON DELETE SET NULL;
+
+-- Meetings: optional time-of-day, and a MoM (Minutes of Meeting) status that
+-- drives a red/amber/green indicator. Defaults to 'pending' so a freshly
+-- logged meeting flags that its minutes are still outstanding.
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_time TIME;
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS mom_status TEXT NOT NULL DEFAULT 'pending';
+
+-- Rename the old "NOC" purpose to "NOC / Approval" on existing rows so they
+-- match the updated dropdown. Idempotent (the second run matches nothing).
+UPDATE communications SET purpose = 'NOC / Approval' WHERE purpose = 'NOC';
+UPDATE meetings       SET purpose = 'NOC / Approval' WHERE purpose = 'NOC';
+
 ALTER TABLE meetings       ADD COLUMN IF NOT EXISTS search_tsv tsvector
     GENERATED ALWAYS AS (
       setweight(to_tsvector('simple',  coalesce(meeting_code, '')),       'A') ||
@@ -453,12 +469,16 @@ SELECT
     -- reply). Earliest live reply wins if there is more than one.
     (SELECT r.comm_code FROM communications r
        WHERE r.in_response_to = c.id AND r.deleted_at IS NULL
-       ORDER BY r.comm_date, r.id LIMIT 1) AS reply_code
+       ORDER BY r.comm_date, r.id LIMIT 1) AS reply_code,
+    -- The code of a related (non-reply) communication this row points to.
+    relparent.comm_code AS related_to_code
 FROM communications c
 JOIN sub_divisions sd ON sd.id = c.sub_division_id AND sd.deleted_at IS NULL
 JOIN authorities  a  ON a.id  = sd.authority_id   AND a.deleted_at  IS NULL
 LEFT JOIN communications parent
        ON parent.id = c.in_response_to AND parent.deleted_at IS NULL
+LEFT JOIN communications relparent
+       ON relparent.id = c.related_to AND relparent.deleted_at IS NULL
 WHERE c.deleted_at IS NULL;
 
 -- Sub-division with rolled-up counts, engagement-ladder status, last activity.

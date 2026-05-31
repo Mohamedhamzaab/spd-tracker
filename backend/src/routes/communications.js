@@ -169,6 +169,19 @@ router.post(
         inResponseTo = parent.rows[0].id;
       }
 
+      // Resolve the "related to" code (a non-reply link), if given.
+      let relatedTo = null;
+      if (b.related_to) {
+        const rel = await client.query(
+          'SELECT id FROM communications WHERE comm_code = $1',
+          [String(b.related_to).trim().toUpperCase()]
+        );
+        if (!rel.rows[0]) {
+          throw httpError(400, `No communication found with code "${b.related_to}".`);
+        }
+        relatedTo = rel.rows[0].id;
+      }
+
       const seqRow = await client.query(
         `SELECT COALESCE(MAX(CAST(substring(comm_code from 3) AS INTEGER)), 0) + 1 AS next
            FROM communications`
@@ -178,9 +191,9 @@ router.post(
       const ins = await client.query(
         `INSERT INTO communications
            (comm_code, sub_division_id, comm_date, direction, purpose, mode,
-            submission_reference, in_response_to, summary, reply_needed,
+            submission_reference, in_response_to, related_to, summary, reply_needed,
             acc_link, logged_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING id`,
         [
           code,
@@ -191,6 +204,7 @@ router.post(
           b.mode || null,
           b.submission_reference || null,
           inResponseTo,
+          relatedTo,
           b.summary || null,
           b.reply_needed === true,
           b.acc_link || null,
@@ -288,6 +302,25 @@ router.put(
       }
     }
 
+    let relatedTo;
+    if (b.related_to !== undefined) {
+      if (!b.related_to) {
+        relatedTo = null;
+      } else {
+        const rel = await query(
+          'SELECT id FROM communications WHERE comm_code = $1',
+          [String(b.related_to).trim().toUpperCase()]
+        );
+        if (!rel.rows[0]) {
+          throw httpError(400, `No communication found with code "${b.related_to}".`);
+        }
+        if (rel.rows[0].id === id) {
+          throw httpError(400, 'A communication cannot be related to itself.');
+        }
+        relatedTo = rel.rows[0].id;
+      }
+    }
+
     await query(
       `UPDATE communications SET
          comm_date = COALESCE($2, comm_date),
@@ -299,6 +332,7 @@ router.put(
          summary = $9,
          reply_needed = COALESCE($10, reply_needed),
          acc_link = $11,
+         related_to = CASE WHEN $12::boolean THEN $13 ELSE related_to END,
          updated_at = now()
        WHERE id = $1`,
       [
@@ -313,6 +347,8 @@ router.put(
         b.summary || null,
         typeof b.reply_needed === 'boolean' ? b.reply_needed : null,
         b.acc_link || null,
+        b.related_to !== undefined,
+        relatedTo === undefined ? null : relatedTo,
       ]
     );
     const row = await query('SELECT * FROM v_communication WHERE id = $1', [id]);

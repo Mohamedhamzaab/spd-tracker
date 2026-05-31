@@ -129,11 +129,13 @@ router.post(
       );
       const code = ref('M', seqRow.rows[0].next, 3);
 
+      const momStatus = ['pending', 'draft', 'final'].includes(b.mom_status) ? b.mom_status : 'pending';
       const ins = await client.query(
         `INSERT INTO meetings
            (meeting_code, authority_id, primary_sub_id, other_sub_divisions,
-            meeting_date, purpose, mode, location, mom_reference, mom_link)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            meeting_date, meeting_time, purpose, mode, location, mom_reference,
+            mom_link, mom_status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
          RETURNING id`,
         [
           code,
@@ -141,11 +143,13 @@ router.post(
           primarySubId,
           b.other_sub_divisions || null,
           b.meeting_date,
+          b.meeting_time || null,
           b.purpose || null,
           b.mode || null,
           b.location || null,
           b.mom_reference || null,
           b.mom_link || null,
+          momStatus,
         ]
       );
       return ins.rows[0].id;
@@ -202,6 +206,7 @@ router.put(
       }
     }
 
+    const momStatus = ['pending', 'draft', 'final'].includes(b.mom_status) ? b.mom_status : null;
     await query(
       `UPDATE meetings SET
          authority_id = COALESCE($2, authority_id),
@@ -213,6 +218,8 @@ router.put(
          location = $9,
          mom_reference = $10,
          mom_link = $11,
+         meeting_time = $12,
+         mom_status = COALESCE($13, mom_status),
          updated_at = now()
        WHERE id = $1`,
       [
@@ -227,6 +234,8 @@ router.put(
         b.location || null,
         b.mom_reference || null,
         b.mom_link || null,
+        b.meeting_time || null,
+        momStatus,
       ]
     );
     const { rows } = await query(

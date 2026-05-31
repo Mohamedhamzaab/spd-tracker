@@ -181,7 +181,12 @@ export default function Meetings() {
                 {sorted.map((m) => (
                   <tr key={m.id}>
                     <td className="mono">{m.meeting_code}</td>
-                    <td>{fmtDate(m.meeting_date)}</td>
+                    <td>
+                      {fmtDate(m.meeting_date)}
+                      {m.meeting_time && (
+                        <span className="cell-sub"> · {String(m.meeting_time).slice(0, 5)}</span>
+                      )}
+                    </td>
                     <td>
                       <div className="cell-strong">{m.authority_name}</div>
                     </td>
@@ -198,13 +203,16 @@ export default function Meetings() {
                     <td>{m.purpose ? <Pill tone="grey">{m.purpose}</Pill> : '-'}</td>
                     <td>{m.mode || '-'}</td>
                     <td>
-                      {m.mom_link ? (
-                        <a href={m.mom_link} target="_blank" rel="noreferrer">
-                          {m.mom_reference || 'Open MoM'}
-                        </a>
-                      ) : (
-                        m.mom_reference || '-'
-                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <MomDot status={m.mom_status} />
+                        {m.mom_link ? (
+                          <a href={m.mom_link} target="_blank" rel="noreferrer">
+                            {m.mom_reference || 'Open MoM'}
+                          </a>
+                        ) : (
+                          <span>{m.mom_reference || '—'}</span>
+                        )}
+                      </div>
                     </td>
                     {isEditor && (
                       <td>
@@ -274,6 +282,26 @@ export default function Meetings() {
   );
 }
 
+// Red / amber / green indicator for the Minutes-of-Meeting status.
+const MOM_DOT = {
+  pending: { color: '#dc2626', label: 'MoM pending — minutes not ready yet' },
+  draft:   { color: '#d97706', label: 'Draft MoM received' },
+  final:   { color: '#16a34a', label: 'Final MoM received' },
+};
+function MomDot({ status }) {
+  const d = MOM_DOT[status] || MOM_DOT.pending;
+  return (
+    <span
+      title={d.label}
+      aria-label={d.label}
+      style={{
+        display: 'inline-block', width: 10, height: 10, borderRadius: '50%',
+        background: d.color, flexShrink: 0,
+      }}
+    />
+  );
+}
+
 function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
   const editing = !!existing;
   const [values, setValues] = useState(
@@ -285,16 +313,20 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
             : '',
           other_sub_divisions: existing.other_sub_divisions || '',
           meeting_date: (existing.meeting_date || '').slice(0, 10),
+          meeting_time: (existing.meeting_time || '').slice(0, 5),
           purpose: existing.purpose || '',
           mode: existing.mode || '',
           location: existing.location || '',
+          mom_status: existing.mom_status || 'pending',
           mom_reference: existing.mom_reference || '',
           mom_link: existing.mom_link || '',
         }
       : {
           authority_id: '', primary_sub_id: '', other_sub_divisions: '',
           meeting_date: new Date().toISOString().slice(0, 10),
-          purpose: '', mode: '', location: '', mom_reference: '', mom_link: '',
+          meeting_time: '',
+          purpose: '', mode: '', location: '',
+          mom_status: 'pending', mom_reference: '', mom_link: '',
         }
   );
   const [subOptions, setSubOptions] = useState([]);
@@ -353,10 +385,18 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
     { name: 'other_sub_divisions', label: 'Other Sub-Divisions Covered', span: 2,
       placeholder: 'Free text, e.g. KM-S02, PWA-S01' },
     { name: 'meeting_date', label: 'Date', type: 'date', required: true },
+    { name: 'meeting_time', label: 'Time', type: 'time' },
     { name: 'purpose', label: 'Purpose', type: 'select',
       options: lists.meeting_purpose },
     { name: 'mode', label: 'Mode', type: 'select', options: lists.meeting_mode },
     { name: 'location', label: 'Location' },
+    { name: 'mom_status', label: 'MoM Status', type: 'select',
+      options: [
+        { value: 'pending', label: 'Pending — minutes not ready' },
+        { value: 'draft', label: 'Draft received' },
+        { value: 'final', label: 'Final received' },
+      ],
+      help: 'Drives the red / amber / green dot in the meetings list.' },
     { name: 'mom_reference', label: 'MoM Reference', span: 2 },
     { name: 'mom_link', label: 'MoM Link (ACC)', span: 2,
       placeholder: 'Link to the Minutes of Meeting in ACC' },

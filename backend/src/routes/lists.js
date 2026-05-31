@@ -53,7 +53,7 @@ const LISTS = {
     'Letter', 'Email', 'Letter and Email', 'Authority Portal',
     'Phone Call', 'Other',
   ],
-  communication_purpose: ['Data Collection', 'Consultation', 'NOC'],
+  communication_purpose: ['Data Collection', 'Consultation', 'NOC / Approval'],
   data_collection_status: [
     'Not Started', 'Requested', 'Partially Received', 'Received in Full',
   ],
@@ -63,7 +63,7 @@ const LISTS = {
     'Non-objection Granted', 'Non-objection with Conditions', 'Objection Raised',
   ],
   meeting_mode: ['In Person', 'Online', 'Hybrid'],
-  meeting_purpose: ['Data Collection', 'Consultation', 'NOC'],
+  meeting_purpose: ['Data Collection', 'Consultation', 'NOC / Approval'],
 };
 
 // GET /api/lists  -  every dropdown list in one response.

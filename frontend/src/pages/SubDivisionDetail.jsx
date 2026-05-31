@@ -261,6 +261,9 @@ function commFieldDefs(lists, subDivisions) {
     { name: 'in_response_to', label: 'In Response To', span: 2,
       placeholder: 'Comm code of the original, e.g. C-0003',
       help: 'For an Inbound reply, enter the Outbound code it answers.' },
+    { name: 'related_to', label: 'Related To', span: 2,
+      placeholder: 'Comm code of a related item, e.g. C-0001',
+      help: 'Link a related communication/thread that this is NOT a direct reply to.' },
     { name: 'summary', label: 'Summary / Key Content', type: 'textarea', span: 2 },
     { name: 'acc_link', label: 'Document Link (ACC)', span: 2,
       placeholder: 'Optional link to the document in ACC' },
@@ -279,6 +282,7 @@ function emptyCommValues() {
     mode: '',
     submission_reference: '',
     in_response_to: '',
+    related_to: '',
     summary: '',
     reply_needed: false,
     acc_link: '',
@@ -293,6 +297,7 @@ function commValuesFromExisting(existing, parentCommCode) {
     mode: existing.mode || '',
     submission_reference: existing.submission_reference || '',
     in_response_to: parentCommCode || '',
+    related_to: existing.related_to_code || '',
     summary: existing.summary || '',
     reply_needed: !!existing.reply_needed,
     acc_link: existing.acc_link || '',
@@ -515,6 +520,12 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
               <DItem
                 label="Answered by"
                 value={<span className="mono">→ {data.reply_code}</span>}
+              />
+            )}
+            {data.related_to_code && (
+              <DItem
+                label="Related to"
+                value={<span className="mono">≈ {data.related_to_code}</span>}
               />
             )}
           </div>

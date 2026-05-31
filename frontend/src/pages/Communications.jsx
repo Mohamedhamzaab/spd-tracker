@@ -392,26 +392,41 @@ export default function Communications() {
                       <DirectionPill direction={c.direction} />
                     </td>
                     <td>
-                      {c.in_response_to_code ? (
-                        <button
-                          type="button"
-                          className="link-chip"
-                          title={`Reply to ${c.in_response_to_code} — click to see the thread`}
-                          onClick={(e) => { e.stopPropagation(); setThread(c.in_response_to_code); }}
-                        >
-                          ↩ {c.in_response_to_code}
-                        </button>
-                      ) : c.reply_code ? (
-                        <button
-                          type="button"
-                          className="link-chip link-chip-fwd"
-                          title={`Answered by ${c.reply_code} — click to see the thread`}
-                          onClick={(e) => { e.stopPropagation(); setThread(c.comm_code); }}
-                        >
-                          → {c.reply_code}
-                        </button>
-                      ) : (
+                      {!c.in_response_to_code && !c.reply_code && !c.related_to_code ? (
                         <span className="cell-sub">—</span>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
+                          {c.in_response_to_code && (
+                            <button
+                              type="button"
+                              className="link-chip"
+                              title={`Reply to ${c.in_response_to_code} — click to see the thread`}
+                              onClick={(e) => { e.stopPropagation(); setThread(c.in_response_to_code); }}
+                            >
+                              ↩ {c.in_response_to_code}
+                            </button>
+                          )}
+                          {c.reply_code && (
+                            <button
+                              type="button"
+                              className="link-chip link-chip-fwd"
+                              title={`Answered by ${c.reply_code} — click to see the thread`}
+                              onClick={(e) => { e.stopPropagation(); setThread(c.comm_code); }}
+                            >
+                              → {c.reply_code}
+                            </button>
+                          )}
+                          {c.related_to_code && (
+                            <button
+                              type="button"
+                              className="link-chip"
+                              title={`Related to ${c.related_to_code} — click to find it`}
+                              onClick={(e) => { e.stopPropagation(); setQ(c.related_to_code); }}
+                            >
+                              ≈ {c.related_to_code}
+                            </button>
+                          )}
+                        </div>
                       )}
                     </td>
                     <td>

@@ -361,7 +361,7 @@ export function FormFields({ fields, values, onChange, disabled }) {
               <input
                 id={'f_' + f.name}
                 className="input"
-                type={f.type === 'date' ? 'date' : 'text'}
+                type={f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}
                 value={val}
                 placeholder={f.placeholder}
                 disabled={disabled}
