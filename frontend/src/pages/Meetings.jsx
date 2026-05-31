@@ -54,6 +54,9 @@ export default function Meetings() {
   const [adding, setAdding] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [delRow, setDelRow] = useState(null);
+  const [selected, setSelected] = useState(() => new Set());
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const qDebounced = useDebouncedValue(q, 250);
   useEffect(() => { api.authorities().then(setAuthorities).catch(() => {}); }, []);
@@ -82,6 +85,46 @@ export default function Meetings() {
     defaultKey: 'meeting_date',
     defaultDir: 'desc',
   });
+
+  // Clear ticked rows when the filter set changes.
+  useEffect(() => { setSelected(new Set()); }, [params]);
+
+  const visibleIds = (sorted || []).map((m) => m.id);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+
+  function toggleOne(id) {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleAllVisible() {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  async function doBulkDelete() {
+    setBulkBusy(true);
+    setError('');
+    try {
+      const r = await api.bulkDeleteMeetings([...selected]);
+      setConfirmBulk(false);
+      setSelected(new Set());
+      toast(`Deleted ${r.deleted} meeting${r.deleted === 1 ? '' : 's'} — codes re-ordered by date.`);
+      load(params);
+    } catch (e) {
+      setConfirmBulk(false);
+      setError(e.message || 'Bulk delete failed.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   return (
     <>
@@ -155,6 +198,18 @@ export default function Meetings() {
           </button>
         </div>
 
+        {isEditor && selected.size > 0 && (
+          <div className="thread-banner" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span><strong>{selected.size}</strong> selected</span>
+            <button type="button" className="btn btn-sm btn-danger" onClick={() => setConfirmBulk(true)}>
+              Delete selected
+            </button>
+            <button type="button" className="link-btn" onClick={() => setSelected(new Set())}>
+              Clear
+            </button>
+          </div>
+        )}
+
         {!rows ? (
           <Loading label="Loading meetings" />
         ) : rows.length === 0 ? (
@@ -167,6 +222,16 @@ export default function Meetings() {
             <table>
               <thead>
                 <tr>
+                  {isEditor && (
+                    <th style={{ width: 36 }}>
+                      <input
+                        type="checkbox"
+                        aria-label="Select all"
+                        checked={allVisibleSelected}
+                        onChange={toggleAllVisible}
+                      />
+                    </th>
+                  )}
                   <SortableTH id="meeting_code"   sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Code</SortableTH>
                   <SortableTH id="meeting_date"   sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Date</SortableTH>
                   <SortableTH id="authority_name" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Authority</SortableTH>
@@ -179,7 +244,17 @@ export default function Meetings() {
               </thead>
               <tbody>
                 {sorted.map((m) => (
-                  <tr key={m.id}>
+                  <tr key={m.id} className={selected.has(m.id) ? 'row-selected' : undefined}>
+                    {isEditor && (
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${m.meeting_code}`}
+                          checked={selected.has(m.id)}
+                          onChange={() => toggleOne(m.id)}
+                        />
+                      </td>
+                    )}
                     <td className="mono">{m.meeting_code}</td>
                     <td>
                       {fmtDate(m.meeting_date)}
@@ -268,14 +343,24 @@ export default function Meetings() {
       {delRow && (
         <ConfirmDialog
           title="Delete meeting"
-          message={`Delete meeting ${delRow.meeting_code}? This cannot be undone.`}
+          message={`Move meeting ${delRow.meeting_code} to Trash? Remaining codes re-order by date automatically. You can restore it from Trash later.`}
           onClose={() => setDelRow(null)}
           onConfirm={async () => {
             await api.deleteMeeting(delRow.id);
             setDelRow(null);
-            toast('Meeting deleted');
+            toast('Meeting moved to Trash — codes re-ordered by date.');
             load(params);
           }}
+        />
+      )}
+
+      {confirmBulk && (
+        <ConfirmDialog
+          title="Delete selected meetings"
+          message={`Move ${selected.size} meeting${selected.size === 1 ? '' : 's'} to Trash? Remaining codes re-order by date automatically. You can restore from Trash later.`}
+          confirmLabel={bulkBusy ? 'Deleting…' : `Delete ${selected.size}`}
+          onConfirm={doBulkDelete}
+          onClose={() => setConfirmBulk(false)}
         />
       )}
     </>

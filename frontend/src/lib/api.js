@@ -114,6 +114,7 @@ export const api = {
   createMeeting: (b) => req('/meetings', { method: 'POST', body: b }),
   updateMeeting: (id, b) => req('/meetings/' + id, { method: 'PUT', body: b }),
   deleteMeeting: (id) => req('/meetings/' + id, { method: 'DELETE' }),
+  bulkDeleteMeetings: (ids) => req('/meetings/bulk-delete', { method: 'POST', body: { ids } }),
 
   // users (super_admin)
   users: () => req('/users'),

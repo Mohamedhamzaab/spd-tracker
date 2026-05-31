@@ -1,35 +1,50 @@
 // ---------------------------------------------------------------------------
-//  Re-number communication codes so the ACTIVE list is always a clean
-//  chronological sequence: earliest comm_date = C-0001, building up with no
-//  gaps. Soft-deleted rows are pushed to the end (they keep a unique code but
-//  it's irrelevant while they sit in Trash); if one is restored, calling this
-//  again slots it back into its date position.
+//  Re-number record codes so the ACTIVE list is always a clean chronological
+//  sequence: earliest date = #0001, building up with no gaps. Soft-deleted
+//  rows are pushed to the end (they keep a unique code but it's irrelevant
+//  while they sit in Trash); if one is restored, calling this again slots it
+//  back into its date position.
 //
 //  Runs as two passes inside the CALLER's transaction so it is atomic with the
 //  delete/restore that triggered it:
 //    1. park every row on a collision-proof temporary code
-//    2. assign the final C-#### codes in (active-first, date) order
+//    2. assign the final codes in (active-first, date) order
 //
-//  Reply links (in_response_to) are stored by row id, so threads are never
-//  affected — only the displayed codes re-flow.
+//  Cross-references (reply links, related links) are stored by row id, so they
+//  are never affected — only the displayed codes re-flow.
+//
+//  All config values (table/column/prefix/width/date column) are internal
+//  constants, never user input, so the string interpolation here is safe.
 // ---------------------------------------------------------------------------
-async function renumberCommunications(client) {
-  await client.query(`UPDATE communications SET comm_code = 'TMP-' || id`);
+async function renumberByDate(client, { table, codeCol, prefix, width, dateCol }) {
+  await client.query(`UPDATE ${table} SET ${codeCol} = 'TMP-' || id`);
   await client.query(
     `WITH ordered AS (
        SELECT id,
-              'C-' || lpad(
+              '${prefix}-' || lpad(
                 (row_number() OVER (
-                  ORDER BY (deleted_at IS NOT NULL), comm_date ASC, id ASC
-                ))::text, 4, '0'
+                  ORDER BY (deleted_at IS NOT NULL), ${dateCol} ASC, id ASC
+                ))::text, ${width}, '0'
               ) AS new_code
-         FROM communications
+         FROM ${table}
      )
-     UPDATE communications c
-        SET comm_code = o.new_code
+     UPDATE ${table} t
+        SET ${codeCol} = o.new_code
        FROM ordered o
-      WHERE c.id = o.id`
+      WHERE t.id = o.id`
   );
 }
 
-module.exports = { renumberCommunications };
+const renumberCommunications = (client) =>
+  renumberByDate(client, {
+    table: 'communications', codeCol: 'comm_code',
+    prefix: 'C', width: 4, dateCol: 'comm_date',
+  });
+
+const renumberMeetings = (client) =>
+  renumberByDate(client, {
+    table: 'meetings', codeCol: 'meeting_code',
+    prefix: 'M', width: 3, dateCol: 'meeting_date',
+  });
+
+module.exports = { renumberCommunications, renumberMeetings };

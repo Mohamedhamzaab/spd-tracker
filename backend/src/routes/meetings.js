@@ -8,6 +8,7 @@ const { wrap, httpError, ref } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteMeeting, newGroupId } = require('../softDelete');
+const { renumberMeetings } = require('../renumberComms');
 
 const router = express.Router();
 
@@ -179,6 +180,47 @@ router.post(
   })
 );
 
+// POST /api/meetings/bulk-delete  { ids: [..] }
+// Soft-delete several meetings at once (into Trash), then re-flow the codes so
+// the active register stays a clean chronological sequence.
+router.post(
+  '/bulk-delete',
+  requireEditor,
+  wrap(async (req, res) => {
+    const ids = Array.isArray(req.body.ids)
+      ? [...new Set(req.body.ids.map(Number).filter(Boolean))]
+      : [];
+    if (!ids.length) throw httpError(400, 'No meetings selected.');
+
+    const deleted = [];
+    await withTransaction(async (client) => {
+      for (const id of ids) {
+        const found = await client.query(
+          'SELECT id, meeting_code FROM meetings WHERE id = $1 AND deleted_at IS NULL',
+          [id]
+        );
+        if (!found.rows[0]) continue;
+        const group = newGroupId();
+        await softDeleteMeeting(client, group, req.user.id, id);
+        deleted.push({ id, meeting_code: found.rows[0].meeting_code, group });
+      }
+      if (deleted.length) await renumberMeetings(client);
+    });
+
+    for (const d of deleted) {
+      await logAudit({
+        actor_id: req.user.id,
+        event: 'data.meeting.deleted',
+        target_type: 'meeting',
+        target_id: d.id,
+        payload: { meeting_code: d.meeting_code, deletion_group_id: d.group, bulk: true },
+        req,
+      });
+    }
+    res.json({ ok: true, deleted: deleted.length });
+  })
+);
+
 // PUT /api/meetings/:id
 router.put(
   '/:id',
@@ -279,6 +321,8 @@ router.delete(
       snapshot = found.rows[0];
       group = newGroupId();
       await softDeleteMeeting(client, group, req.user.id, id);
+      // Re-flow the codes so the active list stays chronological with no gaps.
+      await renumberMeetings(client);
     });
     await logAudit({
       actor_id: req.user.id,
