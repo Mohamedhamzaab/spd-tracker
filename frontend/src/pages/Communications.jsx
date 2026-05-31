@@ -8,7 +8,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, DirectionPill, Pill, fmtDate, useToast,
-  useTableSort, SortableTH,
+  useTableSort, SortableTH, ConfirmDialog,
 } from '../components/ui.jsx';
 import { CommDetail, CommForm } from './SubDivisionDetail.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
@@ -85,6 +85,9 @@ export default function Communications() {
   const [error, setError] = useState('');
   const [openComm, setOpenComm] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [selected, setSelected] = useState(() => new Set()); // ids ticked for bulk action
+  const [confirmBulk, setConfirmBulk] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
 
   const qDebounced = useDebouncedValue(q, 250);
 
@@ -133,6 +136,49 @@ export default function Communications() {
     defaultKey: 'comm_code',
     defaultDir: 'asc',
   });
+
+  // Drop any selection when the filter set changes — the visible rows differ,
+  // so keeping ticks from a previous result would be confusing.
+  useEffect(() => { setSelected(new Set()); }, [params]);
+
+  const visibleIds = (sorted || []).map((r) => r.id);
+  const allVisibleSelected =
+    visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+
+  function toggleOne(id) {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function toggleAllVisible() {
+    setSelected((cur) => {
+      const next = new Set(cur);
+      if (allVisibleSelected) visibleIds.forEach((id) => next.delete(id));
+      else visibleIds.forEach((id) => next.add(id));
+      return next;
+    });
+  }
+
+  async function doBulkDelete() {
+    setBulkBusy(true);
+    setError('');
+    try {
+      const ids = [...selected];
+      const r = await api.bulkDeleteComms(ids);
+      setConfirmBulk(false);
+      setSelected(new Set());
+      toast(`Deleted ${r.deleted} communication${r.deleted === 1 ? '' : 's'} — codes re-ordered by date.`);
+      setRows(null);
+      api.communications(params).then(setRows).catch((e) => setError(e.message));
+    } catch (e) {
+      setConfirmBulk(false); // close so the page-level error banner is visible
+      setError(e.message || 'Bulk delete failed.');
+    } finally {
+      setBulkBusy(false);
+    }
+  }
 
   function toggleStatus(key) {
     setStatuses((cur) =>
@@ -269,6 +315,22 @@ export default function Communications() {
           </button>
         </div>
 
+        {isEditor && selected.size > 0 && (
+          <div className="thread-banner" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span><strong>{selected.size}</strong> selected</span>
+            <button
+              type="button"
+              className="btn btn-sm btn-danger"
+              onClick={() => setConfirmBulk(true)}
+            >
+              Delete selected
+            </button>
+            <button type="button" className="link-btn" onClick={() => setSelected(new Set())}>
+              Clear
+            </button>
+          </div>
+        )}
+
         {thread && (
           <div className="thread-banner">
             Showing the thread for <span className="mono">{thread}</span> (the original and its replies).
@@ -287,6 +349,16 @@ export default function Communications() {
             <table>
               <thead>
                 <tr>
+                  {isEditor && (
+                    <th style={{ width: 36 }}>
+                      <input
+                        type="checkbox"
+                        aria-label="Select all"
+                        checked={allVisibleSelected}
+                        onChange={toggleAllVisible}
+                      />
+                    </th>
+                  )}
                   <SortableTH id="comm_code"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Code</SortableTH>
                   <SortableTH id="comm_date"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Date</SortableTH>
                   <SortableTH id="direction"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Direction</SortableTH>
@@ -301,9 +373,19 @@ export default function Communications() {
                 {sorted.map((c) => (
                   <tr
                     key={c.id}
-                    className="clickable"
+                    className={'clickable' + (selected.has(c.id) ? ' row-selected' : '')}
                     onClick={() => setOpenComm(c.id)}
                   >
+                    {isEditor && (
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${c.comm_code}`}
+                          checked={selected.has(c.id)}
+                          onChange={() => toggleOne(c.id)}
+                        />
+                      </td>
+                    )}
                     <td className="mono">{c.comm_code}</td>
                     <td>{fmtDate(c.comm_date)}</td>
                     <td>
@@ -391,6 +473,16 @@ export default function Communications() {
             setRows(null);
             api.communications(params).then(setRows).catch((e) => setError(e.message));
           }}
+        />
+      )}
+
+      {confirmBulk && (
+        <ConfirmDialog
+          title="Delete selected communications"
+          message={`Move ${selected.size} communication${selected.size === 1 ? '' : 's'} to Trash? Remaining codes re-order by date automatically. You can restore from Trash later.`}
+          confirmLabel={bulkBusy ? 'Deleting…' : `Delete ${selected.size}`}
+          onConfirm={doBulkDelete}
+          onClose={() => setConfirmBulk(false)}
         />
       )}
     </>

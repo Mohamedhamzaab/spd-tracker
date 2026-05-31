@@ -8,6 +8,7 @@ const { wrap, httpError, ref } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteCommunication, newGroupId } = require('../softDelete');
+const { renumberCommunications } = require('../renumberComms');
 
 const router = express.Router();
 
@@ -216,6 +217,48 @@ router.post(
   })
 );
 
+// POST /api/communications/bulk-delete  { ids: [..] }
+// Soft-delete several communications at once (each into Trash, individually
+// restorable), then re-flow the codes once so the active list stays a clean
+// chronological sequence.
+router.post(
+  '/bulk-delete',
+  requireEditor,
+  wrap(async (req, res) => {
+    const ids = Array.isArray(req.body.ids)
+      ? [...new Set(req.body.ids.map(Number).filter(Boolean))]
+      : [];
+    if (!ids.length) throw httpError(400, 'No communications selected.');
+
+    const deleted = [];
+    await withTransaction(async (client) => {
+      for (const id of ids) {
+        const found = await client.query(
+          'SELECT id, comm_code, direction FROM communications WHERE id = $1 AND deleted_at IS NULL',
+          [id]
+        );
+        if (!found.rows[0]) continue; // skip missing / already-deleted
+        const group = newGroupId();
+        await softDeleteCommunication(client, group, req.user.id, id);
+        deleted.push({ id, comm_code: found.rows[0].comm_code, direction: found.rows[0].direction, group });
+      }
+      if (deleted.length) await renumberCommunications(client);
+    });
+
+    for (const d of deleted) {
+      await logAudit({
+        actor_id: req.user.id,
+        event: 'data.communication.deleted',
+        target_type: 'communication',
+        target_id: d.id,
+        payload: { comm_code: d.comm_code, direction: d.direction, deletion_group_id: d.group, bulk: true },
+        req,
+      });
+    }
+    res.json({ ok: true, deleted: deleted.length });
+  })
+);
+
 // PUT /api/communications/:id
 router.put(
   '/:id',
@@ -305,6 +348,8 @@ router.delete(
       snapshot = found.rows[0];
       group = newGroupId();
       await softDeleteCommunication(client, group, req.user.id, id);
+      // Re-flow the codes so the active list stays chronological with no gaps.
+      await renumberCommunications(client);
     });
     await logAudit({
       actor_id: req.user.id,

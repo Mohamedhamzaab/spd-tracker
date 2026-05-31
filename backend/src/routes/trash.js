@@ -15,6 +15,7 @@ const { query, withTransaction } = require('../db');
 const { wrap, httpError } = require('../helpers');
 const { requireSuperAdmin } = require('../auth');
 const { restoreGroup } = require('../softDelete');
+const { renumberCommunications } = require('../renumberComms');
 const { logAudit } = require('../audit');
 const storage = require('../storage');
 
@@ -123,6 +124,18 @@ router.post(
       if (!r.rows[0]) throw httpError(404, 'That record is not in Trash.');
       snapshot = r.rows[0];
       group = r.rows[0].deletion_group_id;
+
+      // Does this restore bring any communications back? (Either restoring a
+      // communication directly, or a group whose cascade included some.)
+      let touchesComms = type === 'communication';
+      if (group && !touchesComms) {
+        const c = await client.query(
+          'SELECT 1 FROM communications WHERE deletion_group_id = $1 LIMIT 1',
+          [group]
+        );
+        if (c.rows[0]) touchesComms = true;
+      }
+
       if (group) {
         restored = await restoreGroup(client, group);
       } else {
@@ -135,6 +148,10 @@ router.post(
         );
         restored = 1;
       }
+
+      // Re-flow codes so the restored communication slots back into its date
+      // position and the active list stays a clean chronological sequence.
+      if (touchesComms) await renumberCommunications(client);
     });
 
     await logAudit({

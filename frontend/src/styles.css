@@ -342,6 +342,8 @@ td.mono { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--nav
 .btn-primary:hover { background: var(--navy-deep); }
 .btn-danger { color: var(--red); border-color: var(--red-bg); background: var(--surface); }
 .btn-danger:hover { background: var(--red-bg); }
+/* A table row ticked for a bulk action. */
+tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
 .btn-sm { padding: 5px 11px; font-size: 12px; }
 .btn-ghost { border-color: transparent; background: transparent; color: var(--muted); }
 .btn-ghost:hover { background: var(--bg); color: var(--ink); }

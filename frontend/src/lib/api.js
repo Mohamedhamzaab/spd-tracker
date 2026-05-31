@@ -104,6 +104,7 @@ export const api = {
   communications: (params) => req('/communications' + qs(params)),
   communication: (id) => req('/communications/' + id),
   createComm: (b) => req('/communications', { method: 'POST', body: b }),
+  bulkDeleteComms: (ids) => req('/communications/bulk-delete', { method: 'POST', body: { ids } }),
   updateComm: (id, b) => req('/communications/' + id, { method: 'PUT', body: b }),
   deleteComm: (id) => req('/communications/' + id, { method: 'DELETE' }),
 
