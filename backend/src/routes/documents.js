@@ -24,11 +24,29 @@ const router = express.Router();
 
 const MAX_MB = Number(process.env.MAX_UPLOAD_MB) || 25;
 
+// Allow-list of uploadable file extensions. PMCM work involves Office docs,
+// PDFs, images, CAD drawings and archives — but never scripts, executables, or
+// active markup (.html/.svg/.js) a browser might try to run. Rejecting by
+// allow-list (rather than blocking known-bad) is the safer default.
+const ALLOWED_EXT = new Set([
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.csv', '.txt', '.rtf',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.tif', '.tiff', '.bmp', '.heic',
+  '.dwg', '.dxf', '.dwf', '.rvt', '.ifc', '.skp',
+  '.zip', '.rar', '.7z',
+]);
+
 // Bytes go to memory so we can hand them to either backend uniformly. The
-// upload size cap is enforced by multer before we ever see the buffer.
+// upload size cap is enforced by multer before we ever see the buffer; the
+// fileFilter rejects disallowed types before any bytes are stored.
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_MB * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    if (ALLOWED_EXT.has(ext)) return cb(null, true);
+    cb(httpError(400, `File type "${ext || 'unknown'}" is not allowed. Permitted: PDF, Office documents, images, CAD drawings, and archives.`));
+  },
 });
 
 const PARENT_TYPES = { communication: 'communications', meeting: 'meetings' };

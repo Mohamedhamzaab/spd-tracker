@@ -72,6 +72,10 @@ services:
         value: "false"
       - key: LOG_LEVEL
         value: info
+      # Project timezone. The database session tz and the reminder/digest cron
+      # schedules are pinned to this so date math and scheduling agree.
+      - key: APP_TZ
+        value: Asia/Qatar
       # Document storage. Managed entirely in the dashboard (sync: false) so a
       # blueprint re-sync never resets your choice. Unset → defaults to local
       # disk (ephemeral). For permanent storage set STORAGE_BACKEND=s3 plus the
@@ -88,7 +92,7 @@ services:
         sync: false
       - key: S3_SECRET_ACCESS_KEY
         sync: false
-      # MFA_ENC_KEY must be added manually in the Render dashboard before any
-      # user enrols MFA — the server boots without it; only MFA setup fails.
-      # Generate with:
+      # MFA_ENC_KEY must be set in the Render dashboard. In production the
+      # server now FAILS FAST at boot if it is missing/invalid (rather than
+      # only erroring when the first user enrols MFA). Generate with:
       #   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"

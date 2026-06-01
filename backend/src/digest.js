@@ -275,12 +275,14 @@ function startScheduler() {
     console.log('[digest] DIGEST_ENABLED != true — scheduler is OFF.');
     return null;
   }
-  // Every Monday at 08:00 server time.
+  // Every Monday at 08:00 in the project timezone (APP_TZ) so the schedule and
+  // the DB's date math agree.
   const expr = process.env.DIGEST_CRON || '0 8 * * 1';
-  console.log(`[digest] scheduling cron: ${expr}`);
+  const timezone = require('./db').APP_TZ;
+  console.log(`[digest] scheduling cron: ${expr} (${timezone})`);
   return cron.schedule(expr, () => {
     runDigest().catch((err) => console.error('[digest] run failed:', err));
-  });
+  }, { timezone });
 }
 
 module.exports = { startScheduler, runDigest, buildDigestData, digestHtml, digestText };

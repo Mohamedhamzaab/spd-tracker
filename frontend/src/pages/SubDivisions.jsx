@@ -290,10 +290,15 @@ export default function SubDivisions() {
           message={`Delete "${delRow.name}" (${delRow.sub_reference})? Its communications are removed too. This cannot be undone.`}
           onClose={() => setDelRow(null)}
           onConfirm={async () => {
-            await api.deleteSub(delRow.id);
-            setDelRow(null);
-            toast('Sub-division deleted');
-            load(params);
+            try {
+              await api.deleteSub(delRow.id);
+              setDelRow(null);
+              toast('Sub-division deleted');
+              load(params);
+            } catch (e) {
+              setDelRow(null);
+              setError(e.message || 'Delete failed.');
+            }
           }}
         />
       )}

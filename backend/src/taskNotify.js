@@ -113,12 +113,13 @@ function startScheduler() {
     return null;
   }
   const expr = process.env.TASK_REMINDER_CRON || '0 7 * * *';
-  console.log(`[task-reminders] scheduling cron: ${expr}`);
+  const timezone = require('./db').APP_TZ;
+  console.log(`[task-reminders] scheduling cron: ${expr} (${timezone})`);
   return cron.schedule(expr, () => {
     runReminders().catch((err) =>
       console.error('[task-reminders] run failed:', err.message)
     );
-  });
+  }, { timezone });
 }
 
 module.exports = { notifyAssignment, runReminders, startScheduler, parentLabel };

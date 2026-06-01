@@ -193,10 +193,15 @@ export default function Authorities() {
           message={`Delete "${delRow.name}"? This also removes its sub-divisions, communications and meetings. This cannot be undone.`}
           onClose={() => setDelRow(null)}
           onConfirm={async () => {
-            await api.deleteAuthority(delRow.id);
-            setDelRow(null);
-            toast('Authority deleted');
-            load();
+            try {
+              await api.deleteAuthority(delRow.id);
+              setDelRow(null);
+              toast('Authority deleted');
+              load();
+            } catch (e) {
+              setDelRow(null);
+              setError(e.message || 'Delete failed.');
+            }
           }}
         />
       )}

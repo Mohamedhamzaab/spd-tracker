@@ -362,10 +362,15 @@ export default function Meetings() {
           message={`Move meeting ${delRow.meeting_code} to Trash? Remaining codes re-order by date automatically. You can restore it from Trash later.`}
           onClose={() => setDelRow(null)}
           onConfirm={async () => {
-            await api.deleteMeeting(delRow.id);
-            setDelRow(null);
-            toast('Meeting moved to Trash — codes re-ordered by date.');
-            load(params);
+            try {
+              await api.deleteMeeting(delRow.id);
+              setDelRow(null);
+              toast('Meeting moved to Trash — codes re-ordered by date.');
+              load(params);
+            } catch (e) {
+              setDelRow(null);
+              setError(e.message || 'Delete failed.');
+            }
           }}
         />
       )}

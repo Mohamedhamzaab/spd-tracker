@@ -64,4 +64,9 @@ function decrypt(encoded) {
   return Buffer.concat([dec.update(ct), dec.final()]).toString('utf8');
 }
 
+// Validate key configuration eagerly at module load so a misconfigured
+// production deploy fails fast and loudly at boot, rather than silently
+// running until the first user tries to enrol MFA and hits a 500.
+getKey();
+
 module.exports = { encrypt, decrypt };

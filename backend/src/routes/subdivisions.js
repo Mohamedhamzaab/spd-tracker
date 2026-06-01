@@ -8,6 +8,7 @@ const { wrap, httpError, ref } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteSubDivision, newGroupId } = require('../softDelete');
+const { renumberCommunications } = require('../renumberComms');
 
 const router = express.Router();
 
@@ -219,6 +220,9 @@ router.delete(
       snapshot = found.rows[0];
       group = newGroupId();
       await softDeleteSubDivision(client, group, req.user.id, id);
+      // The cascade soft-deletes this sub-division's communications; re-flow
+      // so the active log stays a clean chronological sequence (no gaps).
+      await renumberCommunications(client);
     });
     await logAudit({
       actor_id: req.user.id,
