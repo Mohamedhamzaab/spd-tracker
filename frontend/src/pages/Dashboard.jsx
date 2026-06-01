@@ -1,12 +1,12 @@
 // ---------------------------------------------------------------------------
-//  Dashboard. Live read-only overview: KPIs, engagement ladder, authorities
-//  by category, meetings summary, and a date-window period view.
+//  Dashboard — live engagement overview. Fetches /api/dashboard (+ the period
+//  window) and feeds the shared <DashboardView>. Re-fetches on data events so
+//  every panel reflects the real database in near real time.
 // ---------------------------------------------------------------------------
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import {
-  Loading, ErrorBanner, Section, Kpi, BarChart, pct,
-} from '../components/ui.jsx';
+import { Loading, ErrorBanner, pct } from '../components/ui.jsx';
+import DashboardView from '../components/DashboardView.jsx';
 import { useLive } from '../lib/liveStream.js';
 
 function isoDaysAgo(n) {
@@ -15,8 +15,6 @@ function isoDaysAgo(n) {
   return d.toISOString().slice(0, 10);
 }
 
-// Any of these upstream changes can move a dashboard figure, so we refetch
-// when one fires — the board stays live without a manual reload.
 const DASH_LIVE_EVENTS = [
   'data.authority.created', 'data.authority.updated', 'data.authority.deleted',
   'data.authority.restored', 'data.authority.purged',
@@ -26,174 +24,98 @@ const DASH_LIVE_EVENTS = [
   'data.communication.restored', 'data.communication.purged',
   'data.meeting.created', 'data.meeting.updated', 'data.meeting.deleted',
   'data.meeting.restored', 'data.meeting.purged',
+  'data.task.created', 'data.task.updated', 'data.task.completed', 'data.task.deleted',
+];
+
+const ATTENTION_DEFS = [
+  { key: 'overdue_communications', label: 'Overdue communications', tone: 'red' },
+  { key: 'awaiting_reply', label: 'Awaiting a reply', tone: 'amber' },
+  { key: 'mom_pending', label: 'MoM pending', tone: 'red' },
+  { key: 'mom_draft', label: 'MoM in draft', tone: 'amber' },
+  { key: 'overdue_tasks', label: 'Overdue tasks', tone: 'red' },
+  { key: 'open_tasks', label: 'Open tasks', tone: 'indigo' },
+  { key: 'not_contacted', label: 'Not yet contacted', tone: 'slate' },
 ];
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [from, setFrom] = useState(isoDaysAgo(7));
+  const [from, setFrom] = useState(isoDaysAgo(30));
   const [to, setTo] = useState(isoDaysAgo(0));
   const [period, setPeriod] = useState(null);
 
-  const loadTotals = useCallback(() => {
+  const loadData = useCallback(() => {
     api.dashboard().then(setData).catch((e) => setError(e.message));
   }, []);
-
-  useEffect(() => { loadTotals(); }, [loadTotals]);
-
-  // Refetch the headline figures + charts whenever underlying data changes.
-  useLive(DASH_LIVE_EVENTS, loadTotals);
+  useEffect(() => { loadData(); }, [loadData]);
+  useLive(DASH_LIVE_EVENTS, loadData);
 
   const loadPeriod = useCallback(() => {
     api.period(from, to).then(setPeriod).catch(() => setPeriod(null));
   }, [from, to]);
-
   useEffect(() => { loadPeriod(); }, [loadPeriod]);
-
-  // The period view counts the same records, so keep it live too.
   useLive(DASH_LIVE_EVENTS, loadPeriod);
+
+  const model = useMemo(() => {
+    if (!data) return null;
+    const t = data.totals || {};
+    const att = data.attention || {};
+    const cats = (data.byCategory || []).filter((c) => c.count > 0).length;
+    return {
+      kpis: [
+        { label: 'Total Authorities', value: String(t.total_authorities ?? 0),
+          foot: `across ${cats} categor${cats === 1 ? 'y' : 'ies'}` },
+        { label: 'Total Sub-Divisions', value: String(t.total_sub_divisions ?? 0),
+          foot: `${t.sub_divisions_engaged ?? 0} engaged · ${pct(t.percent_engaged || 0)}` },
+        { label: 'Communications Logged', value: String(t.communications_logged ?? 0),
+          foot: `${t.outbound ?? 0} sent · ${t.inbound ?? 0} received` },
+        { label: 'Meetings Logged', value: String(t.meetings_logged ?? 0),
+          foot: `${(data.mom && data.mom.final) || 0} with final MoM` },
+      ],
+      volume: (data.monthly || []).map((m) => ({ month: m.month, outbound: m.outbound, inbound: m.inbound })),
+      byCategory: (data.byCategory || []).map((c) => ({ label: c.category, count: c.count })),
+      attention: ATTENTION_DEFS.map((d) => ({ label: d.label, tone: d.tone, count: att[d.key] || 0 })),
+      ladder: (data.ladder || []).map((l) => ({ status: l.status, count: l.count })),
+      team: data.team || [],
+      recent: data.recent || [],
+      meetingsMonthly: data.meetingsMonthly || [],
+      period: {
+        from, to,
+        communications: period ? period.communications : 0,
+        outbound: period ? period.outbound : 0,
+        inbound: period ? period.inbound : 0,
+        meetings: period ? period.meetings : 0,
+        subIdentified: period ? period.sub_divisions_identified : 0,
+      },
+      onRange: (f, tt) => { setFrom(f); setTo(tt); },
+    };
+  }, [data, period, from, to]);
 
   if (error) {
     return (
       <>
-        <div className="topbar">
-          <div className="page-title">Dashboard</div>
-        </div>
-        <div className="page">
-          <ErrorBanner message={error} />
-        </div>
+        <div className="topbar"><div className="page-title">Dashboard</div></div>
+        <div className="page"><ErrorBanner message={error} /></div>
       </>
     );
   }
-  if (!data) return <Loading label="Loading dashboard" />;
+  if (!model) return <Loading label="Loading dashboard" />;
 
-  const t = data.totals;
-  const ladderColor = (r) => {
-    const map = {
-      Identified: 's',
-      Contacted: 'n',
-      'Response Received': 'a',
-      'Outcome Secured': 'g',
-    };
-    return map[r.label] || '';
-  };
+  const today = new Date().toLocaleDateString(undefined, {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  });
 
   return (
     <>
       <div className="topbar">
         <div>
-          <div className="page-crumb">Safari Park Project</div>
-          <div className="page-title">Dashboard</div>
+          <div className="page-crumb">Safari Park Project · Authority Engagement</div>
+          <div className="page-title">Engagement Dashboard</div>
         </div>
+        <div className="dash-date">{today}</div>
       </div>
-      <div className="page stack-lg">
-        {/* KPIs */}
-        <Section title="Engagement Overview">
-          <div className="kpi-grid">
-            <Kpi label="Total Authorities" value={t.total_authorities} />
-            <Kpi label="Total Sub-Divisions" value={t.total_sub_divisions} />
-            <Kpi label="Sub-Divisions Engaged" value={t.sub_divisions_engaged} />
-            <Kpi label="Percent Engaged" value={pct(t.percent_engaged)} />
-            <Kpi label="Outcome Secured" value={t.outcome_secured} tone="g" />
-          </div>
-          <div className="kpi-grid" style={{ marginTop: 14 }}>
-            <Kpi label="Percent Outcome Secured" value={pct(t.percent_outcome_secured)} />
-            <Kpi label="Communications Logged" value={t.communications_logged} />
-            <Kpi
-              label="Awaiting Reply"
-              value={t.awaiting_reply}
-              tone={t.awaiting_reply ? 'warn' : undefined}
-            />
-            <Kpi
-              label="Overdue Communications"
-              value={t.overdue_communications}
-              tone={t.overdue_communications ? 'alert' : undefined}
-            />
-            <Kpi label="Meetings Logged" value={t.meetings_logged} />
-          </div>
-        </Section>
-
-        {/* Ladder + category */}
-        <div className="row">
-          <div className="card card-pad" style={{ flex: 1, minWidth: 320 }}>
-            <Section title="Engagement Ladder" note="Sub-divisions by status">
-              <BarChart
-                rows={data.ladder.map((l) => ({ label: l.status, value: l.count }))}
-                colorFor={ladderColor}
-              />
-            </Section>
-          </div>
-          <div className="card card-pad" style={{ flex: 1, minWidth: 320 }}>
-            <Section title="Authorities by Category">
-              <BarChart
-                rows={data.byCategory.map((c) => ({ label: c.category, value: c.count }))}
-                colorFor={() => 'n'}
-              />
-            </Section>
-          </div>
-        </div>
-
-        {/* Meetings */}
-        <div className="row">
-          <div className="card card-pad" style={{ flex: 1, minWidth: 320 }}>
-            <Section title="Meetings by Purpose">
-              <BarChart
-                rows={data.meetingsByPurpose.map((m) => ({
-                  label: m.purpose,
-                  value: m.count,
-                }))}
-                colorFor={() => ''}
-              />
-            </Section>
-          </div>
-          <div className="card card-pad" style={{ flex: 1, minWidth: 320 }}>
-            <Section title="Meetings by Mode">
-              <BarChart
-                rows={data.meetingsByMode.map((m) => ({ label: m.mode, value: m.count }))}
-                colorFor={() => ''}
-              />
-            </Section>
-          </div>
-        </div>
-
-        {/* Period view */}
-        <div className="card card-pad">
-          <Section
-            title="Period View"
-            note="Activity within a date window"
-            action={
-              <div style={{ display: 'flex', gap: 8 }}>
-                <input
-                  className="filter-select"
-                  type="date"
-                  value={from}
-                  onChange={(e) => setFrom(e.target.value)}
-                />
-                <input
-                  className="filter-select"
-                  type="date"
-                  value={to}
-                  onChange={(e) => setTo(e.target.value)}
-                />
-              </div>
-            }
-          >
-            {period ? (
-              <div className="kpi-grid">
-                <Kpi label="Communications" value={period.communications} />
-                <Kpi label="Outbound" value={period.outbound} />
-                <Kpi label="Inbound" value={period.inbound} />
-                <Kpi label="Meetings" value={period.meetings} />
-                <Kpi
-                  label="Sub-Divisions Identified"
-                  value={period.sub_divisions_identified}
-                />
-              </div>
-            ) : (
-              <div className="section-note">Adjust the dates to view a window.</div>
-            )}
-          </Section>
-        </div>
+      <div className="page">
+        <DashboardView model={model} />
       </div>
     </>
   );

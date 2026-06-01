@@ -47,6 +47,10 @@ router.get(
            WHERE direction = 'Outbound' AND reply_needed = TRUE
              AND reply_received = FALSE)                                    AS awaiting_reply,
         (SELECT count(*) FROM v_communication WHERE is_overdue)             AS overdue_communications,
+        (SELECT count(*) FROM communications
+           WHERE deleted_at IS NULL AND direction = 'Outbound')             AS outbound_count,
+        (SELECT count(*) FROM communications
+           WHERE deleted_at IS NULL AND direction = 'Inbound')              AS inbound_count,
         (SELECT count(*) FROM meetings WHERE deleted_at IS NULL)            AS meetings_logged
     `);
     const t = totals.rows[0];
@@ -102,6 +106,110 @@ router.get(
       count: mModeMap[mode] || 0,
     }));
 
+    // Action counts the PMCM cares about ("Attention Required").
+    const attRows = await query(`
+      SELECT
+        (SELECT count(*) FROM v_sub_division
+           WHERE engagement_status = 'Identified')                          AS not_contacted,
+        (SELECT count(*) FROM meetings
+           WHERE deleted_at IS NULL AND mom_status = 'pending')             AS mom_pending,
+        (SELECT count(*) FROM meetings
+           WHERE deleted_at IS NULL AND mom_status = 'draft')               AS mom_draft,
+        (SELECT count(*) FROM meetings
+           WHERE deleted_at IS NULL AND mom_status = 'final')               AS mom_final,
+        (SELECT count(*) FROM tasks
+           WHERE deleted_at IS NULL AND status = 'open')                    AS open_tasks,
+        (SELECT count(*) FROM tasks
+           WHERE deleted_at IS NULL AND status = 'open'
+             AND due_date IS NOT NULL AND due_date < CURRENT_DATE)          AS overdue_tasks
+    `);
+    const att = attRows.rows[0];
+
+    // 12-month activity series (communications by direction + meetings).
+    const monthlyRows = await query(`
+      WITH months AS (
+        SELECT to_char(d, 'YYYY-MM') AS ym, d::date AS m
+          FROM generate_series(
+                 date_trunc('month', CURRENT_DATE) - interval '11 months',
+                 date_trunc('month', CURRENT_DATE),
+                 interval '1 month') d
+      )
+      SELECT mo.ym,
+        (SELECT count(*) FROM communications c
+           WHERE c.deleted_at IS NULL AND c.direction = 'Outbound'
+             AND date_trunc('month', c.comm_date) = mo.m)  AS outbound,
+        (SELECT count(*) FROM communications c
+           WHERE c.deleted_at IS NULL AND c.direction = 'Inbound'
+             AND date_trunc('month', c.comm_date) = mo.m)  AS inbound,
+        (SELECT count(*) FROM meetings mt
+           WHERE mt.deleted_at IS NULL
+             AND date_trunc('month', mt.meeting_date) = mo.m) AS meetings
+        FROM months mo
+       ORDER BY mo.ym
+    `);
+
+    // Meetings per month split by mode (for the stacked "by mode" chart).
+    const meetingModeRows = await query(`
+      WITH months AS (
+        SELECT to_char(d, 'YYYY-MM') AS ym, d::date AS m
+          FROM generate_series(
+                 date_trunc('month', CURRENT_DATE) - interval '11 months',
+                 date_trunc('month', CURRENT_DATE),
+                 interval '1 month') d
+      )
+      SELECT mo.ym,
+        (SELECT count(*) FROM meetings mt WHERE mt.deleted_at IS NULL
+           AND mt.mode = 'In Person' AND date_trunc('month', mt.meeting_date) = mo.m) AS in_person,
+        (SELECT count(*) FROM meetings mt WHERE mt.deleted_at IS NULL
+           AND mt.mode = 'Online' AND date_trunc('month', mt.meeting_date) = mo.m)    AS online,
+        (SELECT count(*) FROM meetings mt WHERE mt.deleted_at IS NULL
+           AND mt.mode = 'Hybrid' AND date_trunc('month', mt.meeting_date) = mo.m)    AS hybrid
+        FROM months mo
+       ORDER BY mo.ym
+    `);
+
+    // Latest communications for the "recent" table (status derived like the list).
+    const recentRows = await query(`
+      SELECT comm_code, to_char(comm_date, 'YYYY-MM-DD') AS comm_date,
+             sub_division_name, authority_code, direction,
+             is_overdue, reply_received, reply_needed
+        FROM v_communication
+       ORDER BY comm_date DESC, id DESC
+       LIMIT 6
+    `);
+    const recent = recentRows.rows.map((r) => {
+      let status = 'Logged';
+      if (r.is_overdue) status = 'Overdue';
+      else if (r.direction === 'Outbound' && r.reply_received) status = 'Replied';
+      else if (r.direction === 'Outbound' && r.reply_needed) status = 'Awaiting';
+      return {
+        code: r.comm_code,
+        date: r.comm_date,
+        subdivision: r.sub_division_name,
+        authorityCode: r.authority_code,
+        direction: r.direction,
+        status,
+      };
+    });
+
+    // Open tasks per active member (Team & Assignments panel).
+    const teamRows = await query(`
+      SELECT u.name, u.organisation, u.role,
+             COALESCE((SELECT count(*) FROM tasks t
+                        WHERE t.assignee_id = u.id AND t.deleted_at IS NULL
+                          AND t.status = 'open'), 0)::int AS open_tasks
+        FROM users u
+       WHERE u.is_disabled = FALSE
+       ORDER BY open_tasks DESC, u.name
+       LIMIT 6
+    `);
+    const ROLE_LABEL = { super_admin: 'Super-admin', admin: 'Admin', reviewer: 'Reviewer' };
+    const team = teamRows.rows.map((u) => ({
+      name: u.name,
+      org: [u.organisation, ROLE_LABEL[u.role] || u.role].filter(Boolean).join(' · '),
+      openTasks: u.open_tasks,
+    }));
+
     res.json({
       totals: {
         total_authorities: num(t.total_authorities),
@@ -111,10 +219,40 @@ router.get(
         outcome_secured: num(t.outcome_secured),
         percent_outcome_secured: totalSub ? num(t.outcome_secured) / totalSub : 0,
         communications_logged: num(t.communications_logged),
+        outbound: num(t.outbound_count),
+        inbound: num(t.inbound_count),
         awaiting_reply: num(t.awaiting_reply),
         overdue_communications: num(t.overdue_communications),
         meetings_logged: num(t.meetings_logged),
       },
+      attention: {
+        overdue_communications: num(t.overdue_communications),
+        awaiting_reply: num(t.awaiting_reply),
+        not_contacted: num(att.not_contacted),
+        mom_pending: num(att.mom_pending),
+        mom_draft: num(att.mom_draft),
+        open_tasks: num(att.open_tasks),
+        overdue_tasks: num(att.overdue_tasks),
+      },
+      mom: {
+        pending: num(att.mom_pending),
+        draft: num(att.mom_draft),
+        final: num(att.mom_final),
+      },
+      monthly: monthlyRows.rows.map((r) => ({
+        month: r.ym,
+        outbound: num(r.outbound),
+        inbound: num(r.inbound),
+        meetings: num(r.meetings),
+      })),
+      meetingsMonthly: meetingModeRows.rows.map((r) => ({
+        month: r.ym,
+        inPerson: num(r.in_person),
+        online: num(r.online),
+        hybrid: num(r.hybrid),
+      })),
+      recent,
+      team,
       ladder,
       byCategory,
       meetingsByPurpose,
