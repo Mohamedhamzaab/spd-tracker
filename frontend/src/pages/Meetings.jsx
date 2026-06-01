@@ -84,7 +84,7 @@ export default function Meetings() {
 
   const { sorted, sortKey, sortDir, onSort } = useTableSort(rows || [], MEETING_COLS, {
     defaultKey: 'meeting_date',
-    defaultDir: 'desc',
+    defaultDir: 'asc',
   });
 
   // Clear ticked rows when the filter set changes.
