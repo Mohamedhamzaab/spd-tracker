@@ -13,6 +13,18 @@ export default function Reports() {
   const [busyKey, setBusyKey] = useState(null);
   const [authorities, setAuthorities] = useState(null);
   const [authorityId, setAuthorityId] = useState('');
+  // Optional reporting window — applied to the date-aware exports.
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  // Append ?from=&to= to date-aware exports (register, communications, meetings).
+  function withRange(path, dated) {
+    if (!dated) return path;
+    const qs = [];
+    if (from) qs.push('from=' + from);
+    if (to) qs.push('to=' + to);
+    return qs.length ? `${path}?${qs.join('&')}` : path;
+  }
 
   useEffect(() => {
     api.authorities().then((rows) => {
@@ -44,6 +56,7 @@ export default function Reports() {
       path: '/exports/engagement-register.xlsx',
       filename: 'engagement-register.xlsx',
       primary: true,
+      dated: true,
     },
     {
       key: 'register-pdf',
@@ -52,6 +65,7 @@ export default function Reports() {
       path: '/exports/engagement-register.pdf',
       filename: 'engagement-register.pdf',
       primary: true,
+      dated: true,
     },
     {
       key: 'authorities-xlsx',
@@ -70,16 +84,18 @@ export default function Reports() {
     {
       key: 'comms-xlsx',
       title: 'Communications only — Excel',
-      desc: 'Full communication log with computed status (Overdue / Awaiting / Replied / Logged).',
+      desc: 'Full communication log with computed status (Overdue / Awaiting / Replied / Logged), plus the related-to link.',
       path: '/exports/communications.xlsx',
       filename: 'communications.xlsx',
+      dated: true,
     },
     {
       key: 'meetings-xlsx',
       title: 'Meetings only — Excel',
-      desc: 'Meeting register with primary sub-division and MoM links.',
+      desc: 'Meeting register with time, attendees, primary sub-division, and MoM status (Pending / Draft / Final).',
       path: '/exports/meetings.xlsx',
       filename: 'meetings.xlsx',
+      dated: true,
     },
   ];
 
@@ -95,6 +111,48 @@ export default function Reports() {
       <div className="page stack-lg">
         <ErrorBanner message={error} />
 
+        <Section
+          title="Time frame"
+          note="Optional — limits the register and the communications / meetings logs to a date window"
+        />
+        <div className="card card-pad">
+          <div className="report-range">
+            <div className="field">
+              <label className="field-label">From</label>
+              <input
+                type="date"
+                className="input"
+                value={from}
+                max={to || undefined}
+                onChange={(e) => setFrom(e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label">To</label>
+              <input
+                type="date"
+                className="input"
+                value={to}
+                min={from || undefined}
+                onChange={(e) => setTo(e.target.value)}
+              />
+            </div>
+            {(from || to) && (
+              <button
+                className="btn btn-ghost"
+                onClick={() => { setFrom(''); setTo(''); }}
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="report-range-note">
+            {from || to
+              ? `Window: ${from || '…'} → ${to || '…'}. Authorities and Sub-Division registers always cover all records.`
+              : 'No window set — exports cover all dates.'}
+          </div>
+        </div>
+
         <Section title="Engagement register" />
         <div className="report-grid">
           {cards.filter((c) => c.primary).map((c) => (
@@ -102,7 +160,7 @@ export default function Reports() {
               key={c.key}
               card={c}
               busy={busyKey === c.key}
-              onGo={() => go(c.key, c.path, c.filename)}
+              onGo={() => go(c.key, withRange(c.path, c.dated), c.filename)}
             />
           ))}
         </div>
@@ -114,7 +172,7 @@ export default function Reports() {
               key={c.key}
               card={c}
               busy={busyKey === c.key}
-              onGo={() => go(c.key, c.path, c.filename)}
+              onGo={() => go(c.key, withRange(c.path, c.dated), c.filename)}
             />
           ))}
         </div>

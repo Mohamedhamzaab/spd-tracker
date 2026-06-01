@@ -62,6 +62,18 @@ function setDownloadHeaders(res, contentType, filename) {
   res.setHeader('Cache-Control', 'no-store');
 }
 
+// Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD time-frame on an export.
+function dateRange(req) {
+  const ok = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : null;
+  return { from: ok(req.query.from), to: ok(req.query.to) };
+}
+function windowLabel(from, to) {
+  if (from && to) return `${from} to ${to}`;
+  if (from) return `From ${from}`;
+  if (to) return `Up to ${to}`;
+  return 'All dates';
+}
+
 // --- data fetchers (live rows only) -----------------------------------------
 async function fetchAuthorities() {
   return (await query('SELECT * FROM v_authority ORDER BY code')).rows;
@@ -69,10 +81,21 @@ async function fetchAuthorities() {
 async function fetchSubDivisions() {
   return (await query('SELECT * FROM v_sub_division ORDER BY authority_code, seq_no')).rows;
 }
-async function fetchCommunications() {
-  return (await query('SELECT * FROM v_communication ORDER BY comm_date DESC, id DESC')).rows;
+async function fetchCommunications(from, to) {
+  const params = [];
+  const where = [];
+  if (from) { params.push(from); where.push(`comm_date >= $${params.length}::date`); }
+  if (to) { params.push(to); where.push(`comm_date <= $${params.length}::date`); }
+  const sql = 'SELECT * FROM v_communication'
+    + (where.length ? ' WHERE ' + where.join(' AND ') : '')
+    + ' ORDER BY comm_code';
+  return (await query(sql, params)).rows;
 }
-async function fetchMeetings() {
+async function fetchMeetings(from, to) {
+  const params = [];
+  const where = ['m.deleted_at IS NULL'];
+  if (from) { params.push(from); where.push(`m.meeting_date >= $${params.length}::date`); }
+  if (to) { params.push(to); where.push(`m.meeting_date <= $${params.length}::date`); }
   return (await query(
     `SELECT m.*, a.code AS authority_code, a.name AS authority_name,
             sd.sub_reference AS primary_sub_reference,
@@ -80,8 +103,9 @@ async function fetchMeetings() {
      FROM meetings m
      JOIN authorities a ON a.id = m.authority_id AND a.deleted_at IS NULL
      LEFT JOIN sub_divisions sd ON sd.id = m.primary_sub_id
-     WHERE m.deleted_at IS NULL
-     ORDER BY m.meeting_date DESC, m.id DESC`
+     WHERE ${where.join(' AND ')}
+     ORDER BY m.meeting_code`,
+    params
   )).rows;
 }
 
@@ -147,6 +171,10 @@ function commStatus(c) {
   return 'Logged';
 }
 
+function momLabel(s) {
+  return { pending: 'Pending', draft: 'Draft', final: 'Final' }[s] || (s || '');
+}
+
 function buildCommunicationsSheet(book, rows) {
   const sheet = book.addWorksheet('Communications', { views: [{ state: 'frozen', ySplit: 1 }] });
   sheet.columns = [
@@ -161,6 +189,7 @@ function buildCommunicationsSheet(book, rows) {
     { header: 'Submission Ref',   key: 'submission_reference', width: 28 },
     { header: 'In Response To',   key: 'in_response_to_code',  width: 14 },
     { header: 'Replied By',       key: 'reply_code',           width: 12 },
+    { header: 'Related To',       key: 'related_to_code',      width: 12 },
     { header: 'Summary',          key: 'summary',              width: 60 },
     { header: 'Reply Needed',     key: 'reply_needed_str',     width: 12 },
     { header: 'Reply Received',   key: 'reply_received_str',   width: 14 },
@@ -182,7 +211,7 @@ function buildCommunicationsSheet(book, rows) {
     else if (cell.value === 'Replied') cell.font = { color: { argb: GREEN } };
     else if (cell.value === 'Awaiting reply') cell.font = { color: { argb: AMBER } };
   });
-  applyAutoFilter(sheet, 'P', rows.length + 1);
+  applyAutoFilter(sheet, 'R', rows.length + 1);
   return sheet;
 }
 
@@ -191,20 +220,35 @@ function buildMeetingsSheet(book, rows) {
   sheet.columns = [
     { header: 'Code',                key: 'meeting_code',          width: 10 },
     { header: 'Date',                key: 'meeting_date',          width: 12 },
+    { header: 'Time',                key: 'meeting_time_str',      width: 8 },
     { header: 'Authority',           key: 'authority_code',        width: 12 },
     { header: 'Authority Name',      key: 'authority_name',        width: 30 },
     { header: 'Primary Sub Ref',     key: 'primary_sub_reference', width: 14 },
     { header: 'Primary Sub',         key: 'primary_sub_name',      width: 30 },
+    { header: 'Attendees',           key: 'attendees',             width: 28 },
     { header: 'Purpose',             key: 'purpose',               width: 22 },
     { header: 'Mode',                key: 'mode',                  width: 14 },
     { header: 'Location',            key: 'location',              width: 24 },
+    { header: 'MoM Status',          key: 'mom_status_str',        width: 14 },
     { header: 'MoM Reference',       key: 'mom_reference',         width: 22 },
     { header: 'MoM Link',            key: 'mom_link',              width: 30 },
     { header: 'Other Sub-Divisions', key: 'other_sub_divisions',   width: 30 },
   ];
-  rows.forEach((r) => sheet.addRow(r));
+  const MOM_LABEL = { pending: 'Pending', draft: 'Draft received', final: 'Final received' };
+  rows.forEach((r) => sheet.addRow({
+    ...r,
+    meeting_time_str: r.meeting_time ? String(r.meeting_time).slice(0, 5) : '',
+    mom_status_str: MOM_LABEL[r.mom_status] || r.mom_status || '',
+  }));
   setHeaderStyle(sheet);
-  applyAutoFilter(sheet, 'L', rows.length + 1);
+  // Tint the MoM-status cell: pending red, draft amber, final green.
+  sheet.getColumn('mom_status_str').eachCell({ includeEmpty: false }, (cell, rowIdx) => {
+    if (rowIdx === 1) return;
+    if (cell.value === 'Pending') cell.font = { bold: true, color: { argb: RED } };
+    else if (cell.value === 'Draft received') cell.font = { color: { argb: AMBER } };
+    else if (cell.value === 'Final received') cell.font = { color: { argb: GREEN } };
+  });
+  applyAutoFilter(sheet, 'O', rows.length + 1);
   return sheet;
 }
 
@@ -284,13 +328,14 @@ router.get(
 router.get(
   '/communications.xlsx',
   wrap(async (req, res) => {
-    const rows = await fetchCommunications();
+    const { from, to } = dateRange(req);
+    const rows = await fetchCommunications(from, to);
     const book = new ExcelJS.Workbook();
     book.creator = 'SPD Tracker';
     buildCommunicationsSheet(book, rows);
     await logAudit({
       actor_id: req.user.id, event: 'data.export.communications',
-      payload: { format: 'xlsx', rows: rows.length }, req,
+      payload: { format: 'xlsx', rows: rows.length, from, to }, req,
     });
     setDownloadHeaders(res, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       `${dl('communications')}.xlsx`);
@@ -302,13 +347,14 @@ router.get(
 router.get(
   '/meetings.xlsx',
   wrap(async (req, res) => {
-    const rows = await fetchMeetings();
+    const { from, to } = dateRange(req);
+    const rows = await fetchMeetings(from, to);
     const book = new ExcelJS.Workbook();
     book.creator = 'SPD Tracker';
     buildMeetingsSheet(book, rows);
     await logAudit({
       actor_id: req.user.id, event: 'data.export.meetings',
-      payload: { format: 'xlsx', rows: rows.length }, req,
+      payload: { format: 'xlsx', rows: rows.length, from, to }, req,
     });
     setDownloadHeaders(res, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       `${dl('meetings')}.xlsx`);
@@ -320,8 +366,9 @@ router.get(
 router.get(
   '/engagement-register.xlsx',
   wrap(async (req, res) => {
+    const { from, to } = dateRange(req);
     const [authorities, subs, comms, meetings] = await Promise.all([
-      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(), fetchMeetings(),
+      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(from, to), fetchMeetings(from, to),
     ]);
     const book = new ExcelJS.Workbook();
     book.creator = 'SPD Tracker';
@@ -329,7 +376,7 @@ router.get(
 
     buildCoverSheet(book, {
       title: 'Engagement Register',
-      subtitle: 'ECG · Design Consultancy · Contract No. 6',
+      subtitle: `ECG · Design Consultancy · Contract No. 6   ·   Period: ${windowLabel(from, to)}`,
       kpis: [
         { label: 'Authorities',     value: authorities.length },
         { label: 'Sub-Divisions',   value: subs.length },
@@ -345,7 +392,7 @@ router.get(
     await logAudit({
       actor_id: req.user.id, event: 'data.export.engagement_register',
       payload: {
-        format: 'xlsx',
+        format: 'xlsx', from, to,
         rows: {
           authorities: authorities.length, sub_divisions: subs.length,
           communications: comms.length, meetings: meetings.length,
@@ -458,48 +505,76 @@ function pdfKpiTiles(doc, kpis) {
   doc.fillColor('black');
 }
 
-// Minimal table renderer: a horizontal row per record, columns in fixed widths.
+// Aligned table renderer. The key fix vs. the old version: every cell in a row
+// is drawn at ONE captured baseline `y` (computed once per row) instead of the
+// live `doc.y`, which pdfkit advances after each text() call — that drift was
+// what made the old PDF look staircased. Columns get fixed x positions; the
+// header repeats on each page break.
 function pdfTable(doc, columns, rows, opts = {}) {
   const left = 40;
   const right = doc.page.width - 40;
   const totalUnits = columns.reduce((s, c) => s + (c.units || 1), 0);
   const unit = (right - left) / totalUnits;
+  const cellH = opts.cellH || 17;
+  const bottom = doc.page.height - 40;
+  const FS = 8.5;
 
-  const cellH = opts.cellH || 18;
-
-  function drawRow(rowVals, isHeader) {
-    if (isHeader) doc.font('Helvetica-Bold').fontSize(9);
-    else doc.font('Helvetica').fontSize(9);
-
-    if (doc.y + cellH > doc.page.height - 50) {
-      doc.addPage();
-      pdfHeader(doc, { title: opts.title || 'Report', subtitle: opts.subtitle });
-    }
-
+  const colX = (i) => {
     let x = left;
-    if (isHeader) {
-      doc.rect(left, doc.y - 2, right - left, cellH).fill('#4F46E5');
-      doc.fillColor('white');
-    } else {
-      doc.fillColor('black');
+    for (let k = 0; k < i; k++) x += unit * (columns[k].units || 1);
+    return x;
+  };
+  const colW = (i) => unit * (columns[i].units || 1);
+
+  // Pre-clip to the column width so a cell can NEVER wrap to a second line.
+  // pdfkit breaks on hyphens even with lineBreak:false, so we measure and trim
+  // ourselves, appending an ellipsis. The active font/size must be set first.
+  const fit = (s, w) => {
+    if (doc.widthOfString(s) <= w) return s;
+    let lo = 0, hi = s.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (doc.widthOfString(s.slice(0, mid) + '…') <= w) lo = mid; else hi = mid - 1;
     }
+    return (lo > 0 ? s.slice(0, lo) : '') + '…';
+  };
+
+  function drawHeader() {
+    const y = doc.y;
+    doc.rect(left, y, right - left, cellH).fill('#4F46E5');
+    doc.font('Helvetica-Bold').fontSize(FS).fillColor('white');
     columns.forEach((c, i) => {
-      const w = unit * (c.units || 1);
-      const raw = rowVals[i] == null ? '' : String(rowVals[i]);
-      doc.text(raw, x + 4, doc.y, { width: w - 8, ellipsis: true, height: cellH - 4, lineBreak: false });
-      x += w;
+      doc.text(fit(c.label, colW(i) - 8), colX(i) + 4, y + 4.5,
+        { width: colW(i) - 8, lineBreak: false });
     });
-    doc.y += cellH;
     doc.fillColor('black');
+    doc.y = y + cellH;
   }
 
-  drawRow(columns.map((c) => c.label), true);
-  rows.forEach((r, i) => {
-    if (i % 2 === 1) {
-      doc.rect(left, doc.y - 2, right - left, cellH).fill('#F7F9FC');
+  drawHeader();
+  rows.forEach((r, idx) => {
+    if (doc.y + cellH > bottom) {
+      doc.addPage();
+      pdfHeader(doc, { title: opts.title || 'Report', subtitle: opts.subtitle });
+      drawHeader();
     }
-    drawRow(columns.map((c) => c.get(r)), false);
+    const y = doc.y;                       // capture ONE baseline for the whole row
+    if (idx % 2 === 1) {
+      doc.rect(left, y, right - left, cellH).fill('#F4F6FB');
+    }
+    doc.font('Helvetica').fontSize(FS).fillColor('#1A1A1A');
+    columns.forEach((c, i) => {
+      const raw = c.get(r);
+      const s = raw == null ? '' : String(raw);
+      doc.text(fit(s, colW(i) - 8), colX(i) + 4, y + 4.5,
+        { width: colW(i) - 8, lineBreak: false });
+    });
+    doc.fillColor('black');
+    doc.y = y + cellH;                     // advance exactly one row, once
   });
+  // thin closing rule under the table
+  doc.strokeColor('#E2E8F0').lineWidth(0.5)
+    .moveTo(left, doc.y).lineTo(right, doc.y).stroke();
   doc.moveDown(0.6);
 }
 
@@ -515,8 +590,9 @@ function fmtDateSafe(value) {
 router.get(
   '/engagement-register.pdf',
   wrap(async (req, res) => {
+    const { from, to } = dateRange(req);
     const [authorities, subs, comms, meetings] = await Promise.all([
-      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(), fetchMeetings(),
+      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(from, to), fetchMeetings(from, to),
     ]);
 
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
@@ -525,7 +601,7 @@ router.get(
 
     pdfHeader(doc, {
       title: 'Engagement Register',
-      subtitle: 'ECG · Design Consultancy · Contract No. 6',
+      subtitle: `ECG · Design Consultancy · Contract No. 6   ·   Period: ${windowLabel(from, to)}`,
     });
     pdfKpiTiles(doc, [
       { label: 'Authorities',    value: authorities.length },
@@ -552,8 +628,8 @@ router.get(
     pdfSection(doc, 'Sub-Divisions');
     pdfTable(doc,
       [
-        { label: 'Ref',     get: (r) => r.sub_reference,         units: 1 },
-        { label: 'Sub-Division', get: (r) => r.name,             units: 5 },
+        { label: 'Ref',     get: (r) => r.sub_reference,         units: 1.6 },
+        { label: 'Sub-Division', get: (r) => r.name,             units: 4.4 },
         { label: 'Authority', get: (r) => r.authority_code,      units: 1 },
         { label: 'Status',  get: (r) => r.engagement_status,     units: 2 },
         { label: 'NOC',     get: (r) => r.noc_status,            units: 2 },
@@ -588,12 +664,12 @@ router.get(
       pdfTable(doc,
         [
           { label: 'Code',     get: (r) => r.meeting_code,       units: 1 },
-          { label: 'Date',     get: (r) => fmtDateSafe(r.meeting_date), units: 1.5 },
+          { label: 'Date',     get: (r) => fmtDateSafe(r.meeting_date), units: 1.6 },
           { label: 'Authority',get: (r) => r.authority_code + ' — ' + (r.authority_name || ''), units: 4 },
-          { label: 'Primary Sub', get: (r) => r.primary_sub_reference || '', units: 1.5 },
-          { label: 'Purpose',  get: (r) => r.purpose || '',     units: 3 },
+          { label: 'Attendees', get: (r) => r.attendees || '',  units: 2.4 },
+          { label: 'Purpose',  get: (r) => r.purpose || '',     units: 2.4 },
           { label: 'Mode',     get: (r) => r.mode || '',        units: 1.5 },
-          { label: 'Location', get: (r) => r.location || '',    units: 2 },
+          { label: 'MoM',      get: (r) => momLabel(r.mom_status), units: 1.6 },
         ],
         meetings,
         { title: 'Engagement Register', subtitle: 'Meetings' }
@@ -657,8 +733,8 @@ router.get(
     } else {
       pdfTable(doc,
         [
-          { label: 'Ref',     get: (r) => r.sub_reference,    units: 1 },
-          { label: 'Sub-Division', get: (r) => r.name,        units: 5 },
+          { label: 'Ref',     get: (r) => r.sub_reference,    units: 1.6 },
+          { label: 'Sub-Division', get: (r) => r.name,        units: 4.4 },
           { label: 'Status',  get: (r) => r.engagement_status, units: 2 },
           { label: 'NOC',     get: (r) => r.noc_status,       units: 2 },
           { label: 'Out',     get: (r) => r.outbound_count,   units: 1 },
@@ -696,12 +772,12 @@ router.get(
       pdfTable(doc,
         [
           { label: 'Code',     get: (r) => r.meeting_code,        units: 1 },
-          { label: 'Date',     get: (r) => fmtDateSafe(r.meeting_date), units: 1.5 },
+          { label: 'Date',     get: (r) => fmtDateSafe(r.meeting_date), units: 1.6 },
           { label: 'Primary Sub', get: (r) => r.primary_sub_reference || '', units: 1.5 },
-          { label: 'Purpose',  get: (r) => r.purpose || '',       units: 3 },
+          { label: 'Attendees', get: (r) => r.attendees || '',    units: 2.5 },
+          { label: 'Purpose',  get: (r) => r.purpose || '',       units: 2.5 },
           { label: 'Mode',     get: (r) => r.mode || '',          units: 1.5 },
-          { label: 'Location', get: (r) => r.location || '',      units: 2 },
-          { label: 'MoM Ref',  get: (r) => r.mom_reference || '', units: 2 },
+          { label: 'MoM',      get: (r) => momLabel(r.mom_status), units: 1.4 },
         ],
         meetings,
         { title: auth.name, subtitle: 'Meetings' }

@@ -1112,6 +1112,17 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   display: flex; gap: 10px; margin-top: 14px;
 }
 
+/* Reports time-frame bar. */
+.report-range {
+  display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;
+}
+.report-range .field { margin: 0; }
+.report-range .input { min-width: 160px; }
+.report-range-note {
+  margin-top: 12px;
+  color: var(--muted); font-size: 12.5px; line-height: 1.5;
+}
+
 /* Server-side filter bar — wraps to two rows on narrow screens. */
 .filter-bar {
   display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
