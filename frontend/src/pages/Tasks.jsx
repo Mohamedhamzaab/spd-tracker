@@ -31,7 +31,11 @@ const PARENT_LINK = {
 export default function Tasks() {
   const { user, isEditor } = useStore();
   const toast = useToast();
-  const [tab, setTab] = useState('mine_open');
+  const [tab, setTab] = useState(() => {
+    // Seed from a ?tab=all_overdue deep-link (e.g. from the dashboard).
+    const t = new URLSearchParams(window.location.search).get('tab');
+    return TABS.some((x) => x.key === t) ? t : 'mine_open';
+  });
   const [tasks, setTasks] = useState(null);
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);

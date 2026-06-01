@@ -28,13 +28,13 @@ const DASH_LIVE_EVENTS = [
 ];
 
 const ATTENTION_DEFS = [
-  { key: 'overdue_communications', label: 'Overdue communications', tone: 'red' },
-  { key: 'awaiting_reply', label: 'Awaiting a reply', tone: 'amber' },
-  { key: 'mom_pending', label: 'MoM pending', tone: 'red' },
-  { key: 'mom_draft', label: 'MoM in draft', tone: 'amber' },
-  { key: 'overdue_tasks', label: 'Overdue tasks', tone: 'red' },
-  { key: 'open_tasks', label: 'Open tasks', tone: 'indigo' },
-  { key: 'not_contacted', label: 'Not yet contacted', tone: 'slate' },
+  { key: 'overdue_communications', label: 'Overdue communications', tone: 'red', to: '/app/communications?status=overdue' },
+  { key: 'awaiting_reply', label: 'Awaiting a reply', tone: 'amber', to: '/app/communications?status=awaiting' },
+  { key: 'mom_pending', label: 'MoM pending', tone: 'red', to: '/app/meetings?mom=pending' },
+  { key: 'mom_draft', label: 'MoM in draft', tone: 'amber', to: '/app/meetings?mom=draft' },
+  { key: 'overdue_tasks', label: 'Overdue tasks', tone: 'red', to: '/app/tasks?tab=all_overdue' },
+  { key: 'open_tasks', label: 'Open tasks', tone: 'indigo', to: '/app/tasks?tab=all_open' },
+  { key: 'not_contacted', label: 'Not yet contacted', tone: 'slate', to: '/app/sub-divisions?status=Identified' },
 ];
 
 export default function Dashboard() {
@@ -74,7 +74,7 @@ export default function Dashboard() {
       ],
       volume: (data.monthly || []).map((m) => ({ month: m.month, outbound: m.outbound, inbound: m.inbound })),
       byCategory: (data.byCategory || []).map((c) => ({ label: c.category, count: c.count })),
-      attention: ATTENTION_DEFS.map((d) => ({ label: d.label, tone: d.tone, count: att[d.key] || 0 })),
+      attention: ATTENTION_DEFS.map((d) => ({ label: d.label, tone: d.tone, to: d.to, count: att[d.key] || 0 })),
       ladder: (data.ladder || []).map((l) => ({ status: l.status, count: l.count })),
       team: data.team || [],
       recent: data.recent || [],

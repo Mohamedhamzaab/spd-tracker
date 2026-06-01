@@ -60,7 +60,11 @@ export default function SubDivisions() {
 
   // Filters
   const [q, setQ] = useState('');
-  const [statuses, setStatuses] = useState([]); // multi-select
+  const [statuses, setStatuses] = useState(() => {
+    // Seed from a ?status=Identified deep-link (e.g. dashboard "Not yet contacted").
+    const s = new URLSearchParams(window.location.search).get('status');
+    return s ? s.split(',').filter(Boolean) : [];
+  }); // multi-select
   const [authorityId, setAuthorityId] = useState('');
   const [overdueOnly, setOverdueOnly] = useState(false);
 

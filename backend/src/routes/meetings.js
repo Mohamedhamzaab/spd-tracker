@@ -33,6 +33,10 @@ router.get(
       params.push(req.query.to);
       where.push(`m.meeting_date <= $${params.length}::date`);
     }
+    if (['pending', 'draft', 'final'].includes(req.query.mom_status)) {
+      params.push(req.query.mom_status);
+      where.push(`m.mom_status = $${params.length}`);
+    }
     if (req.query.q) {
       const q = String(req.query.q).trim();
       if (q.length < 3) {

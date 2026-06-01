@@ -50,6 +50,11 @@ export default function Meetings() {
   const [authorityId, setAuthorityId] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  // MoM-status filter — seeded from a ?mom=pending|draft|final deep-link.
+  const [momFilter, setMomFilter] = useState(() => {
+    const m = new URLSearchParams(window.location.search).get('mom');
+    return ['pending', 'draft', 'final'].includes(m) ? m : '';
+  });
 
   const [adding, setAdding] = useState(false);
   const [editRow, setEditRow] = useState(null);
@@ -68,8 +73,9 @@ export default function Meetings() {
     if (authorityId) p.authority_id = authorityId;
     if (from) p.from = from;
     if (to) p.to = to;
+    if (momFilter) p.mom_status = momFilter;
     return p;
-  }, [qDebounced, authorityId, from, to]);
+  }, [qDebounced, authorityId, from, to, momFilter]);
 
   function load(p) {
     api.meetings(p).then(setRows).catch((e) => setError(e.message));
@@ -78,9 +84,9 @@ export default function Meetings() {
   useLive(MEETING_LIVE_EVENTS, () => load(params));
 
   function clearFilters() {
-    setQ(''); setAuthorityId(''); setFrom(''); setTo('');
+    setQ(''); setAuthorityId(''); setFrom(''); setTo(''); setMomFilter('');
   }
-  const filtersActive = !!(q || authorityId || from || to);
+  const filtersActive = !!(q || authorityId || from || to || momFilter);
 
   const { sorted, sortKey, sortDir, onSort } = useTableSort(rows || [], MEETING_COLS, {
     defaultKey: 'meeting_date',
@@ -208,6 +214,13 @@ export default function Meetings() {
             <button type="button" className="link-btn" onClick={() => setSelected(new Set())}>
               Clear
             </button>
+          </div>
+        )}
+
+        {momFilter && (
+          <div className="thread-banner">
+            Showing meetings with MoM <strong>{{ pending: 'pending', draft: 'in draft', final: 'finalised' }[momFilter]}</strong>.
+            <button type="button" className="link-btn" onClick={() => setMomFilter('')}>Clear</button>
           </div>
         )}
 

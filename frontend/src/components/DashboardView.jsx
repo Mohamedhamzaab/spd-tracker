@@ -7,6 +7,7 @@
 //  recent-communications table — all with seamless hover tooltips.
 // ---------------------------------------------------------------------------
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Pill, fmtDate } from './ui.jsx';
 
 const RED = '#dc2626';        // sent / outbound
@@ -157,15 +158,18 @@ function Donut({ data }) {
 }
 
 /* ---- attention list ----------------------------------------------------- */
-function AttnRow({ label, count, tone }) {
+function AttnRow({ label, count, tone, to }) {
   const active = count > 0;
-  return (
-    <div className="attn-row attn-row-static">
+  const inner = (
+    <>
       <span className={'attn-dot tone-' + (active ? tone : 'none')} />
       <span className="attn-label">{label}</span>
       <span className={'attn-count' + (active ? ' tone-' + tone : ' tone-zero')}>{count}</span>
-    </div>
+    </>
   );
+  return to
+    ? <Link to={to} className="attn-row" title={`View ${label.toLowerCase()}`}>{inner}</Link>
+    : <div className="attn-row attn-row-static">{inner}</div>;
 }
 
 /* ---- engagement funnel -------------------------------------------------- */

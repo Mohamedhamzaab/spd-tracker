@@ -71,7 +71,11 @@ export default function Communications() {
   // Filter state
   const [q, setQ] = useState('');
   const [direction, setDirection] = useState('');
-  const [statuses, setStatuses] = useState([]); // multi-select
+  const [statuses, setStatuses] = useState(() => {
+    // Seed from a ?status=overdue,awaiting deep-link (e.g. from the dashboard).
+    const s = new URLSearchParams(window.location.search).get('status');
+    return s ? s.split(',').filter(Boolean) : [];
+  }); // multi-select
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [authorityId, setAuthorityId] = useState('');
