@@ -191,7 +191,7 @@ a:hover { text-decoration: underline; }
   transition: background 0.12s ease;
 }
 .attn-row:last-child { border-bottom: 0; }
-.attn-row:hover { background: var(--grey-bg); }
+.attn-row:hover { background: var(--grey-bg); text-decoration: none; }
 .attn-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 .attn-dot.tone-red { background: var(--red); }
 .attn-dot.tone-amber { background: #d97706; }
