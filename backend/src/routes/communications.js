@@ -211,7 +211,11 @@ router.post(
           (req.user && req.user.name) || b.logged_by || null,
         ]
       );
-      return ins.rows[0].id;
+      const newId = ins.rows[0].id;
+      // Re-flow codes so the log stays a clean chronological sequence
+      // (earliest comm_date = C-0001, no gaps), even after past deletions.
+      await renumberCommunications(client);
+      return newId;
     });
 
     const row = await query('SELECT * FROM v_communication WHERE id = $1', [created]);

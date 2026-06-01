@@ -238,6 +238,7 @@ export default function Meetings() {
                   <SortableTH id="primary_sub"    sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Primary Sub-Division</SortableTH>
                   <SortableTH id="purpose"        sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Purpose</SortableTH>
                   <SortableTH id="mode"           sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Mode</SortableTH>
+                  <th>Attendees</th>
                   <SortableTH id="mom_reference"  sortKey={sortKey} sortDir={sortDir} onSort={onSort}>MoM</SortableTH>
                   {isEditor && <th></th>}
                 </tr>
@@ -255,7 +256,19 @@ export default function Meetings() {
                         />
                       </td>
                     )}
-                    <td className="mono">{m.meeting_code}</td>
+                    <td className="mono">
+                      {isEditor ? (
+                        <button
+                          type="button"
+                          onClick={() => setEditRow(m)}
+                          title="Open meeting"
+                          style={{ background: 'none', border: 0, padding: 0, font: 'inherit',
+                                   color: 'var(--navy)', fontWeight: 600, cursor: 'pointer' }}
+                        >
+                          {m.meeting_code}
+                        </button>
+                      ) : m.meeting_code}
+                    </td>
                     <td>
                       {fmtDate(m.meeting_date)}
                       {m.meeting_time && (
@@ -277,6 +290,7 @@ export default function Meetings() {
                     </td>
                     <td>{m.purpose ? <Pill tone="grey">{m.purpose}</Pill> : '-'}</td>
                     <td>{m.mode || '-'}</td>
+                    <td>{m.attendees ? <span className="cell-strong">{m.attendees}</span> : <span className="cell-sub">—</span>}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <MomDot status={m.mom_status} />
@@ -397,6 +411,7 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
             ? String(existing.primary_sub_id)
             : '',
           other_sub_divisions: existing.other_sub_divisions || '',
+          attendees: existing.attendees || '',
           meeting_date: (existing.meeting_date || '').slice(0, 10),
           meeting_time: (existing.meeting_time || '').slice(0, 5),
           purpose: existing.purpose || '',
@@ -408,6 +423,7 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
         }
       : {
           authority_id: '', primary_sub_id: '', other_sub_divisions: '',
+          attendees: '',
           meeting_date: new Date().toISOString().slice(0, 10),
           meeting_time: '',
           purpose: '', mode: '', location: '',
@@ -469,6 +485,9 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
       help: "The list shows only the chosen authority's sub-divisions." },
     { name: 'other_sub_divisions', label: 'Other Sub-Divisions Covered', span: 2,
       placeholder: 'Free text, e.g. KM-S02, PWA-S01' },
+    { name: 'attendees', label: 'Attendees', span: 2,
+      placeholder: 'e.g. ECG, Egis, SPD, KM',
+      help: 'Company names only, comma-separated — no individual staff names.' },
     { name: 'meeting_date', label: 'Date', type: 'date', required: true },
     { name: 'meeting_time', label: 'Time', type: 'time' },
     { name: 'purpose', label: 'Purpose', type: 'select',

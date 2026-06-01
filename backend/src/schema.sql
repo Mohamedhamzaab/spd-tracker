@@ -372,6 +372,8 @@ ALTER TABLE communications
 -- logged meeting flags that its minutes are still outstanding.
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS meeting_time TIME;
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS mom_status TEXT NOT NULL DEFAULT 'pending';
+-- Attendees recorded as free text — company names only, e.g. "ECG, Egis, KM".
+ALTER TABLE meetings ADD COLUMN IF NOT EXISTS attendees TEXT;
 
 -- Rename the old "NOC" purpose to "NOC / Approval" on existing rows so they
 -- match the updated dropdown. Idempotent (the second run matches nothing).

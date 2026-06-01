@@ -135,8 +135,8 @@ router.post(
         `INSERT INTO meetings
            (meeting_code, authority_id, primary_sub_id, other_sub_divisions,
             meeting_date, meeting_time, purpose, mode, location, mom_reference,
-            mom_link, mom_status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+            mom_link, mom_status, attendees)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
          RETURNING id`,
         [
           code,
@@ -151,9 +151,14 @@ router.post(
           b.mom_reference || null,
           b.mom_link || null,
           momStatus,
+          b.attendees || null,
         ]
       );
-      return ins.rows[0].id;
+      const newId = ins.rows[0].id;
+      // Re-flow codes so the register stays a clean chronological sequence
+      // (earliest meeting_date = M-001, no gaps), even after past deletions.
+      await renumberMeetings(client);
+      return newId;
     });
 
     const { rows } = await query(
@@ -262,6 +267,7 @@ router.put(
          mom_link = $11,
          meeting_time = $12,
          mom_status = COALESCE($13, mom_status),
+         attendees = $14,
          updated_at = now()
        WHERE id = $1`,
       [
@@ -278,6 +284,7 @@ router.put(
         b.mom_link || null,
         b.meeting_time || null,
         momStatus,
+        b.attendees || null,
       ]
     );
     const { rows } = await query(

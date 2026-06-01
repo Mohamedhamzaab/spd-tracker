@@ -53,7 +53,7 @@ const LISTS = {
     'Letter', 'Email', 'Letter and Email', 'Authority Portal',
     'Phone Call', 'Other',
   ],
-  communication_purpose: ['Data Collection', 'Consultation', 'NOC / Approval'],
+  communication_purpose: ['Data Collection', 'Consultation', 'NOC / Approval', 'Information / Record'],
   data_collection_status: [
     'Not Started', 'Requested', 'Partially Received', 'Received in Full',
   ],
