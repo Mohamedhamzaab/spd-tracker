@@ -54,6 +54,7 @@ export default function Meetings() {
   const [adding, setAdding] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [delRow, setDelRow] = useState(null);
+  const [openRow, setOpenRow] = useState(null); // read-only detail (any user)
   const [selected, setSelected] = useState(() => new Set());
   const [confirmBulk, setConfirmBulk] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -245,7 +246,11 @@ export default function Meetings() {
               </thead>
               <tbody>
                 {sorted.map((m) => (
-                  <tr key={m.id} className={selected.has(m.id) ? 'row-selected' : undefined}>
+                  <tr
+                    key={m.id}
+                    className={'clickable' + (selected.has(m.id) ? ' row-selected' : '')}
+                    onClick={() => setOpenRow(m)}
+                  >
                     {isEditor && (
                       <td onClick={(e) => e.stopPropagation()}>
                         <input
@@ -256,19 +261,7 @@ export default function Meetings() {
                         />
                       </td>
                     )}
-                    <td className="mono">
-                      {isEditor ? (
-                        <button
-                          type="button"
-                          onClick={() => setEditRow(m)}
-                          title="Open meeting"
-                          style={{ background: 'none', border: 0, padding: 0, font: 'inherit',
-                                   color: 'var(--navy)', fontWeight: 600, cursor: 'pointer' }}
-                        >
-                          {m.meeting_code}
-                        </button>
-                      ) : m.meeting_code}
-                    </td>
+                    <td className="mono cell-strong">{m.meeting_code}</td>
                     <td>
                       {fmtDate(m.meeting_date)}
                       {m.meeting_time && (
@@ -304,7 +297,7 @@ export default function Meetings() {
                       </div>
                     </td>
                     {isEditor && (
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button
                             className="btn btn-sm btn-ghost"
@@ -354,6 +347,15 @@ export default function Meetings() {
           }}
         />
       )}
+      {openRow && (
+        <MeetingDetail
+          meeting={openRow}
+          isEditor={isEditor}
+          onClose={() => setOpenRow(null)}
+          onEdit={() => { setEditRow(openRow); setOpenRow(null); }}
+        />
+      )}
+
       {delRow && (
         <ConfirmDialog
           title="Delete meeting"
@@ -398,6 +400,78 @@ function MomDot({ status }) {
         background: d.color, flexShrink: 0,
       }}
     />
+  );
+}
+
+const MOM_LABEL = { pending: 'Pending — minutes not ready', draft: 'Draft received', final: 'Final received' };
+
+function MItem({ label, value }) {
+  return <div className="detail-item"><div className="dl">{label}</div><div className="dv">{value}</div></div>;
+}
+function MRow({ label, value }) {
+  return <div className="detail-item" style={{ marginTop: 12 }}><div className="dl">{label}</div><div className="dv">{value}</div></div>;
+}
+
+// Read-only meeting view — opens for ANY signed-in user (editors + reviewers).
+// Editors get an Edit button; reviewers can view + download documents only.
+function MeetingDetail({ meeting, isEditor, onClose, onEdit }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    api.meeting(meeting.id).then(setData).catch((e) => setError(e.message));
+  }, [meeting.id]);
+
+  return (
+    <Modal
+      wide
+      title={data ? data.meeting_code : meeting.meeting_code}
+      sub={data ? data.authority_name : ''}
+      onClose={onClose}
+      footer={
+        <>
+          {isEditor && <button className="btn" onClick={onEdit}>Edit</button>}
+          <button className="btn btn-primary" onClick={onClose}>Close</button>
+        </>
+      }
+    >
+      <ErrorBanner message={error} />
+      {!data ? (
+        <Loading label="Loading" />
+      ) : (
+        <>
+          <div className="detail-grid">
+            <MItem label="Authority" value={data.authority_name} />
+            <MItem label="Primary Sub-Division"
+              value={data.primary_sub_reference
+                ? `${data.primary_sub_name} (${data.primary_sub_reference})` : '—'} />
+            <MItem label="Date"
+              value={fmtDate(data.meeting_date) + (data.meeting_time ? ' · ' + String(data.meeting_time).slice(0, 5) : '')} />
+            <MItem label="Purpose" value={data.purpose || '—'} />
+            <MItem label="Mode" value={data.mode || '—'} />
+            <MItem label="MoM Status"
+              value={<span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                <MomDot status={data.mom_status} /> {MOM_LABEL[data.mom_status] || 'Pending'}
+              </span>} />
+          </div>
+          {data.attendees && <MRow label="Attendees" value={data.attendees} />}
+          {data.other_sub_divisions && <MRow label="Other Sub-Divisions Covered" value={data.other_sub_divisions} />}
+          {data.location && <MRow label="Location" value={data.location} />}
+          {data.mom_reference && <MRow label="MoM Reference" value={data.mom_reference} />}
+          {data.mom_link && (
+            <MRow label="MoM Link" value={<a href={data.mom_link} target="_blank" rel="noreferrer">Open MoM</a>} />
+          )}
+
+          <div style={{ marginTop: 22 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
+            <MeetingDocs meetingId={meeting.id} />
+          </div>
+          <div style={{ marginTop: 22 }}>
+            <div className="section-title" style={{ marginBottom: 10 }}>Tasks</div>
+            <TasksPanel parentType="meeting" parentId={meeting.id} />
+          </div>
+        </>
+      )}
+    </Modal>
   );
 }
 
