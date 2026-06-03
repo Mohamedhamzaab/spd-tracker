@@ -7,7 +7,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
-  fmtDate, fileSize, useToast, useTableSort, SortableTH,
+  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
@@ -542,7 +542,6 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
   const [pendingFiles, setPendingFiles] = useState([]);
   const [createdId, setCreatedId] = useState(null);
   const [createdCode, setCreatedCode] = useState(null);
-  const pendingRef = useRef(null);
 
   // Dependent dropdown: load this authority's sub-divisions when it changes.
   useEffect(() => {
@@ -712,25 +711,12 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
             </div>
           ))}
           <div style={{ marginTop: 10 }}>
-            <input
-              ref={pendingRef}
-              type="file"
-              multiple
-              style={{ display: 'none' }}
-              onChange={(e) => {
-                const picked = Array.from(e.target.files || []);
-                setPendingFiles((fs) => [...fs, ...picked]);
-                if (pendingRef.current) pendingRef.current.value = '';
-              }}
+            <FileDrop
+              label="+ Add document"
+              hint="or drag & drop files here — they upload when you save"
+              uploading={busy}
+              onFiles={(files) => setPendingFiles((fs) => [...fs, ...Array.from(files)])}
             />
-            <button
-              type="button"
-              className="btn"
-              disabled={busy}
-              onClick={() => pendingRef.current && pendingRef.current.click()}
-            >
-              + Add document
-            </button>
           </div>
         </div>
       )}
@@ -746,7 +732,6 @@ function MeetingDocs({ meetingId }) {
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
 
   function load() {
     api.meeting(meetingId)
@@ -767,7 +752,6 @@ function MeetingDocs({ meetingId }) {
       setError(e.message);
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
@@ -812,20 +796,7 @@ function MeetingDocs({ meetingId }) {
       ))}
       {isEditor && (
         <div style={{ marginTop: 10 }}>
-          <input
-            ref={fileRef}
-            type="file"
-            multiple
-            style={{ display: 'none' }}
-            onChange={(e) => upload(e.target.files)}
-          />
-          <button
-            className="btn"
-            disabled={uploading}
-            onClick={() => fileRef.current && fileRef.current.click()}
-          >
-            {uploading ? 'Uploading...' : '+ Upload document'}
-          </button>
+          <FileDrop onFiles={upload} uploading={uploading} />
         </div>
       )}
     </div>

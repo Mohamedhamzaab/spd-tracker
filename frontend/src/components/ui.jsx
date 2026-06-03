@@ -2,7 +2,7 @@
 //  Shared UI building blocks: layout pieces, table, pills, buttons, modal,
 //  a controlled form, file list, toast. Kept in one file so pages stay small.
 // ---------------------------------------------------------------------------
-import { useEffect, useState, createContext, useContext, useCallback, useMemo } from 'react';
+import { useEffect, useState, useRef, createContext, useContext, useCallback, useMemo } from 'react';
 
 /* ---- sortable table helpers --------------------------------------------- */
 //
@@ -131,6 +131,47 @@ export function initials(name) {
     .map((w) => w[0])
     .join('')
     .toUpperCase();
+}
+
+/* ---- file drop zone ----------------------------------------------------- */
+// A moderate, clickable upload area that also accepts drag-and-drop. Wires to
+// the caller's existing upload handler via onFiles; shows a busy state while
+// uploading. Used in the communication + meeting detail panels.
+export function FileDrop({ onFiles, uploading, multiple = true, label = '+ Upload document', hint = 'or drag & drop files here' }) {
+  const inputRef = useRef(null);
+  const [over, setOver] = useState(false);
+
+  function hand(files) {
+    if (!uploading && files && files.length) onFiles(files);
+  }
+
+  return (
+    <div
+      className={'filedrop' + (over ? ' is-over' : '') + (uploading ? ' is-busy' : '')}
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      onClick={() => !uploading && inputRef.current && inputRef.current.click()}
+      onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && !uploading) { e.preventDefault(); inputRef.current && inputRef.current.click(); } }}
+      onDragOver={(e) => { e.preventDefault(); if (!over) setOver(true); }}
+      onDragEnter={(e) => { e.preventDefault(); setOver(true); }}
+      onDragLeave={(e) => { e.preventDefault(); setOver(false); }}
+      onDrop={(e) => { e.preventDefault(); setOver(false); hand(e.dataTransfer.files); }}
+    >
+      <input
+        ref={inputRef}
+        type="file"
+        multiple={multiple}
+        style={{ display: 'none' }}
+        onChange={(e) => { hand(e.target.files); if (inputRef.current) inputRef.current.value = ''; }}
+      />
+      <span className="filedrop-icon" aria-hidden="true">⬆</span>
+      <span className="filedrop-text">
+        <strong>{uploading ? 'Uploading…' : label}</strong>
+        {!uploading && <span className="filedrop-hint">{hint}</span>}
+      </span>
+    </div>
+  );
 }
 
 /* ---- loading & empty ---------------------------------------------------- */

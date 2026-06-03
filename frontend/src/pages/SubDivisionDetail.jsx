@@ -2,13 +2,13 @@
 //  Sub-division detail. The sub-division profile and its full communication
 //  thread, with document upload and download on each communication.
 // ---------------------------------------------------------------------------
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Section, Modal, FormFields, ConfirmDialog,
-  EngagementPill, StatusPill, DirectionPill, Pill, fmtDate, fileSize, useToast,
+  EngagementPill, StatusPill, DirectionPill, Pill, fmtDate, fileSize, useToast, FileDrop,
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
 import { SubForm } from './SubDivisions.jsx';
@@ -364,7 +364,6 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
-  const fileRef = useRef(null);
 
   // Edit mode: shares the modal shell, swaps the field grid for the form.
   const [editing, setEditing] = useState(false);
@@ -432,7 +431,6 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
       setError(e.message);
     } finally {
       setUploading(false);
-      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
@@ -580,20 +578,7 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
             ))}
             {isEditor && (
               <div style={{ marginTop: 10 }}>
-                <input
-                  ref={fileRef}
-                  type="file"
-                  multiple
-                  style={{ display: 'none' }}
-                  onChange={(e) => upload(e.target.files)}
-                />
-                <button
-                  className="btn"
-                  disabled={uploading}
-                  onClick={() => fileRef.current && fileRef.current.click()}
-                >
-                  {uploading ? 'Uploading...' : '+ Upload document'}
-                </button>
+                <FileDrop onFiles={upload} uploading={uploading} />
               </div>
             )}
           </div>
