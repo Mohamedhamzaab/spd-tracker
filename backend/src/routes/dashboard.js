@@ -168,14 +168,14 @@ router.get(
        ORDER BY mo.ym
     `);
 
-    // Latest communications for the "recent" table (status derived like the list).
+    // Latest communications for the "recent" panel (status derived like the list).
     const recentRows = await query(`
-      SELECT comm_code, to_char(comm_date, 'YYYY-MM-DD') AS comm_date,
+      SELECT id, comm_code, to_char(comm_date, 'YYYY-MM-DD') AS comm_date,
              sub_division_name, authority_code, direction,
              is_overdue, reply_received, reply_needed
         FROM v_communication
        ORDER BY comm_date DESC, id DESC
-       LIMIT 6
+       LIMIT 2
     `);
     const recent = recentRows.rows.map((r) => {
       let status = 'Logged';
@@ -183,6 +183,7 @@ router.get(
       else if (r.direction === 'Outbound' && r.reply_received) status = 'Replied';
       else if (r.direction === 'Outbound' && r.reply_needed) status = 'Awaiting';
       return {
+        id: r.id,
         code: r.comm_code,
         date: r.comm_date,
         subdivision: r.sub_division_name,
@@ -191,6 +192,29 @@ router.get(
         status,
       };
     });
+
+    // Latest meetings for the "recent" panel (newest first).
+    const recentMeetingRows = await query(`
+      SELECT m.id, m.meeting_code, to_char(m.meeting_date, 'YYYY-MM-DD') AS meeting_date,
+             m.mode, m.mom_status,
+             a.code AS authority_code, a.name AS authority_name,
+             sd.name AS sub_name
+        FROM meetings m
+        JOIN authorities a ON a.id = m.authority_id AND a.deleted_at IS NULL
+        LEFT JOIN sub_divisions sd ON sd.id = m.primary_sub_id
+       WHERE m.deleted_at IS NULL
+       ORDER BY m.meeting_date DESC, m.id DESC
+       LIMIT 2
+    `);
+    const recentMeetings = recentMeetingRows.rows.map((r) => ({
+      id: r.id,
+      code: r.meeting_code,
+      date: r.meeting_date,
+      subdivision: r.sub_name || r.authority_name,
+      authorityCode: r.authority_code,
+      mode: r.mode || '',
+      momStatus: r.mom_status || 'pending',
+    }));
 
     // Open tasks per active member (Team & Assignments panel).
     const teamRows = await query(`
@@ -252,6 +276,7 @@ router.get(
         hybrid: num(r.hybrid),
       })),
       recent,
+      recentMeetings,
       team,
       ladder,
       byCategory,

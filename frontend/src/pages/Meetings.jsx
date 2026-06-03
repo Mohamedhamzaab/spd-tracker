@@ -83,6 +83,17 @@ export default function Meetings() {
   useEffect(() => { setError(''); load(params); }, [params]);
   useLive(MEETING_LIVE_EVENTS, () => load(params));
 
+  // Deep-link: dashboard "recent meetings" rows arrive as ?open=<id>. Once the
+  // list has loaded, pop that meeting's read-only detail (once).
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (autoOpenedRef.current || !rows) return;
+    const o = new URLSearchParams(window.location.search).get('open');
+    if (!o || !/^\d+$/.test(o)) return;
+    const row = rows.find((m) => m.id === Number(o));
+    if (row) { setOpenRow(row); autoOpenedRef.current = true; }
+  }, [rows]);
+
   function clearFilters() {
     setQ(''); setAuthorityId(''); setFrom(''); setTo(''); setMomFilter('');
   }

@@ -78,6 +78,7 @@ export default function Dashboard() {
       ladder: (data.ladder || []).map((l) => ({ status: l.status, count: l.count })),
       team: data.team || [],
       recent: data.recent || [],
+      recentMeetings: data.recentMeetings || [],
       meetingsMonthly: data.meetingsMonthly || [],
       period: {
         from, to,

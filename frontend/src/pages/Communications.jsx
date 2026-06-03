@@ -87,7 +87,11 @@ export default function Communications() {
   const [authorities, setAuthorities] = useState([]);
   const [subDivisions, setSubDivisions] = useState([]);
   const [error, setError] = useState('');
-  const [openComm, setOpenComm] = useState(null);
+  // Seed from ?open=<id> so dashboard "recent" rows deep-link straight into a comm.
+  const [openComm, setOpenComm] = useState(() => {
+    const o = new URLSearchParams(window.location.search).get('open');
+    return o && /^\d+$/.test(o) ? Number(o) : null;
+  });
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState(() => new Set()); // ids ticked for bulk action
   const [confirmBulk, setConfirmBulk] = useState(false);

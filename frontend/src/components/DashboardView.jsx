@@ -223,28 +223,70 @@ function TeamList({ rows }) {
   );
 }
 
-/* ---- recent communications table ---------------------------------------- */
+/* ---- recent activity: stacked communications + meetings briefs ---------- */
 function StatusPill({ status }) {
   const map = { Overdue: 'red', Awaiting: 'amber', Replied: 'green', Logged: 'grey' };
   return <Pill tone={map[status] || 'grey'}>{status}</Pill>;
 }
-function RecentTable({ rows }) {
+const MOM_VIEW = {
+  pending: { label: 'MoM pending', tone: 'red' },
+  draft: { label: 'MoM draft', tone: 'amber' },
+  final: { label: 'MoM final', tone: 'green' },
+};
+function BriefRow({ to, code, title, meta, pills }) {
   return (
-    <div className="dash-table-wrap">
-      <table className="dash-table">
-        <thead><tr><th>Code</th><th>Date</th><th>Sub-Division</th><th>Direction</th><th>Status</th></tr></thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.code}>
-              <td className="mono">{r.code}</td>
-              <td className="cell-sub">{fmtDate(r.date)}</td>
-              <td><div className="cell-strong">{r.subdivision}</div><div className="cell-sub">{r.authorityCode}</div></td>
-              <td><Pill tone={r.direction === 'Inbound' ? 'navy' : 'grey'}>{r.direction}</Pill></td>
-              <td><StatusPill status={r.status} /></td>
-            </tr>
+    <Link to={to} className="brief-row" title="Open to review">
+      <span className="brief-code mono">{code}</span>
+      <div className="brief-main">
+        <div className="brief-title">{title}</div>
+        <div className="brief-meta">{meta}</div>
+      </div>
+      <div className="brief-pills">{pills}</div>
+    </Link>
+  );
+}
+function RecentActivity({ comms, meetings }) {
+  return (
+    <div className="recent-activity">
+      <div className="recent-group">
+        <div className="recent-group-head">Communications</div>
+        {comms.length === 0
+          ? <div className="recent-empty">No communications yet.</div>
+          : comms.map((c) => (
+            <BriefRow
+              key={c.id || c.code}
+              to={`/app/communications?open=${c.id}`}
+              code={c.code}
+              title={c.subdivision}
+              meta={`${c.authorityCode} · ${fmtDate(c.date)}`}
+              pills={<>
+                <Pill tone={c.direction === 'Inbound' ? 'navy' : 'grey'}>{c.direction}</Pill>
+                <StatusPill status={c.status} />
+              </>}
+            />
           ))}
-        </tbody>
-      </table>
+      </div>
+      <div className="recent-group">
+        <div className="recent-group-head">Meetings</div>
+        {meetings.length === 0
+          ? <div className="recent-empty">No meetings yet.</div>
+          : meetings.map((mt) => {
+            const mom = MOM_VIEW[mt.momStatus] || MOM_VIEW.pending;
+            return (
+              <BriefRow
+                key={mt.id || mt.code}
+                to={`/app/meetings?open=${mt.id}`}
+                code={mt.code}
+                title={mt.subdivision}
+                meta={`${mt.authorityCode} · ${fmtDate(mt.date)}`}
+                pills={<>
+                  {mt.mode ? <Pill tone="grey">{mt.mode}</Pill> : null}
+                  <Pill tone={mom.tone}>{mom.label}</Pill>
+                </>}
+              />
+            );
+          })}
+      </div>
     </div>
   );
 }
@@ -415,8 +457,8 @@ export default function DashboardView({ model: m }) {
       </div>
 
       <div className="dash-split">
-        <Panel title="Recent Communications" sub="Latest activity" grow>
-          <RecentTable rows={m.recent} />
+        <Panel title="Recent Activity" sub="Latest comms & meetings" grow>
+          <RecentActivity comms={m.recent} meetings={m.recentMeetings} />
         </Panel>
         <Panel title="Team & Assignments" sub="Open tasks per member">
           <TeamList rows={m.team} />
