@@ -311,6 +311,9 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
   const [values, setValues] = useState(emptyCommValues());
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState([]);
+  const [createdId, setCreatedId] = useState(null);
+  const [createdCode, setCreatedCode] = useState(null);
   const onChange = (n, v) => setValues((s) => ({ ...s, [n]: v }));
 
   async function save() {
@@ -320,10 +323,27 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
     if (!values.comm_date) return setError('A date is required.');
     setBusy(true);
     try {
-      const created = await api.createComm({ ...values, sub_division_id: targetSub });
-      onSaved(created.comm_code);
+      // Create once. If a prior attempt created the comm but the upload failed,
+      // reuse it on retry so we never log a duplicate.
+      let commId = createdId;
+      let commCode = createdCode;
+      if (!commId) {
+        const created = await api.createComm({ ...values, sub_division_id: targetSub });
+        commId = created.id;
+        commCode = created.comm_code;
+        setCreatedId(commId);
+        setCreatedCode(commCode);
+      }
+      if (pendingFiles.length) {
+        await api.uploadDocs('communication', commId, pendingFiles);
+      }
+      onSaved(commCode);
     } catch (e) {
-      setError(e.message);
+      setError(
+        createdId
+          ? 'Communication saved, but the documents failed to upload. Click "Log communication" again to retry, or attach them later by opening the communication. (' + e.message + ')'
+          : e.message
+      );
     } finally {
       setBusy(false);
     }
@@ -353,6 +373,38 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
         onChange={onChange}
         disabled={busy}
       />
+      <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+        <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
+        {pendingFiles.length === 0 && (
+          <div className="section-note" style={{ marginBottom: 10 }}>
+            Attach letters or shared files now — they upload when you click “Log communication”.
+          </div>
+        )}
+        {pendingFiles.map((f, i) => (
+          <div className="doc-chip" key={i}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="doc-name">{f.name}</div>
+              <div className="doc-meta">{fileSize(f.size)}</div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              disabled={busy}
+              onClick={() => setPendingFiles((fs) => fs.filter((_, j) => j !== i))}
+            >
+              Remove
+            </button>
+          </div>
+        ))}
+        <div style={{ marginTop: 10 }}>
+          <FileDrop
+            label="+ Add document"
+            hint="or drag & drop files here — they upload when you save"
+            uploading={busy}
+            onFiles={(files) => setPendingFiles((fs) => [...fs, ...Array.from(files)])}
+          />
+        </div>
+      </div>
     </Modal>
   );
 }
