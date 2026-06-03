@@ -22,7 +22,9 @@ const storage = require('../storage');
 
 const router = express.Router();
 
-const MAX_MB = Number(process.env.MAX_UPLOAD_MB) || 25;
+// Per-file upload cap. Cloudflare's free plan rejects any request body over
+// 100 MB, so that is the practical ceiling regardless of this value.
+const MAX_MB = Number(process.env.MAX_UPLOAD_MB) || 100;
 
 // Allow-list of uploadable file extensions. PMCM work involves Office docs,
 // PDFs, images, CAD drawings and archives — but never scripts, executables, or

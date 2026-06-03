@@ -55,7 +55,7 @@ services:
       - key: UPLOAD_DIR
         value: ./uploads
       - key: MAX_UPLOAD_MB
-        value: "25"
+        value: "100"
       - key: CORS_ORIGIN
         value: https://ecgportal.dev
       - key: PGSSL
