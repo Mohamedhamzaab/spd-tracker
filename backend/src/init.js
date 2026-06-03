@@ -79,6 +79,33 @@ async function runSeed() {
   });
 }
 
+// One-time (idempotent) repair of attachment names stored as latin1-misread
+// UTF-8 before the upload fix (e.g. Arabic "تقرير.pdf" -> "ØªÙØ±ÙØ±.pdf").
+// Safe to run on every boot: once a name is proper UTF-8 it contains multi-byte
+// characters and is left untouched, so re-runs are no-ops.
+function fixMojibake(name) {
+  if (!name || /[^ -ÿ]/.test(name)) return name;
+  const bytes = Buffer.from(name, 'latin1');
+  const utf8 = bytes.toString('utf8');
+  if (utf8 !== name && !utf8.includes('�') && Buffer.from(utf8, 'utf8').equals(bytes)) {
+    return utf8;
+  }
+  return name;
+}
+
+async function repairFilenames() {
+  const { rows } = await pool.query('SELECT id, original_name FROM documents');
+  let fixed = 0;
+  for (const r of rows) {
+    const better = fixMojibake(r.original_name);
+    if (better !== r.original_name) {
+      await pool.query('UPDATE documents SET original_name = $1 WHERE id = $2', [better, r.id]);
+      fixed++;
+    }
+  }
+  if (fixed) console.log(`[init] Repaired ${fixed} attachment name(s) with garbled encoding.`);
+}
+
 async function main() {
   await applySchema();
   if (await isAuthoritiesEmpty()) {
@@ -87,6 +114,7 @@ async function main() {
     console.log('[init] Authorities already present - skipping seed.');
   }
   await ensureSuperAdmin();
+  await repairFilenames();
   // NOTE: do NOT call pool.end() here. server.js shares the same pool
   // via db.js, and ending it would make every subsequent query fail with
   // "Cannot use a pool after calling end on the pool".
