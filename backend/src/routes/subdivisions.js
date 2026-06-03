@@ -111,8 +111,8 @@ router.post(
             primary_objective, target_stage, date_identified,
             primary_contact, designation, contact_details,
             data_collection_status, consultation_status, noc_status,
-            outcome_secured)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            outcome_secured, contact_email, contact_phone)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
          RETURNING id`,
         [
           authorityId,
@@ -130,6 +130,8 @@ router.post(
           b.consultation_status || 'Not Started',
           b.noc_status || 'Not Started',
           b.outcome_secured === true,
+          b.contact_email || null,
+          b.contact_phone || null,
         ]
       );
       return ins.rows[0].id;
@@ -167,7 +169,8 @@ router.put(
          date_identified = $6,
          primary_contact = $7,
          designation = $8,
-         contact_details = $9,
+         contact_email = $9,
+         contact_phone = $14,
          data_collection_status = COALESCE($10, data_collection_status),
          consultation_status = COALESCE($11, consultation_status),
          noc_status = COALESCE($12, noc_status),
@@ -183,11 +186,12 @@ router.put(
         b.date_identified || null,
         b.primary_contact || null,
         b.designation || null,
-        b.contact_details || null,
+        b.contact_email || null,
         b.data_collection_status || null,
         b.consultation_status || null,
         b.noc_status || null,
         typeof b.outcome_secured === 'boolean' ? b.outcome_secured : null,
+        b.contact_phone || null,
       ]
     );
     const row = await query('SELECT * FROM v_sub_division WHERE id = $1', [id]);

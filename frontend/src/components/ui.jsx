@@ -402,7 +402,7 @@ export function FormFields({ fields, values, onChange, disabled }) {
               <input
                 id={'f_' + f.name}
                 className="input"
-                type={f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : 'text'}
+                type={f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : f.type === 'email' ? 'email' : f.type === 'tel' ? 'tel' : 'text'}
                 value={val}
                 placeholder={f.placeholder}
                 disabled={disabled}

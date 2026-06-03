@@ -323,7 +323,8 @@ export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
           date_identified: (existing.date_identified || '').slice(0, 10),
           primary_contact: existing.primary_contact || '',
           designation: existing.designation || '',
-          contact_details: existing.contact_details || '',
+          contact_email: existing.contact_email || '',
+          contact_phone: existing.contact_phone || '',
           data_collection_status: existing.data_collection_status || 'Not Started',
           consultation_status: existing.consultation_status || 'Not Started',
           noc_status: existing.noc_status || 'Not Started',
@@ -332,7 +333,7 @@ export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
       : {
           authority_id: '', name: '', discipline: '', primary_objective: '',
           target_stage: '', date_identified: '', primary_contact: '',
-          designation: '', contact_details: '',
+          designation: '', contact_email: '', contact_phone: '',
           data_collection_status: 'Not Started',
           consultation_status: 'Not Started',
           noc_status: 'Not Started', outcome_secured: false,
@@ -360,7 +361,8 @@ export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
     { name: 'date_identified', label: 'Date Identified', type: 'date' },
     { name: 'primary_contact', label: 'Primary Contact' },
     { name: 'designation', label: 'Designation' },
-    { name: 'contact_details', label: 'Contact Details', span: 2 },
+    { name: 'contact_email', label: 'Email', type: 'email', placeholder: 'name@authority.gov.qa' },
+    { name: 'contact_phone', label: 'Phone', type: 'tel', placeholder: '+974 ...' },
   ];
   const editFields = [
     { name: 'data_collection_status', label: 'Data Collection Status', type: 'select',

@@ -375,6 +375,11 @@ ALTER TABLE meetings ADD COLUMN IF NOT EXISTS mom_status TEXT NOT NULL DEFAULT '
 -- Attendees recorded as free text — company names only, e.g. "ECG, Egis, KM".
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS attendees TEXT;
 
+-- Sub-divisions: split contact into a dedicated email + phone. The legacy
+-- free-text contact_details column is kept for historical values.
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS contact_email TEXT;
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS contact_phone TEXT;
+
 -- Rename the old "NOC" purpose to "NOC / Approval" on existing rows so they
 -- match the updated dropdown. Idempotent (the second run matches nothing).
 UPDATE communications SET purpose = 'NOC / Approval' WHERE purpose = 'NOC';

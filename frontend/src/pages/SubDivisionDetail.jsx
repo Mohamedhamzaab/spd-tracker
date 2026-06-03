@@ -96,7 +96,21 @@ export default function SubDivisionDetail() {
               <Item label="Date Identified" value={fmtDate(data.date_identified) || '-'} />
               <Item label="Primary Contact" value={data.primary_contact || '-'} />
               <Item label="Designation" value={data.designation || '-'} />
-              <Item label="Contact Details" value={data.contact_details || '-'} />
+              <Item
+                label="Email"
+                value={data.contact_email
+                  ? <a href={`mailto:${data.contact_email}`}>{data.contact_email}</a>
+                  : '-'}
+              />
+              <Item
+                label="Phone"
+                value={data.contact_phone
+                  ? <a href={`tel:${data.contact_phone}`}>{data.contact_phone}</a>
+                  : '-'}
+              />
+              {data.contact_details && (
+                <Item label="Contact Details" value={data.contact_details} />
+              )}
               <Item
                 label="Data Collection"
                 value={<Pill tone="grey">{data.data_collection_status}</Pill>}

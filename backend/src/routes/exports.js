@@ -146,6 +146,8 @@ function buildSubDivisionsSheet(book, rows) {
     { header: 'Outcome Secured', key: 'outcome_secured',        width: 14 },
     { header: 'Last Activity',   key: 'last_activity',          width: 16 },
     { header: 'Primary Contact', key: 'primary_contact',        width: 22 },
+    { header: 'Email',           key: 'contact_email',          width: 26 },
+    { header: 'Phone',           key: 'contact_phone',          width: 18 },
   ];
   rows.forEach((r) => sheet.addRow({
     ...r,
