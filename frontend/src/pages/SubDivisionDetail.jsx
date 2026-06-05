@@ -12,6 +12,7 @@ import {
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
 import { SubForm } from './SubDivisions.jsx';
+import { MeetingForm } from './Meetings.jsx';
 import CommentsThread from '../components/CommentsThread.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
 
@@ -24,6 +25,7 @@ export default function SubDivisionDetail() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
+  const [addingMeeting, setAddingMeeting] = useState(false);
   const [openComm, setOpenComm] = useState(null);
   const [editing, setEditing] = useState(false);
   const [authorities, setAuthorities] = useState([]);
@@ -188,11 +190,23 @@ export default function SubDivisionDetail() {
         </div>
 
         <div>
-          <Section title="Meetings" note={`${meetings.length} as primary sub-division`}>
+          <Section
+            title="Meetings"
+            note={`${meetings.length} logged`}
+            action={
+              isEditor && (
+                <button className="btn btn-primary btn-sm" onClick={() => setAddingMeeting(true)}>
+                  + Add Meeting
+                </button>
+              )
+            }
+          >
             {meetings.length === 0 ? (
               <Empty
                 title="No meetings yet"
-                sub="Meetings where this is the primary sub-division appear here."
+                sub={isEditor
+                  ? 'Add one above — it will be linked to this sub-division.'
+                  : 'Meetings where this is the primary sub-division appear here.'}
               />
             ) : (
               meetings.map((m) => {
@@ -266,6 +280,22 @@ export default function SubDivisionDetail() {
           onSaved={(code) => {
             setAdding(false);
             toast('Communication logged: ' + code);
+            load();
+          }}
+        />
+      )}
+      {addingMeeting && (
+        <MeetingForm
+          lists={lists}
+          authorities={authorities}
+          defaults={{
+            authority_id: String(data.authority_id),
+            primary_sub_id: String(data.id),
+          }}
+          onClose={() => setAddingMeeting(false)}
+          onSaved={(code) => {
+            setAddingMeeting(false);
+            toast('Meeting added: ' + code);
             load();
           }}
         />

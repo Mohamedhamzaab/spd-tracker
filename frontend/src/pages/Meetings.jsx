@@ -504,7 +504,7 @@ function MeetingDetail({ meeting, isEditor, onClose, onEdit }) {
   );
 }
 
-function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
+export function MeetingForm({ lists, authorities, existing, defaults, onClose, onSaved }) {
   const editing = !!existing;
   const [values, setValues] = useState(
     editing
@@ -531,6 +531,8 @@ function MeetingForm({ lists, authorities, existing, onClose, onSaved }) {
           meeting_time: '',
           purpose: '', mode: '', location: '',
           mom_status: 'pending', mom_reference: '', mom_link: '',
+          // Pre-fill when opened from a sub-division (authority + primary sub).
+          ...(defaults || {}),
         }
   );
   const [subOptions, setSubOptions] = useState([]);
