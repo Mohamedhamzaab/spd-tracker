@@ -62,7 +62,8 @@ router.get(
   })
 );
 
-// GET /api/sub-divisions/:id  -  one sub-division plus its communication thread.
+// GET /api/sub-divisions/:id  -  one sub-division plus its communication thread
+// and the meetings where it is the primary sub-division.
 router.get(
   '/:id',
   wrap(async (req, res) => {
@@ -76,7 +77,19 @@ router.get(
         ORDER BY comm_date DESC, id DESC`,
       [id]
     );
-    res.json({ ...sub.rows[0], communications: comms.rows });
+    const meetings = await query(
+      `SELECT m.id, m.meeting_code,
+              to_char(m.meeting_date, 'YYYY-MM-DD') AS meeting_date,
+              m.meeting_time, m.purpose, m.mode, m.mom_status, m.attendees,
+              (SELECT count(*) FROM documents d
+                 WHERE d.parent_type = 'meeting' AND d.parent_id = m.id
+                   AND d.deleted_at IS NULL)::int AS document_count
+         FROM meetings m
+        WHERE m.primary_sub_id = $1 AND m.deleted_at IS NULL
+        ORDER BY m.meeting_date DESC, m.id DESC`,
+      [id]
+    );
+    res.json({ ...sub.rows[0], communications: comms.rows, meetings: meetings.rows });
   })
 );
 

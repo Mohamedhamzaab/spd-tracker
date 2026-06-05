@@ -52,6 +52,12 @@ export default function SubDivisionDetail() {
   if (!data) return <Loading label="Loading sub-division" />;
 
   const comms = data.communications || [];
+  const meetings = data.meetings || [];
+  const MOM_VIEW = {
+    pending: { label: 'MoM pending', tone: 'red' },
+    draft: { label: 'MoM draft', tone: 'amber' },
+    final: { label: 'MoM final', tone: 'green' },
+  };
 
   return (
     <>
@@ -177,6 +183,48 @@ export default function SubDivisionDetail() {
                   </div>
                 </div>
               ))
+            )}
+          </Section>
+        </div>
+
+        <div>
+          <Section title="Meetings" note={`${meetings.length} as primary sub-division`}>
+            {meetings.length === 0 ? (
+              <Empty
+                title="No meetings yet"
+                sub="Meetings where this is the primary sub-division appear here."
+              />
+            ) : (
+              meetings.map((m) => {
+                const mom = MOM_VIEW[m.mom_status] || MOM_VIEW.pending;
+                return (
+                  <Link
+                    key={m.id}
+                    to={`/app/meetings?open=${m.id}`}
+                    className="thread-item"
+                    style={{ display: 'block', cursor: 'pointer', textDecoration: 'none' }}
+                  >
+                    <div className="thread-head">
+                      <span className="mono" style={{ fontSize: 12 }}>{m.meeting_code}</span>
+                      <span className="section-note">
+                        {fmtDate(m.meeting_date)}
+                        {m.meeting_time ? ' · ' + String(m.meeting_time).slice(0, 5) : ''}
+                      </span>
+                      {m.purpose && <Pill tone="grey">{m.purpose}</Pill>}
+                      {m.mode && <Pill tone="grey">{m.mode}</Pill>}
+                      <Pill tone={mom.tone}>{mom.label}</Pill>
+                      {Number(m.document_count) > 0 && (
+                        <span className="section-note">
+                          {m.document_count} document{Number(m.document_count) > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    {m.attendees && (
+                      <div className="thread-meta">Attendees: {m.attendees}</div>
+                    )}
+                  </Link>
+                );
+              })
             )}
           </Section>
         </div>
