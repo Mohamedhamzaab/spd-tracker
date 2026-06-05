@@ -1,21 +1,20 @@
 # ---------------------------------------------------------------------------
 # Render blueprint for the Safari Park Authority Engagement Tracker.
-# This is for a DEMO deployment - everything is on the free tier.
 #
 # What it provisions:
-#   - One PostgreSQL database (free)
-#   - One Node web service that builds the front end, runs migrations,
-#     seeds on first boot, and serves both the API and the React app on
-#     the same origin.
+#   - One PostgreSQL database
+#   - One Node web service (Starter, always-on) that builds the front end,
+#     runs migrations, seeds on first boot, and serves both the API and the
+#     React app on the same origin.
 #
-# Caveats for the free tier:
-#   - The web service spins down after ~15 min of inactivity; the first
-#     request after that takes ~30s to wake it up.
-#   - The free Postgres instance expires after 30 days.
-#   - There is no persistent disk on the free plan, so uploaded files do
-#     not survive restarts/redeploys (the database survives, only the
-#     contents of UPLOAD_DIR do not). Fine for a demo; for production
-#     attach a paid persistent disk and point UPLOAD_DIR at it.
+# Notes:
+#   - The web service is on the Starter plan, so it does NOT spin down and
+#     there is no cold start.
+#   - The database below is still on the free plan: it expires ~30 days after
+#     creation. Upgrade it to a paid plan in the Render dashboard (or set a
+#     paid `plan` here) for a production deployment.
+#   - Uploaded files use object storage (STORAGE_BACKEND=s3 / R2, set in the
+#     dashboard), so they survive restarts without a persistent disk.
 # ---------------------------------------------------------------------------
 
 databases:
@@ -28,7 +27,10 @@ services:
   - type: web
     name: spd-tracker
     runtime: node
-    plan: free
+    # Starter ($7/mo) keeps the service always-on — no spin-down / cold start.
+    # A paid Render account does NOT auto-upgrade a service; the instance type
+    # is set here (and synced by the blueprint on every deploy).
+    plan: starter
     region: oregon
     buildCommand: |
       set -e
