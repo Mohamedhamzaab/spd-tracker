@@ -10,16 +10,17 @@
 # Notes:
 #   - The web service is on the Starter plan, so it does NOT spin down and
 #     there is no cold start.
-#   - The database below is still on the free plan: it expires ~30 days after
-#     creation. Upgrade it to a paid plan in the Render dashboard (or set a
-#     paid `plan` here) for a production deployment.
+#   - The database is on the Basic-256mb plan (paid) — persistent, no 30-day
+#     expiry. Render does not auto-apply DB plan changes from a blueprint
+#     re-sync, so this value is declarative; change the live tier in the
+#     Render dashboard.
 #   - Uploaded files use object storage (STORAGE_BACKEND=s3 / R2, set in the
 #     dashboard), so they survive restarts without a persistent disk.
 # ---------------------------------------------------------------------------
 
 databases:
   - name: spd-tracker-db
-    plan: free
+    plan: basic-256mb
     databaseName: spd_tracker
     user: spd_user
 
