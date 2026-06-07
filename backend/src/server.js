@@ -34,11 +34,21 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Security headers. CSP is loosened in dev so Vite's HMR script + inline
-// styles still work; in production we keep helmet's defaults.
+// styles still work; in production we keep helmet's defaults, with one
+// addition: allow same-origin in-memory blob: URLs in frames/images so the
+// in-app document viewer can preview PDFs and images (the file is fetched
+// authenticated and rendered from a blob, never a remote URL).
 const isProd = process.env.NODE_ENV === 'production';
 app.use(
   helmet({
-    contentSecurityPolicy: isProd ? undefined : false,
+    contentSecurityPolicy: isProd
+      ? {
+          directives: {
+            'frame-src': ["'self'", 'blob:'],
+            'img-src': ["'self'", 'data:', 'blob:'],
+          },
+        }
+      : false,
     crossOriginEmbedderPolicy: false, // allow R3F WebGL textures
   })
 );

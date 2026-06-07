@@ -11,6 +11,7 @@ import {
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
+import DocViewer, { isPreviewable } from '../components/DocViewer.jsx';
 import { useLive } from '../lib/liveStream.js';
 
 const MEETING_LIVE_EVENTS = [
@@ -734,6 +735,7 @@ function MeetingDocs({ meetingId }) {
   const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [viewerDoc, setViewerDoc] = useState(null);
 
   function load() {
     api.meeting(meetingId)
@@ -786,6 +788,11 @@ function MeetingDocs({ meetingId }) {
               {d.uploaded_by ? ' · ' + d.uploaded_by : ''}
             </div>
           </div>
+          {isPreviewable(d) && (
+            <button className="btn btn-sm" onClick={() => setViewerDoc(d)}>
+              View
+            </button>
+          )}
           <button className="btn btn-sm" onClick={() => api.downloadDoc(d.id, d.original_name)}>
             Download
           </button>
@@ -801,6 +808,7 @@ function MeetingDocs({ meetingId }) {
           <FileDrop onFiles={upload} uploading={uploading} />
         </div>
       )}
+      {viewerDoc && <DocViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
     </div>
   );
 }

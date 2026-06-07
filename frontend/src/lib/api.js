@@ -214,4 +214,15 @@ export const api = {
     a.remove();
     URL.revokeObjectURL(url);
   },
+
+  // Fetch a document (authenticated) and return an in-memory blob: URL so it
+  // can be previewed inline (e.g. a PDF in an iframe). Caller must revoke it.
+  fetchDocBlobUrl: async (id) => {
+    const res = await fetch('/api/documents/' + id + '/download', {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error('Could not load the document.');
+    const blob = await res.blob();
+    return URL.createObjectURL(blob);
+  },
 };

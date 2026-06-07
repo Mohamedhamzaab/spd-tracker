@@ -15,6 +15,7 @@ import { SubForm } from './SubDivisions.jsx';
 import { MeetingForm } from './Meetings.jsx';
 import CommentsThread from '../components/CommentsThread.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
+import DocViewer, { isPreviewable } from '../components/DocViewer.jsx';
 
 export default function SubDivisionDetail() {
   const { id } = useParams();
@@ -508,6 +509,7 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [viewerDoc, setViewerDoc] = useState(null);
 
   // Edit mode: shares the modal shell, swaps the field grid for the form.
   const [editing, setEditing] = useState(false);
@@ -590,6 +592,7 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   }
 
   return (
+    <>
     <Modal
       wide
       title={data ? data.comm_code : 'Communication'}
@@ -704,6 +707,11 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
                     {d.uploaded_by ? ' \u00b7 ' + d.uploaded_by : ''}
                   </div>
                 </div>
+                {isPreviewable(d) && (
+                  <button className="btn btn-sm" onClick={() => setViewerDoc(d)}>
+                    View
+                  </button>
+                )}
                 <button
                   className="btn btn-sm"
                   onClick={() => api.downloadDoc(d.id, d.original_name)}
@@ -743,6 +751,8 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
         </>
       )}
     </Modal>
+    {viewerDoc && <DocViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
+    </>
   );
 }
 
