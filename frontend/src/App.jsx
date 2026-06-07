@@ -47,6 +47,31 @@ const NAV = [
   { to: '/app/reports', i18nKey: 'nav.reports' },
 ];
 
+// Simple single-colour line icons (stroke = currentColor, so they inherit the
+// nav item's muted/hover/active colour automatically). Keyed by route path.
+const NAV_ICONS = {
+  '/app': <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /></>,
+  '/app/authorities': <path d="M3 21h18M5 21V8l7-4 7 4v13M9 21v-4h6v4M9 11h.01M15 11h.01" />,
+  '/app/sub-divisions': <path d="M4 6h16M4 12h16M4 18h16" />,
+  '/app/communications': <path d="M3 5h18v14H3zM3 6l9 7 9-7" />,
+  '/app/meetings': <path d="M8 2v4M16 2v4M3 9h18M5 5h14v16H5z" />,
+  '/app/tasks': <path d="M4 5h16v16H4zM8 12l3 3 5-6" />,
+  '/app/reports': <path d="M5 20V12M11 20V6M17 20v-4M4 20h16" />,
+  '/app/users': <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
+  '/app/audit': <path d="M4 12h4l3 8 4-16 3 8h2" />,
+  '/app/trash': <path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" />,
+  '/app/me': <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1" />,
+};
+
+function NavIcon({ to }) {
+  return (
+    <svg className="nav-ico" viewBox="0 0 24 24" width="17" height="17" fill="none"
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {NAV_ICONS[to]}
+    </svg>
+  );
+}
+
 function Sidebar({ open, onClose }) {
   const { t } = useTranslation();
   const { user, isSuperAdmin, signOut } = useStore();
@@ -71,6 +96,7 @@ function Sidebar({ open, onClose }) {
             end={n.end}
             className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
           >
+            <NavIcon to={n.to} />
             {t(n.i18nKey)}
           </NavLink>
         ))}
@@ -81,18 +107,21 @@ function Sidebar({ open, onClose }) {
               to="/app/users"
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
+              <NavIcon to="/app/users" />
               {t('nav.users')}
             </NavLink>
             <NavLink
               to="/app/audit"
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
+              <NavIcon to="/app/audit" />
               {t('nav.auditLog')}
             </NavLink>
             <NavLink
               to="/app/trash"
               className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
             >
+              <NavIcon to="/app/trash" />
               {t('nav.trash')}
             </NavLink>
           </>
@@ -102,6 +131,7 @@ function Sidebar({ open, onClose }) {
           to="/app/me"
           className={({ isActive }) => 'nav-item' + (isActive ? ' active' : '')}
         >
+          <NavIcon to="/app/me" />
           {t('nav.myAccount')}
         </NavLink>
       </nav>
