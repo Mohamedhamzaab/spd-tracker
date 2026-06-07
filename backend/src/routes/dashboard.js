@@ -169,13 +169,14 @@ router.get(
     `);
 
     // Latest communications for the "recent" panel (status derived like the list).
+    // 3 comms + 2 meetings balances the panel height against Team & Assignments.
     const recentRows = await query(`
       SELECT id, comm_code, to_char(comm_date, 'YYYY-MM-DD') AS comm_date,
              sub_division_name, authority_code, direction,
              is_overdue, reply_received, reply_needed
         FROM v_communication
        ORDER BY comm_date DESC, id DESC
-       LIMIT 2
+       LIMIT 3
     `);
     const recent = recentRows.rows.map((r) => {
       let status = 'Logged';
