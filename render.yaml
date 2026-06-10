@@ -67,10 +67,21 @@ services:
       # in outgoing emails. Update if the service moves to a different host.
       - key: APP_URL
         value: https://ecgportal.dev
-      # Sensible defaults. Override in the Render dashboard if you want
-      # actual mail delivery, Sentry, or the weekly digest. Leaving the
-      # SMTP_* block blank logs invite/reset emails to the service console
-      # instead of sending them.
+      # Outbound email — task assignment + day-before reminder, invites,
+      # password resets. Without a provider, mail is only LOGGED (console mode)
+      # and nothing is delivered. Recommended on Render: the Brevo HTTP API
+      # (port 443; outbound SMTP is often blocked). Set BREVO_API_KEY in the
+      # dashboard and verify the sender domain in Brevo. (SMTP_* are an
+      # alternative — add them in the dashboard if you prefer SMTP.)
+      - key: BREVO_API_KEY
+        sync: false
+      - key: SMTP_FROM
+        value: SPD Tracker <no-reply@ecgportal.dev>
+      # Task reminders run daily (07:00 Asia/Qatar) and are ON by default.
+      - key: TASK_REMINDERS_ENABLED
+        value: "true"
+      # Sensible defaults. Override in the Render dashboard for Sentry or the
+      # weekly digest.
       - key: DIGEST_ENABLED
         value: "false"
       - key: LOG_LEVEL
