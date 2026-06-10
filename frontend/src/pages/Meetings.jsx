@@ -736,10 +736,12 @@ function MeetingDocs({ meetingId }) {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [viewerDoc, setViewerDoc] = useState(null);
+  const [code, setCode] = useState('');
+  const [zipping, setZipping] = useState(false);
 
   function load() {
     api.meeting(meetingId)
-      .then((m) => setDocs(m.documents || []))
+      .then((m) => { setDocs(m.documents || []); setCode(m.meeting_code || ''); })
       .catch((e) => setError(e.message));
   }
   useEffect(() => { load(); }, [meetingId]);
@@ -774,6 +776,27 @@ function MeetingDocs({ meetingId }) {
   return (
     <div>
       <ErrorBanner message={error} />
+      {docs.length >= 2 && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+          <button
+            className="btn btn-sm"
+            disabled={zipping}
+            onClick={async () => {
+              setZipping(true);
+              setError('');
+              try {
+                await api.downloadDocsZip('meeting', meetingId, `${code || 'meeting'}-documents.zip`);
+              } catch (e) {
+                setError(e.message);
+              } finally {
+                setZipping(false);
+              }
+            }}
+          >
+            {zipping ? 'Preparing…' : 'Download all'}
+          </button>
+        </div>
+      )}
       {docs.length === 0 && (
         <div className="section-note" style={{ marginBottom: 10 }}>
           No documents attached yet.

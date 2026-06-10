@@ -510,6 +510,7 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [viewerDoc, setViewerDoc] = useState(null);
+  const [zipping, setZipping] = useState(false);
 
   // Edit mode: shares the modal shell, swaps the field grid for the form.
   const [editing, setEditing] = useState(false);
@@ -690,8 +691,27 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
           )}
 
           <div style={{ marginTop: 18 }}>
-            <div className="section-title" style={{ marginBottom: 10 }}>
-              Documents
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div className="section-title">Documents</div>
+              {(data.documents || []).length >= 2 && (
+                <button
+                  className="btn btn-sm"
+                  disabled={zipping}
+                  onClick={async () => {
+                    setZipping(true);
+                    setError('');
+                    try {
+                      await api.downloadDocsZip('communication', commId, `${data.comm_code}-documents.zip`);
+                    } catch (e) {
+                      setError(e.message);
+                    } finally {
+                      setZipping(false);
+                    }
+                  }}
+                >
+                  {zipping ? 'Preparing…' : 'Download all'}
+                </button>
+              )}
             </div>
             {(data.documents || []).length === 0 && (
               <div className="section-note" style={{ marginBottom: 10 }}>

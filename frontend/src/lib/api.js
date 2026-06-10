@@ -215,6 +215,27 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
+  // Download every attachment on a communication/meeting as one zip.
+  downloadDocsZip: async (parentType, parentId, filename) => {
+    const res = await fetch(`/api/documents/${parentType}/${parentId}/zip`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      let msg = 'Download failed.';
+      try { const j = await res.json(); msg = j.error || msg; } catch { /* not JSON */ }
+      throw new Error(msg);
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'documents.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
+
   // Fetch a document (authenticated) and return an in-memory blob: URL so it
   // can be previewed inline (e.g. a PDF in an iframe). Caller must revoke it.
   fetchDocBlobUrl: async (id) => {
