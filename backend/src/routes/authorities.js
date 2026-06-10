@@ -107,36 +107,62 @@ router.post(
   })
 );
 
-// PUT /api/authorities/:id  -  update editable fields.
+// PUT /api/authorities/:id  -  update editable fields (code included).
 router.put(
   '/:id',
   requireEditor,
   wrap(async (req, res) => {
     const id = Number(req.params.id);
     const b = req.body || {};
-    const exists = await query('SELECT id FROM authorities WHERE id = $1', [id]);
-    if (!exists.rows[0]) throw httpError(404, 'Authority not found.');
+    const cur = await query('SELECT id, code FROM authorities WHERE id = $1', [id]);
+    if (!cur.rows[0]) throw httpError(404, 'Authority not found.');
 
-    await query(
-      `UPDATE authorities SET
-         name = COALESCE($2, name),
-         category = COALESCE($3, category),
-         influence_level = $4,
-         decision_authority = $5,
-         engagement_strategy = $6,
-         notes = $7,
-         updated_at = now()
-       WHERE id = $1`,
-      [
-        id,
-        b.name ? b.name.trim() : null,
-        b.category || null,
-        b.influence_level || null,
-        b.decision_authority || null,
-        b.engagement_strategy || null,
-        b.notes || null,
-      ]
-    );
+    // The code is editable. When it changes, validate uniqueness and re-derive
+    // the sub_reference of every sub-division under this authority so the
+    // references stay consistent (e.g. KM-S01 -> NEW-S01).
+    const newCode = (b.code || '').trim().toUpperCase();
+    const codeChanged = !!newCode && newCode !== cur.rows[0].code;
+    if (codeChanged) {
+      const clash = await query(
+        'SELECT 1 FROM authorities WHERE code = $1 AND id <> $2', [newCode, id]
+      );
+      if (clash.rows[0]) throw httpError(409, `The code "${newCode}" is already in use.`);
+    }
+
+    await withTransaction(async (client) => {
+      await client.query(
+        `UPDATE authorities SET
+           code = COALESCE($2, code),
+           name = COALESCE($3, name),
+           category = COALESCE($4, category),
+           influence_level = $5,
+           decision_authority = $6,
+           engagement_strategy = $7,
+           notes = $8,
+           updated_at = now()
+         WHERE id = $1`,
+        [
+          id,
+          codeChanged ? newCode : null,
+          b.name ? b.name.trim() : null,
+          b.category || null,
+          b.influence_level || null,
+          b.decision_authority || null,
+          b.engagement_strategy || null,
+          b.notes || null,
+        ]
+      );
+      if (codeChanged) {
+        await client.query(
+          `UPDATE sub_divisions
+              SET sub_reference = $1 || '-S' || lpad(seq_no::text, 2, '0'),
+                  updated_at = now()
+            WHERE authority_id = $2`,
+          [newCode, id]
+        );
+      }
+    });
+
     const updated = await query('SELECT * FROM v_authority WHERE id = $1', [id]);
     await logAudit({
       actor_id: req.user.id,
