@@ -28,7 +28,8 @@
     "mfaUseTotp": "Use authenticator code instead",
     "mfaStartOver": "Start over",
     "mfaVerify": "Verify and sign in",
-    "mfaVerifying": "Verifying…"
+    "mfaVerifying": "Verifying…",
+    "trustDevice": "Trust this device for 30 days (skip MFA here)"
   },
   "nav": {
     "section": {

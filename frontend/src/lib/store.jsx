@@ -79,8 +79,8 @@ export function StoreProvider({ children }) {
 
   // Step 2 of sign-in: submit the MFA challenge response.
   const signInMfaStep = useCallback(
-    async (challenge_token, code, isBackup) => {
-      const res = await api.mfaVerify(challenge_token, code, isBackup);
+    async (challenge_token, code, isBackup, trustDevice) => {
+      const res = await api.mfaVerify(challenge_token, code, isBackup, trustDevice);
       await adoptSession(res);
       return res;
     },

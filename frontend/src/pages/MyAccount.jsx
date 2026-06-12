@@ -30,6 +30,7 @@ export default function MyAccount() {
   const [regenerating, setRegenerating] = useState(false);
   const [newCodes, setNewCodes] = useState(null);
   const [theme, setThemeState] = useState(getTheme());
+  const [devices, setDevices] = useState([]);
 
   function changeTheme(next) {
     setTheme(next);
@@ -43,8 +44,23 @@ export default function MyAccount() {
     } catch {
       setMeta({ user });
     }
+    try {
+      setDevices(await api.trustedDevices());
+    } catch {
+      setDevices([]);
+    }
   }
   useEffect(() => { reload(); }, [user]);
+
+  async function revokeDevice(id) {
+    try {
+      await api.revokeTrustedDevice(id);
+      setDevices((ds) => ds.filter((d) => d.id !== id));
+      toast('Device removed — it will require MFA next time.');
+    } catch (err) {
+      toast(err.message || 'Could not remove the device.');
+    }
+  }
 
   async function regenerate() {
     setRegenerating(true);
@@ -207,6 +223,41 @@ export default function MyAccount() {
               </p>
             </>
           )}
+        </div>
+
+        <div className="card card-pad">
+          <Section
+            title="Trusted devices"
+            note="Browsers that skip MFA for 30 days"
+          />
+          {devices.length === 0 ? (
+            <p className="cell-sub">
+              No trusted devices. Tick “Trust this device” on the sign-in screen to skip MFA on a browser you use regularly.
+            </p>
+          ) : (
+            <div className="device-list">
+              {devices.map((d) => (
+                <div className="device-row" key={d.id}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="device-name">
+                      {d.label || 'Device'}
+                      {d.current && <Pill tone="green">This device</Pill>}
+                    </div>
+                    <div className="cell-sub">
+                      Last used {fmtDate(d.last_used)} · expires {fmtDate(d.expires)}
+                      {d.ip ? ` · ${d.ip}` : ''}
+                    </div>
+                  </div>
+                  <button className="btn btn-sm btn-ghost" onClick={() => revokeDevice(d.id)}>
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="cell-sub" style={{ marginTop: 12 }}>
+            Changing your password removes all trusted devices.
+          </p>
         </div>
       </div>
 

@@ -26,6 +26,7 @@ export default function Login() {
   const [emailHint, setEmailHint] = useState('');
   const [code, setCode] = useState('');
   const [useBackup, setUseBackup] = useState(false);
+  const [trustDevice, setTrustDevice] = useState(false);
 
   async function submitPassword(e) {
     e.preventDefault();
@@ -54,7 +55,7 @@ export default function Login() {
     setError('');
     setBusy(true);
     try {
-      await signInMfaStep(challengeToken, code.trim(), useBackup);
+      await signInMfaStep(challengeToken, code.trim(), useBackup, trustDevice);
       navigate('/app', { replace: true });
     } catch (err) {
       setError(err.message || 'Verification failed.');
@@ -101,6 +102,15 @@ export default function Login() {
               required
             />
           </div>
+
+          <label className="trust-device">
+            <input
+              type="checkbox"
+              checked={trustDevice}
+              onChange={(e) => setTrustDevice(e.target.checked)}
+            />
+            <span>{t('login.trustDevice')}</span>
+          </label>
 
           <button
             className="btn btn-primary"

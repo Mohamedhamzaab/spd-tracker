@@ -1105,6 +1105,25 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   gap: 18px; flex-wrap: wrap;
 }
 
+/* "Trust this device" checkbox on the MFA step. */
+.trust-device {
+  display: flex; align-items: center; gap: 9px;
+  margin-top: 14px; font-size: 13px; color: var(--muted); cursor: pointer;
+}
+.trust-device input { width: 15px; height: 15px; flex-shrink: 0; }
+
+/* Trusted-devices list in My Account. */
+.device-list { display: flex; flex-direction: column; }
+.device-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 2px; border-bottom: 1px solid var(--line);
+}
+.device-row:last-child { border-bottom: 0; }
+.device-name {
+  font-size: 13.5px; font-weight: 600; color: var(--ink);
+  display: flex; align-items: center; gap: 8px;
+}
+
 /* ---- Audit log page ---------------------------------------------------- */
 .audit-filters {
   display: grid;

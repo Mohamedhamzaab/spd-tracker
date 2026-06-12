@@ -29,6 +29,7 @@ const { logAudit } = require('./audit');
 const { loginLimiter, forgotLimiter, tokenLimiter } = require('./rateLimit');
 const mfa = require('./mfa');
 const { encrypt, decrypt } = require('./crypto');
+const trustedDevices = require('./trustedDevices');
 
 // Per-user lockout policy.
 const LOCKOUT_THRESHOLD = 5;          // wrong passwords before we lock
@@ -137,6 +138,7 @@ async function requireAuth(req, res, next) {
 // (change-password, mfa/start, mfa/confirm, me) are naturally exempt — this
 // middleware only guards the data API under /api. Without it the gates were
 // frontend-only: a held session token could still hit every endpoint.
+
 function requireClearedGates(req, res, next) {
   if (!req.user) return next(httpError(401, 'Sign in to continue.'));
   if (req.user.password_must_change) {
@@ -293,6 +295,34 @@ router.post(
     // short-lived challenge token instead of a full session JWT. The full
     // session is minted by /mfa/verify once they prove the TOTP code.
     if (user.mfa_enrolled_at) {
+      // ...unless this browser is a trusted device for this user — then the
+      // second factor was already proven here within the trust window, so go
+      // straight to a full session.
+      const trusted = await trustedDevices.findTrustedDevice(req, user.id);
+      if (trusted) {
+        await query('UPDATE users SET last_login_at = now() WHERE id = $1', [user.id]);
+        await logAudit({
+          actor_id: user.id,
+          event: 'login.success_trusted_device',
+          target_type: 'user',
+          target_id: user.id,
+          req,
+        });
+        const token = signSessionJwt(user);
+        return res.json({
+          token,
+          user: {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            organisation: user.organisation,
+          },
+          password_must_change: !!user.password_must_change,
+          mfa_enrolled: true,
+        });
+      }
+
       await logAudit({
         actor_id: user.id,
         event: 'login.password_ok',
@@ -424,6 +454,8 @@ router.post(
        WHERE id = $2`,
       [hash, claim.user_id]
     );
+    // A password reset drops all trusted devices for that account.
+    await trustedDevices.clearForUser(claim.user_id);
 
     await logAudit({
       actor_id: claim.user_id,
@@ -503,6 +535,8 @@ router.post(
        WHERE id = $2`,
       [hash, req.user.id]
     );
+    // Changing the password drops all trusted devices — they re-do MFA next time.
+    await trustedDevices.clearForUser(req.user.id);
 
     await logAudit({
       actor_id: req.user.id,
@@ -712,6 +746,19 @@ router.post(
       req,
     });
 
+    // "Trust this device for 30 days" — opt-in. Remember this browser so the
+    // next logins from it skip the second factor (until it expires/revoked).
+    if (req.body.trust_device) {
+      await trustedDevices.issueTrustCookie(res, req, user.id);
+      await logAudit({
+        actor_id: user.id,
+        event: 'trusted_device.added',
+        target_type: 'user',
+        target_id: user.id,
+        req,
+      });
+    }
+
     const token = signSessionJwt(user);
     res.json({
       token,
@@ -726,6 +773,31 @@ router.post(
       mfa_enrolled: true,
       backup_codes_remaining: mfa.remainingBackupCodes(backupArrAfter),
     });
+  })
+);
+
+// --- Trusted devices management (signed-in user, own devices only) ----------
+router.get(
+  '/trusted-devices',
+  requireAuth,
+  wrap(async (req, res) => {
+    res.json(await trustedDevices.listDevices(req, req.user.id));
+  })
+);
+router.delete(
+  '/trusted-devices/:id',
+  requireAuth,
+  wrap(async (req, res) => {
+    await trustedDevices.revokeDevice(req.user.id, req.params.id);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'trusted_device.revoked',
+      target_type: 'user',
+      target_id: req.user.id,
+      payload: { device_id: Number(req.params.id) },
+      req,
+    });
+    res.json({ ok: true });
   })
 );
 

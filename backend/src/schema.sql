@@ -380,6 +380,22 @@ ALTER TABLE meetings ADD COLUMN IF NOT EXISTS attendees TEXT;
 ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS contact_email TEXT;
 ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS contact_phone TEXT;
 
+-- Trusted devices — a browser that passed MFA can be remembered so the second
+-- factor is skipped for ~30 days. The browser holds a random secret in an
+-- httpOnly cookie; only its SHA-256 hash is stored here, bound to one user.
+-- Opt-in, revocable, and wiped when that user's password changes.
+CREATE TABLE IF NOT EXISTS trusted_devices (
+    id           SERIAL PRIMARY KEY,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash   TEXT    NOT NULL UNIQUE,
+    label        TEXT,
+    ip           TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_used_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at   TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_trusted_devices_user ON trusted_devices(user_id);
+
 -- Rename the old "NOC" purpose to "NOC / Approval" on existing rows so they
 -- match the updated dropdown. Idempotent (the second run matches nothing).
 UPDATE communications SET purpose = 'NOC / Approval' WHERE purpose = 'NOC';

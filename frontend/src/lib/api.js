@@ -72,11 +72,13 @@ export const api = {
     }),
   mfaStart: () => req('/auth/mfa/start', { method: 'POST' }),
   mfaConfirm: (code) => req('/auth/mfa/confirm', { method: 'POST', body: { code } }),
-  mfaVerify: (challenge_token, code, is_backup = false) =>
+  mfaVerify: (challenge_token, code, is_backup = false, trust_device = false) =>
     req('/auth/mfa/verify', {
       method: 'POST',
-      body: { challenge_token, code, is_backup },
+      body: { challenge_token, code, is_backup, trust_device },
     }),
+  trustedDevices: () => req('/auth/trusted-devices'),
+  revokeTrustedDevice: (id) => req('/auth/trusted-devices/' + id, { method: 'DELETE' }),
   mfaRegenerateBackup: () =>
     req('/auth/mfa/regenerate-backup-codes', { method: 'POST' }),
 
