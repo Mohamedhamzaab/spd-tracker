@@ -89,7 +89,24 @@ router.get(
         ORDER BY m.meeting_date DESC, m.id DESC`,
       [id]
     );
-    res.json({ ...sub.rows[0], communications: comms.rows, meetings: meetings.rows });
+    const qdrs = await query(
+      `SELECT q.id, q.qdrs_code,
+              to_char(q.qdrs_date, 'YYYY-MM-DD') AS qdrs_date,
+              q.reference, q.category,
+              (SELECT count(*) FROM documents d
+                 WHERE d.parent_type = 'qdrs' AND d.parent_id = q.id
+                   AND d.deleted_at IS NULL)::int AS document_count
+         FROM qdrs_records q
+        WHERE q.sub_division_id = $1 AND q.deleted_at IS NULL
+        ORDER BY q.qdrs_date DESC, q.id DESC`,
+      [id]
+    );
+    res.json({
+      ...sub.rows[0],
+      communications: comms.rows,
+      meetings: meetings.rows,
+      qdrs: qdrs.rows,
+    });
   })
 );
 

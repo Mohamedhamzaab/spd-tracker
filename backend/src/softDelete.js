@@ -46,6 +46,15 @@ async function softDeleteMeeting(client, group, actorId, meetingId) {
   );
 }
 
+async function softDeleteQdrs(client, group, actorId, qdrsId) {
+  await softDeleteDocuments(client, group, actorId, 'qdrs', qdrsId);
+  await client.query(
+    `UPDATE qdrs_records SET deleted_at = now(), deleted_by = $1, deletion_group_id = $2
+     WHERE id = $3 AND deleted_at IS NULL`,
+    [actorId, group, qdrsId]
+  );
+}
+
 async function softDeleteSubDivision(client, group, actorId, subId) {
   const live = (await client.query(
     'SELECT id FROM communications WHERE sub_division_id = $1 AND deleted_at IS NULL',
@@ -53,6 +62,13 @@ async function softDeleteSubDivision(client, group, actorId, subId) {
   )).rows;
   for (const r of live) {
     await softDeleteCommunication(client, group, actorId, r.id);
+  }
+  const qdrs = (await client.query(
+    'SELECT id FROM qdrs_records WHERE sub_division_id = $1 AND deleted_at IS NULL',
+    [subId]
+  )).rows;
+  for (const q of qdrs) {
+    await softDeleteQdrs(client, group, actorId, q.id);
   }
   await client.query(
     `UPDATE sub_divisions SET deleted_at = now(), deleted_by = $1, deletion_group_id = $2
@@ -85,7 +101,7 @@ async function softDeleteAuthority(client, group, actorId, authId) {
 
 // Restore everything in the deletion group atomically.
 async function restoreGroup(client, groupId) {
-  const tables = ['documents', 'communications', 'meetings', 'sub_divisions', 'authorities'];
+  const tables = ['documents', 'communications', 'meetings', 'qdrs_records', 'sub_divisions', 'authorities'];
   let totalRestored = 0;
   for (const t of tables) {
     const { rowCount } = await client.query(
@@ -107,6 +123,7 @@ module.exports = {
   softDeleteSubDivision,
   softDeleteCommunication,
   softDeleteMeeting,
+  softDeleteQdrs,
   softDeleteDocuments,
   restoreGroup,
 };

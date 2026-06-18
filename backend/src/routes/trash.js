@@ -15,7 +15,7 @@ const { query, withTransaction } = require('../db');
 const { wrap, httpError } = require('../helpers');
 const { requireSuperAdmin } = require('../auth');
 const { restoreGroup } = require('../softDelete');
-const { renumberCommunications, renumberMeetings } = require('../renumberComms');
+const { renumberCommunications, renumberMeetings, renumberQdrs } = require('../renumberComms');
 const { logAudit } = require('../audit');
 const storage = require('../storage');
 
@@ -24,6 +24,7 @@ const TABLE = {
   sub_division: 'sub_divisions',
   communication: 'communications',
   meeting: 'meetings',
+  qdrs: 'qdrs_records',
   document: 'documents',
 };
 
@@ -81,6 +82,20 @@ router.get(
        ORDER BY m.deleted_at DESC, m.id DESC`
     )).rows;
 
+    trashed.qdrs = (await query(
+      `SELECT q.id, q.qdrs_code, q.qdrs_date,
+              q.sub_division_id, sd.sub_reference,
+              a.code AS authority_code, a.name AS authority_name,
+              q.deleted_at, q.deleted_by, q.deletion_group_id,
+              u.email AS deleted_by_email
+       FROM qdrs_records q
+       JOIN sub_divisions sd ON sd.id = q.sub_division_id
+       JOIN authorities a ON a.id = sd.authority_id
+       LEFT JOIN users u ON u.id = q.deleted_by
+       WHERE q.deleted_at IS NOT NULL
+       ORDER BY q.deleted_at DESC, q.id DESC`
+    )).rows;
+
     trashed.documents = (await query(
       `SELECT d.id, d.original_name, d.parent_type, d.parent_id, d.size_bytes,
               d.deleted_at, d.deleted_by, d.deletion_group_id,
@@ -96,6 +111,7 @@ router.get(
       trashed.sub_divisions.length +
       trashed.communications.length +
       trashed.meetings.length +
+      trashed.qdrs.length +
       trashed.documents.length;
 
     res.json({ total, ...trashed });
@@ -129,6 +145,7 @@ router.post(
       // restoring one directly, or a group whose cascade included some.)
       let touchesComms = type === 'communication';
       let touchesMeetings = type === 'meeting';
+      let touchesQdrs = type === 'qdrs';
       if (group) {
         if (!touchesComms) {
           const c = await client.query(
@@ -143,6 +160,13 @@ router.post(
             [group]
           );
           if (mm.rows[0]) touchesMeetings = true;
+        }
+        if (!touchesQdrs) {
+          const qq = await client.query(
+            'SELECT 1 FROM qdrs_records WHERE deletion_group_id = $1 LIMIT 1',
+            [group]
+          );
+          if (qq.rows[0]) touchesQdrs = true;
         }
       }
 
@@ -163,6 +187,7 @@ router.post(
       // and the active list stays a clean chronological sequence.
       if (touchesComms) await renumberCommunications(client);
       if (touchesMeetings) await renumberMeetings(client);
+      if (touchesQdrs) await renumberQdrs(client);
     });
 
     await logAudit({
@@ -214,11 +239,17 @@ router.delete(
       await collect('communication', id);
     } else if (type === 'meeting') {
       await collect('meeting', id);
+    } else if (type === 'qdrs') {
+      await collect('qdrs', id);
     } else if (type === 'sub_division') {
       const comms = (await query(
         'SELECT id FROM communications WHERE sub_division_id = $1', [id]
       )).rows;
       for (const c of comms) await collect('communication', c.id);
+      const qrows = (await query(
+        'SELECT id FROM qdrs_records WHERE sub_division_id = $1', [id]
+      )).rows;
+      for (const q of qrows) await collect('qdrs', q.id);
     } else if (type === 'authority') {
       const subs = (await query(
         'SELECT id FROM sub_divisions WHERE authority_id = $1', [id]
@@ -228,6 +259,10 @@ router.delete(
           'SELECT id FROM communications WHERE sub_division_id = $1', [s.id]
         )).rows;
         for (const c of comms) await collect('communication', c.id);
+        const qrows = (await query(
+          'SELECT id FROM qdrs_records WHERE sub_division_id = $1', [s.id]
+        )).rows;
+        for (const q of qrows) await collect('qdrs', q.id);
       }
       const meets = (await query(
         'SELECT id FROM meetings WHERE authority_id = $1', [id]

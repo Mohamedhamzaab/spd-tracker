@@ -13,6 +13,7 @@ import {
 import AuditFeed from '../components/AuditFeed.jsx';
 import { SubForm } from './SubDivisions.jsx';
 import { MeetingForm } from './Meetings.jsx';
+import { QdrsForm } from './Qdrs.jsx';
 import CommentsThread from '../components/CommentsThread.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
 import DocViewer, { isPreviewable } from '../components/DocViewer.jsx';
@@ -27,6 +28,7 @@ export default function SubDivisionDetail() {
   const [error, setError] = useState('');
   const [adding, setAdding] = useState(false);
   const [addingMeeting, setAddingMeeting] = useState(false);
+  const [addingQdrs, setAddingQdrs] = useState(false);
   const [openComm, setOpenComm] = useState(null);
   const [editing, setEditing] = useState(false);
   const [authorities, setAuthorities] = useState([]);
@@ -56,6 +58,7 @@ export default function SubDivisionDetail() {
 
   const comms = data.communications || [];
   const meetings = data.meetings || [];
+  const qdrs = data.qdrs || [];
   const MOM_VIEW = {
     pending: { label: 'MoM pending', tone: 'red' },
     draft: { label: 'MoM draft', tone: 'amber' },
@@ -244,6 +247,50 @@ export default function SubDivisionDetail() {
           </Section>
         </div>
 
+        <div>
+          <Section
+            title="QDRS"
+            note={`${qdrs.length} logged`}
+            action={
+              isEditor && (
+                <button className="btn btn-primary btn-sm" onClick={() => setAddingQdrs(true)}>
+                  + Log QDRS
+                </button>
+              )
+            }
+          >
+            {qdrs.length === 0 ? (
+              <Empty
+                title="No QDRS records yet"
+                sub={isEditor
+                  ? 'Log received QDRS data for this sub-authority above.'
+                  : 'QDRS data received from this sub-authority appears here.'}
+              />
+            ) : (
+              qdrs.map((qr) => (
+                <Link
+                  key={qr.id}
+                  to={`/app/qdrs?open=${qr.id}`}
+                  className="thread-item"
+                  style={{ display: 'block', cursor: 'pointer', textDecoration: 'none' }}
+                >
+                  <div className="thread-head">
+                    <span className="mono" style={{ fontSize: 12 }}>{qr.qdrs_code}</span>
+                    <span className="section-note">{fmtDate(qr.qdrs_date)}</span>
+                    {qr.category && <Pill tone="grey">{qr.category}</Pill>}
+                    {Number(qr.document_count) > 0 && (
+                      <span className="section-note">
+                        {qr.document_count} document{Number(qr.document_count) > 1 ? 's' : ''}
+                      </span>
+                    )}
+                  </div>
+                  {qr.reference && <div className="thread-meta">Ref: {qr.reference}</div>}
+                </Link>
+              ))
+            )}
+          </Section>
+        </div>
+
         <div className="card card-pad">
           <Section title="Tasks" />
           <TasksPanel parentType="sub_division" parentId={data.id} />
@@ -297,6 +344,19 @@ export default function SubDivisionDetail() {
           onSaved={(code) => {
             setAddingMeeting(false);
             toast('Meeting added: ' + code);
+            load();
+          }}
+        />
+      )}
+      {addingQdrs && (
+        <QdrsForm
+          lists={lists}
+          subDivisions={[{ id: data.id, sub_reference: data.sub_reference, name: data.name }]}
+          defaults={{ sub_division_id: String(data.id) }}
+          onClose={() => setAddingQdrs(false)}
+          onSaved={(code) => {
+            setAddingQdrs(false);
+            toast('QDRS record logged: ' + code);
             load();
           }}
         />

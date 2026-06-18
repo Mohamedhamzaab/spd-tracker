@@ -118,6 +118,14 @@ export const api = {
   deleteMeeting: (id) => req('/meetings/' + id, { method: 'DELETE' }),
   bulkDeleteMeetings: (ids) => req('/meetings/bulk-delete', { method: 'POST', body: { ids } }),
 
+  // qdrs
+  qdrsList: (params) => req('/qdrs' + qs(params)),
+  qdrsRecord: (id) => req('/qdrs/' + id),
+  createQdrs: (b) => req('/qdrs', { method: 'POST', body: b }),
+  updateQdrs: (id, b) => req('/qdrs/' + id, { method: 'PUT', body: b }),
+  deleteQdrs: (id) => req('/qdrs/' + id, { method: 'DELETE' }),
+  bulkDeleteQdrs: (ids) => req('/qdrs/bulk-delete', { method: 'POST', body: { ids } }),
+
   // users (super_admin)
   users: () => req('/users'),
   createUser: (b) => req('/users', { method: 'POST', body: b }),

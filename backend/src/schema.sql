@@ -396,6 +396,43 @@ CREATE TABLE IF NOT EXISTS trusted_devices (
 );
 CREATE INDEX IF NOT EXISTS idx_trusted_devices_user ON trusted_devices(user_id);
 
+-- ---------------------------------------------------------------------------
+--  QDRS records — the Qatar Design Review System (Ashghal / PWA) log. One row
+--  per "data received" event: when data/responses arrived via QDRS, from which
+--  sub-authority (sub-division), plus the uploaded documents. qdrs_code
+--  (Q-0001) is server-assigned and re-flowed by date, exactly like comms.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS qdrs_records (
+    id              SERIAL PRIMARY KEY,
+    qdrs_code       TEXT    NOT NULL UNIQUE,
+    sub_division_id INTEGER NOT NULL REFERENCES sub_divisions(id) ON DELETE CASCADE,
+    qdrs_date       DATE    NOT NULL,
+    reference       TEXT,
+    category        TEXT,
+    summary         TEXT,
+    logged_by       TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE qdrs_records ADD COLUMN IF NOT EXISTS deleted_at        TIMESTAMPTZ;
+ALTER TABLE qdrs_records ADD COLUMN IF NOT EXISTS deleted_by        INTEGER;
+ALTER TABLE qdrs_records ADD COLUMN IF NOT EXISTS deletion_group_id UUID;
+CREATE INDEX IF NOT EXISTS idx_qdrs_subdiv ON qdrs_records(sub_division_id);
+CREATE INDEX IF NOT EXISTS idx_qdrs_live   ON qdrs_records(id) WHERE deleted_at IS NULL;
+ALTER TABLE qdrs_records ADD COLUMN IF NOT EXISTS search_tsv tsvector
+    GENERATED ALWAYS AS (
+      setweight(to_tsvector('simple',  coalesce(qdrs_code, '')), 'A') ||
+      setweight(to_tsvector('english', coalesce(category, '')),  'B') ||
+      setweight(to_tsvector('simple',  coalesce(reference, '')), 'B') ||
+      setweight(to_tsvector('english', coalesce(summary, '')),   'C')
+    ) STORED;
+CREATE INDEX IF NOT EXISTS idx_qdrs_search ON qdrs_records USING GIN (search_tsv);
+
+-- Documents may now attach to a QDRS record too (was: communication / meeting).
+ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_parent_type_check;
+ALTER TABLE documents ADD CONSTRAINT documents_parent_type_check
+  CHECK (parent_type IN ('communication', 'meeting', 'qdrs'));
+
 -- Rename the old "NOC" purpose to "NOC / Approval" on existing rows so they
 -- match the updated dropdown. Idempotent (the second run matches nothing).
 UPDATE communications SET purpose = 'NOC / Approval' WHERE purpose = 'NOC';
@@ -503,6 +540,25 @@ LEFT JOIN communications parent
 LEFT JOIN communications relparent
        ON relparent.id = c.related_to AND relparent.deleted_at IS NULL
 WHERE c.deleted_at IS NULL;
+
+-- QDRS record enriched with its sub-division + authority and document count.
+DROP VIEW IF EXISTS v_qdrs CASCADE;
+CREATE OR REPLACE VIEW v_qdrs AS
+SELECT
+    q.*,
+    sd.sub_reference,
+    sd.name        AS sub_division_name,
+    a.id           AS authority_id,
+    a.code         AS authority_code,
+    a.name         AS authority_name,
+    (SELECT count(*) FROM documents d
+       WHERE d.parent_type = 'qdrs'
+         AND d.parent_id = q.id
+         AND d.deleted_at IS NULL) AS document_count
+FROM qdrs_records q
+JOIN sub_divisions sd ON sd.id = q.sub_division_id AND sd.deleted_at IS NULL
+JOIN authorities  a  ON a.id  = sd.authority_id   AND a.deleted_at  IS NULL
+WHERE q.deleted_at IS NULL;
 
 -- Sub-division with rolled-up counts, engagement-ladder status, last activity.
 CREATE OR REPLACE VIEW v_sub_division AS

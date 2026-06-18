@@ -47,6 +47,13 @@ const SECTIONS = [
     cells: (r) => [r.meeting_code, fmtDate(r.meeting_date), r.authority_code],
   },
   {
+    key: 'qdrs',
+    type: 'qdrs',
+    title: 'QDRS',
+    columns: ['Code', 'Date', 'Sub-division'],
+    cells: (r) => [r.qdrs_code, fmtDate(r.qdrs_date), r.sub_reference],
+  },
+  {
     key: 'documents',
     type: 'document',
     title: 'Documents',

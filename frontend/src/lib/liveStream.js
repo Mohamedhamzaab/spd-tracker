@@ -53,6 +53,8 @@ function ensureSource() {
       'data.communication.restored', 'data.communication.purged',
       'data.meeting.created', 'data.meeting.updated', 'data.meeting.deleted',
       'data.meeting.restored', 'data.meeting.purged',
+      'data.qdrs.created', 'data.qdrs.updated', 'data.qdrs.deleted',
+      'data.qdrs.restored', 'data.qdrs.purged',
       'data.document.uploaded', 'data.document.deleted',
       'data.comment.created', 'data.comment.updated', 'data.comment.deleted',
       'data.task.created', 'data.task.updated', 'data.task.completed', 'data.task.deleted',

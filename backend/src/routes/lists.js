@@ -64,6 +64,10 @@ const LISTS = {
   ],
   meeting_mode: ['In Person', 'Online', 'Hybrid'],
   meeting_purpose: ['Data Collection', 'Consultation', 'NOC / Approval'],
+  qdrs_category: [
+    'Road Design', 'Infrastructure', 'Design Variation',
+    'Utility Diversion', 'NOC / Approval', 'Other',
+  ],
 };
 
 // GET /api/lists  -  every dropdown list in one response.

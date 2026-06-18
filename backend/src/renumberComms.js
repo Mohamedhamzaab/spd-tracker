@@ -47,4 +47,10 @@ const renumberMeetings = (client) =>
     prefix: 'M', width: 3, dateCol: 'meeting_date',
   });
 
-module.exports = { renumberCommunications, renumberMeetings };
+const renumberQdrs = (client) =>
+  renumberByDate(client, {
+    table: 'qdrs_records', codeCol: 'qdrs_code',
+    prefix: 'Q', width: 4, dateCol: 'qdrs_date',
+  });
+
+module.exports = { renumberCommunications, renumberMeetings, renumberQdrs };
