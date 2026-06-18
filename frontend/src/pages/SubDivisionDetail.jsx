@@ -16,7 +16,7 @@ import { MeetingForm } from './Meetings.jsx';
 import { QdrsForm } from './Qdrs.jsx';
 import CommentsThread from '../components/CommentsThread.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
-import DocViewer, { isPreviewable } from '../components/DocViewer.jsx';
+import DocumentsPanel from '../components/DocumentsPanel.jsx';
 
 export default function SubDivisionDetail() {
   const { id } = useParams();
@@ -488,7 +488,7 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
         setCreatedCode(commCode);
       }
       if (pendingFiles.length) {
-        await api.uploadDocs('communication', commId, pendingFiles);
+        await api.uploadDocsBatched('communication', commId, pendingFiles);
       }
       onSaved(commCode);
     } catch (e) {
@@ -536,7 +536,7 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
         {pendingFiles.map((f, i) => (
           <div className="doc-chip" key={i}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="doc-name">{f.name}</div>
+              <div className="doc-name">{f.relPath || f.name}</div>
               <div className="doc-meta">{fileSize(f.size)}</div>
             </div>
             <button
@@ -568,9 +568,6 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   const { lists } = useStore();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [viewerDoc, setViewerDoc] = useState(null);
-  const [zipping, setZipping] = useState(false);
 
   // Edit mode: shares the modal shell, swaps the field grid for the form.
   const [editing, setEditing] = useState(false);
@@ -624,33 +621,6 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   }
 
   const onChangeField = (n, v) => setValues((s) => ({ ...s, [n]: v }));
-
-  async function upload(files) {
-    if (!files || !files.length) return;
-    setUploading(true);
-    setError('');
-    try {
-      await api.uploadDocs('communication', commId, files);
-      toast('Document uploaded');
-      load();
-      onChanged && onChanged();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  async function removeDoc(docId) {
-    try {
-      await api.deleteDoc(docId);
-      toast('Document removed');
-      load();
-      onChanged && onChanged();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
 
   return (
     <>
@@ -751,68 +721,13 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
           )}
 
           <div style={{ marginTop: 18 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div className="section-title">Documents</div>
-              {(data.documents || []).length >= 2 && (
-                <button
-                  className="btn btn-sm"
-                  disabled={zipping}
-                  onClick={async () => {
-                    setZipping(true);
-                    setError('');
-                    try {
-                      await api.downloadDocsZip('communication', commId, `${data.comm_code}-documents.zip`);
-                    } catch (e) {
-                      setError(e.message);
-                    } finally {
-                      setZipping(false);
-                    }
-                  }}
-                >
-                  {zipping ? 'Preparing…' : 'Download all'}
-                </button>
-              )}
-            </div>
-            {(data.documents || []).length === 0 && (
-              <div className="section-note" style={{ marginBottom: 10 }}>
-                No documents uploaded.
-              </div>
-            )}
-            {(data.documents || []).map((d) => (
-              <div className="doc-chip" key={d.id}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="doc-name">{d.original_name}</div>
-                  <div className="doc-meta">
-                    {fileSize(d.size_bytes)}
-                    {d.uploaded_by ? ' \u00b7 ' + d.uploaded_by : ''}
-                  </div>
-                </div>
-                {isPreviewable(d) && (
-                  <button className="btn btn-sm" onClick={() => setViewerDoc(d)}>
-                    View
-                  </button>
-                )}
-                <button
-                  className="btn btn-sm"
-                  onClick={() => api.downloadDoc(d.id, d.original_name)}
-                >
-                  Download
-                </button>
-                {isEditor && (
-                  <button
-                    className="btn btn-sm btn-ghost"
-                    onClick={() => removeDoc(d.id)}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-            ))}
-            {isEditor && (
-              <div style={{ marginTop: 10 }}>
-                <FileDrop onFiles={upload} uploading={uploading} />
-              </div>
-            )}
+            <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
+            <DocumentsPanel
+              parentType="communication"
+              parentId={commId}
+              code={data.comm_code}
+              onChange={() => { load(); onChanged && onChanged(); }}
+            />
           </div>
 
           <div style={{ marginTop: 22 }}>
@@ -831,7 +746,6 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
         </>
       )}
     </Modal>
-    {viewerDoc && <DocViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
     </>
   );
 }

@@ -134,15 +134,78 @@ export function initials(name) {
 }
 
 /* ---- file drop zone ----------------------------------------------------- */
+// Walk a dropped directory entry (webkitGetAsEntry API), collecting every file
+// with a `.relPath` expando like "Drawings/Civil/Sheet 1.pdf" so the server can
+// rebuild the folder tree. Directories can hand back their children in chunks,
+// so we keep calling readEntries until it returns empty.
+function readEntry(entry, base, out) {
+  return new Promise((resolve) => {
+    if (entry.isFile) {
+      entry.file((file) => {
+        try { file.relPath = base + file.name; } catch { /* File may be frozen */ }
+        out.push(file);
+        resolve();
+      }, () => resolve());
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const collected = [];
+      const readBatch = () => {
+        reader.readEntries((entries) => {
+          if (!entries.length) {
+            Promise.all(collected.map((en) => readEntry(en, base + entry.name + '/', out))).then(resolve);
+          } else {
+            collected.push(...entries);
+            readBatch();
+          }
+        }, () => resolve());
+      };
+      readBatch();
+    } else {
+      resolve();
+    }
+  });
+}
+
 // A moderate, clickable upload area that also accepts drag-and-drop. Wires to
 // the caller's existing upload handler via onFiles; shows a busy state while
-// uploading. Used in the communication + meeting detail panels.
-export function FileDrop({ onFiles, uploading, multiple = true, label = '+ Upload document', hint = 'or drag & drop files here' }) {
+// uploading. When `folders` is set it also accepts dropped folders (recursing
+// into them) and offers a "select a folder" picker; each file carries a
+// `.relPath` so the backend can rebuild a virtual folder tree.
+export function FileDrop({ onFiles, uploading, multiple = true, folders = true, label = '+ Upload document', busyLabel = 'Uploading…', hint = 'or drag & drop files or a folder here' }) {
   const inputRef = useRef(null);
+  const folderRef = useRef(null);
   const [over, setOver] = useState(false);
 
   function hand(files) {
     if (!uploading && files && files.length) onFiles(files);
+  }
+
+  // Drag-drop: prefer the entries API so dropped folders are expanded; fall
+  // back to the flat FileList when it isn't available (older browsers).
+  async function onDrop(e) {
+    e.preventDefault();
+    setOver(false);
+    if (uploading) return;
+    const items = e.dataTransfer.items;
+    let entries = [];
+    if (folders && items && items.length && items[0] && items[0].webkitGetAsEntry) {
+      // Must be read synchronously — the items list is cleared after the event.
+      entries = Array.from(items)
+        .map((it) => (it.webkitGetAsEntry ? it.webkitGetAsEntry() : null))
+        .filter(Boolean);
+    }
+    if (entries.length) {
+      const out = [];
+      await Promise.all(entries.map((en) => readEntry(en, '', out)));
+      hand(out);
+    } else {
+      hand(e.dataTransfer.files);
+    }
+  }
+
+  function pickFolder(e) {
+    e.stopPropagation();
+    if (!uploading && folderRef.current) folderRef.current.click();
   }
 
   return (
@@ -156,7 +219,7 @@ export function FileDrop({ onFiles, uploading, multiple = true, label = '+ Uploa
       onDragOver={(e) => { e.preventDefault(); if (!over) setOver(true); }}
       onDragEnter={(e) => { e.preventDefault(); setOver(true); }}
       onDragLeave={(e) => { e.preventDefault(); setOver(false); }}
-      onDrop={(e) => { e.preventDefault(); setOver(false); hand(e.dataTransfer.files); }}
+      onDrop={onDrop}
     >
       <input
         ref={inputRef}
@@ -165,10 +228,31 @@ export function FileDrop({ onFiles, uploading, multiple = true, label = '+ Uploa
         style={{ display: 'none' }}
         onChange={(e) => { hand(e.target.files); if (inputRef.current) inputRef.current.value = ''; }}
       />
+      {folders && (
+        <input
+          ref={folderRef}
+          type="file"
+          multiple
+          webkitdirectory=""
+          directory=""
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const files = Array.from(e.target.files || []);
+            for (const f of files) { try { f.relPath = f.webkitRelativePath || f.name; } catch { /* */ } }
+            hand(files);
+            if (folderRef.current) folderRef.current.value = '';
+          }}
+        />
+      )}
       <span className="filedrop-icon" aria-hidden="true">⬆</span>
       <span className="filedrop-text">
-        <strong>{uploading ? 'Uploading…' : label}</strong>
+        <strong>{uploading ? busyLabel : label}</strong>
         {!uploading && <span className="filedrop-hint">{hint}</span>}
+        {!uploading && folders && (
+          <button type="button" className="filedrop-folder" onClick={pickFolder}>
+            📁 Select a folder…
+          </button>
+        )}
       </span>
     </div>
   );

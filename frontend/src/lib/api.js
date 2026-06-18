@@ -54,6 +54,69 @@ async function req(path, opts = {}) {
   return data;
 }
 
+// --- document helpers (folder uploads) -------------------------------------
+// Mirror of the server's allow-list (routes/documents.js). Files outside this
+// set are dropped client-side so a folder full of junk never fails the batch.
+const ALLOWED_DOC_EXT = new Set([
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.csv', '.txt', '.rtf',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.tif', '.tiff', '.bmp', '.heic',
+  '.dwg', '.dxf', '.dwf', '.rvt', '.ifc', '.skp',
+  '.zip', '.rar', '.7z',
+]);
+// OS bookkeeping files that ride along inside folders — never worth uploading.
+const JUNK_NAMES = new Set(['.ds_store', 'thumbs.db', 'desktop.ini', '.localized']);
+const MAX_BATCH_FILES = 25;
+const MAX_BATCH_BYTES = 95 * 1024 * 1024; // stay under Cloudflare's 100 MB cap
+
+function extOf(name) {
+  const i = String(name || '').lastIndexOf('.');
+  return i >= 0 ? name.slice(i).toLowerCase() : '';
+}
+
+// Accept either a File (optionally carrying a `.relPath` expando set by
+// FileDrop for folder uploads) or a { file, relPath } object; always return
+// the { file, relPath } shape.
+function normalizeDocItems(items) {
+  const arr = Array.from(items || []);
+  return arr.map((it) =>
+    it && it.file
+      ? { file: it.file, relPath: it.relPath || '' }
+      : { file: it, relPath: (it && it.relPath) || '' }
+  );
+}
+
+// Returns a human reason to skip a file, or '' to keep it.
+function docSkipReason(file, relPath) {
+  const leaf = (relPath || file.name || '').split('/').pop();
+  if (JUNK_NAMES.has(String(leaf).toLowerCase())) return 'system file';
+  if (String(leaf).startsWith('._')) return 'system file'; // macOS AppleDouble
+  const ext = extOf(leaf);
+  if (!ALLOWED_DOC_EXT.has(ext)) return `unsupported type ${ext || '(none)'}`;
+  return '';
+}
+
+// Split items into request-sized batches: ≤25 files and ≤95 MB each. A single
+// file larger than the cap still goes out alone (the server will reject it with
+// a clear message rather than us guessing).
+function batchDocs(items) {
+  const batches = [];
+  let cur = [];
+  let bytes = 0;
+  for (const it of items) {
+    const size = it.file.size || 0;
+    if (cur.length && (cur.length >= MAX_BATCH_FILES || bytes + size > MAX_BATCH_BYTES)) {
+      batches.push(cur);
+      cur = [];
+      bytes = 0;
+    }
+    cur.push(it);
+    bytes += size;
+  }
+  if (cur.length) batches.push(cur);
+  return batches;
+}
+
 export const api = {
   // auth
   login: (email, password) =>
@@ -201,11 +264,52 @@ export const api = {
     req('/trash/' + encodeURIComponent(type) + '/' + Number(id), { method: 'DELETE' }),
 
   // documents
-  uploadDocs: (parentType, parentId, files) => {
+  // `items` may be plain File objects (loose files) or { file, relPath }
+  // entries (files that came from a dropped/selected folder). The relative
+  // path travels in a parallel rel_paths array because busboy strips any
+  // directory from the multipart filename.
+  uploadDocs: (parentType, parentId, items) => {
+    const list = normalizeDocItems(items);
     const fd = new FormData();
-    for (const f of files) fd.append('files', f);
+    const relPaths = [];
+    for (const { file, relPath } of list) {
+      fd.append('files', file);
+      relPaths.push(relPath || '');
+    }
+    fd.append('rel_paths', JSON.stringify(relPaths));
     return req(`/documents/${parentType}/${parentId}`, { method: 'POST', body: fd });
   },
+
+  // Upload an arbitrary number of files/folders by splitting them into
+  // request-sized batches (Cloudflare rejects any single request over 100 MB).
+  // Junk OS files and disallowed extensions are dropped up front and reported
+  // back so the UI can show a "skipped N files" summary. `onProgress({done,
+  // total})` fires after each batch. Returns { saved, skipped }.
+  uploadDocsBatched: async (parentType, parentId, items, onProgress) => {
+    const list = normalizeDocItems(items);
+    const skipped = [];
+    const keep = [];
+    for (const it of list) {
+      const reason = docSkipReason(it.file, it.relPath);
+      if (reason) skipped.push({ name: it.relPath || it.file.name, reason });
+      else keep.push(it);
+    }
+    const batches = batchDocs(keep);
+    const saved = [];
+    let done = 0;
+    for (const batch of batches) {
+      const res = await api.uploadDocs(parentType, parentId, batch);
+      if (Array.isArray(res)) saved.push(...res);
+      done += batch.length;
+      if (onProgress) onProgress({ done, total: keep.length });
+    }
+    return { saved, skipped };
+  },
+
+  // List a record's documents (with folder_path) so the UI can build a tree.
+  docsList: (parentType, parentId) =>
+    req(`/documents/${parentType}/${parentId}`),
+
   deleteDoc: (id) => req('/documents/' + id, { method: 'DELETE' }),
 
   // document download streams a file; fetch with the token then save locally
@@ -225,11 +329,13 @@ export const api = {
     URL.revokeObjectURL(url);
   },
 
-  // Download every attachment on a communication/meeting as one zip.
-  downloadDocsZip: async (parentType, parentId, filename) => {
-    const res = await fetch(`/api/documents/${parentType}/${parentId}/zip`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
+  // Download every attachment on a record as one zip (folder structure is
+  // recreated inside). Pass `folder` to limit the zip to one folder subtree.
+  downloadDocsZip: async (parentType, parentId, filename, folder) => {
+    const res = await fetch(
+      `/api/documents/${parentType}/${parentId}/zip` + qs(folder ? { folder } : null),
+      { headers: { Authorization: `Bearer ${getToken()}` } }
+    );
     if (!res.ok) {
       let msg = 'Download failed.';
       try { const j = await res.json(); msg = j.error || msg; } catch { /* not JSON */ }

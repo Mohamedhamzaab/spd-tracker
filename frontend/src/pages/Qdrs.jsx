@@ -11,7 +11,7 @@ import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
   fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop,
 } from '../components/ui.jsx';
-import DocViewer, { isPreviewable } from '../components/DocViewer.jsx';
+import DocumentsPanel from '../components/DocumentsPanel.jsx';
 import { useLive } from '../lib/liveStream.js';
 
 const QDRS_LIVE_EVENTS = [
@@ -38,108 +38,10 @@ const QDRS_COLS = {
   reference:      { value: (r) => r.reference || '' },
 };
 
-// --- documents panel (view / download / remove / download-all) -------------
+// --- documents panel -------------------------------------------------------
+// Thin wrapper over the shared DocumentsPanel (folder tree, upload, zip…).
 function QdrsDocs({ recordId, code }) {
-  const { isEditor } = useStore();
-  const toast = useToast();
-  const [docs, setDocs] = useState(null);
-  const [error, setError] = useState('');
-  const [uploading, setUploading] = useState(false);
-  const [viewerDoc, setViewerDoc] = useState(null);
-  const [zipping, setZipping] = useState(false);
-
-  function load() {
-    api.qdrsRecord(recordId)
-      .then((r) => setDocs(r.documents || []))
-      .catch((e) => setError(e.message));
-  }
-  useEffect(() => { load(); }, [recordId]);
-
-  async function upload(files) {
-    if (!files || !files.length) return;
-    setUploading(true);
-    setError('');
-    try {
-      await api.uploadDocs('qdrs', recordId, files);
-      toast(files.length > 1 ? 'Documents uploaded' : 'Document uploaded');
-      load();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setUploading(false);
-    }
-  }
-  async function removeDoc(docId) {
-    try {
-      await api.deleteDoc(docId);
-      toast('Document removed');
-      load();
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
-  if (!docs) return <Loading label="Loading documents" />;
-
-  return (
-    <div>
-      <ErrorBanner message={error} />
-      {docs.length >= 2 && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
-          <button
-            className="btn btn-sm"
-            disabled={zipping}
-            onClick={async () => {
-              setZipping(true);
-              setError('');
-              try {
-                await api.downloadDocsZip('qdrs', recordId, `${code || 'qdrs'}-documents.zip`);
-              } catch (e) {
-                setError(e.message);
-              } finally {
-                setZipping(false);
-              }
-            }}
-          >
-            {zipping ? 'Preparing…' : 'Download all'}
-          </button>
-        </div>
-      )}
-      {docs.length === 0 && (
-        <div className="section-note" style={{ marginBottom: 10 }}>
-          No documents attached yet.
-        </div>
-      )}
-      {docs.map((d) => (
-        <div className="doc-chip" key={d.id}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div className="doc-name">{d.original_name}</div>
-            <div className="doc-meta">
-              {fileSize(d.size_bytes)}
-              {d.uploaded_by ? ' · ' + d.uploaded_by : ''}
-            </div>
-          </div>
-          {isPreviewable(d) && (
-            <button className="btn btn-sm" onClick={() => setViewerDoc(d)}>View</button>
-          )}
-          <button className="btn btn-sm" onClick={() => api.downloadDoc(d.id, d.original_name)}>
-            Download
-          </button>
-          {isEditor && (
-            <button className="btn btn-sm btn-ghost" onClick={() => removeDoc(d.id)}>
-              Remove
-            </button>
-          )}
-        </div>
-      ))}
-      {isEditor && (
-        <div style={{ marginTop: 10 }}>
-          <FileDrop onFiles={upload} uploading={uploading} />
-        </div>
-      )}
-      {viewerDoc && <DocViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
-    </div>
-  );
+  return <DocumentsPanel parentType="qdrs" parentId={recordId} code={code} />;
 }
 
 // --- read-only detail (any user) -------------------------------------------
@@ -262,7 +164,7 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
         setCreatedCode(code);
       }
       if (pendingFiles.length) {
-        await api.uploadDocs('qdrs', id, pendingFiles);
+        await api.uploadDocsBatched('qdrs', id, pendingFiles);
       }
       onSaved(code);
     } catch (e) {
@@ -310,7 +212,7 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
           {pendingFiles.map((f, i) => (
             <div className="doc-chip" key={i}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div className="doc-name">{f.name}</div>
+                <div className="doc-name">{f.relPath || f.name}</div>
                 <div className="doc-meta">{fileSize(f.size)}</div>
               </div>
               <button

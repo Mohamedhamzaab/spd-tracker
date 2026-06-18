@@ -770,6 +770,40 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
 .doc-name { font-size: 12.5px; font-weight: 500; flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .doc-meta { font-size: 11px; color: var(--faint); }
+.doc-file-icon { font-size: 14px; line-height: 1; flex-shrink: 0; opacity: 0.85; }
+
+/* Virtual folder tree — folders rebuilt from each file's folder_path. */
+.doc-tree { margin-bottom: 2px; }
+.doc-folder { margin-bottom: 8px; }
+.doc-folder-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--grey-bg, var(--bg));
+}
+.doc-folder-toggle {
+  display: flex; align-items: center; gap: 8px;
+  flex: 1; min-width: 0;
+  background: none; border: 0; padding: 0; margin: 0;
+  cursor: pointer; text-align: left; color: var(--ink);
+}
+.doc-folder-caret { font-size: 10px; color: var(--muted); width: 12px; flex-shrink: 0; }
+.doc-folder-icon { font-size: 15px; line-height: 1; flex-shrink: 0; }
+.doc-folder-name {
+  font-size: 12.5px; font-weight: 600; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-folder-count {
+  font-size: 10.5px; font-weight: 600; color: var(--muted);
+  background: var(--bg); border: 1px solid var(--line);
+  border-radius: 999px; padding: 1px 7px; flex-shrink: 0;
+}
+.doc-folder-body {
+  margin-top: 6px;
+  border-left: 2px solid var(--line);
+  padding-left: 8px;
+}
 
 /* In-page document viewer (overlay + embedded PDF / image). */
 .docviewer-scrim {
@@ -823,6 +857,13 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
 .filedrop-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .filedrop-text strong { font-size: 13px; font-weight: 600; color: var(--ink); }
 .filedrop-hint { font-size: 11.5px; color: var(--faint); }
+.filedrop-folder {
+  align-self: flex-start; margin-top: 4px;
+  background: none; border: 0; padding: 0;
+  font-size: 11.5px; font-weight: 600; color: var(--navy);
+  cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
+}
+.filedrop-folder:hover { color: var(--ink); }
 
 .thread-item {
   border: 1px solid var(--line);

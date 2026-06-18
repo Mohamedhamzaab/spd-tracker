@@ -433,6 +433,10 @@ ALTER TABLE documents DROP CONSTRAINT IF EXISTS documents_parent_type_check;
 ALTER TABLE documents ADD CONSTRAINT documents_parent_type_check
   CHECK (parent_type IN ('communication', 'meeting', 'qdrs'));
 
+-- Folder uploads: the relative directory a file came from (e.g. "Drawings/Civil"),
+-- NULL for a loose file. Lets the UI rebuild a virtual folder tree per record.
+ALTER TABLE documents ADD COLUMN IF NOT EXISTS folder_path TEXT;
+
 -- Rename the old "NOC" purpose to "NOC / Approval" on existing rows so they
 -- match the updated dropdown. Idempotent (the second run matches nothing).
 UPDATE communications SET purpose = 'NOC / Approval' WHERE purpose = 'NOC';
