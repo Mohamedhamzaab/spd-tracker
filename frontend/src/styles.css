@@ -828,12 +828,23 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .docviewer-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+/* Zoom control cluster in the viewer header. */
+.docviewer-zoom {
+  display: flex; align-items: center; gap: 2px;
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 1px; margin-right: 2px;
+}
+.docviewer-zoom .btn { padding: 2px 8px; min-width: 26px; }
+.docviewer-zoom-label { font-variant-numeric: tabular-nums; min-width: 46px; font-weight: 600; }
 .docviewer-body {
-  flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
+  flex: 1; min-height: 0;
+  display: flex; overflow: auto;
   background: var(--grey-bg);
 }
-.docviewer-frame { width: 100%; height: 100%; border: 0; }
-.docviewer-img { max-width: 100%; max-height: 100%; object-fit: contain; }
+/* margin:auto centres the content but, unlike align/justify center, still lets
+   you scroll to the top-left edge once a zoomed file overflows the viewport. */
+.docviewer-frame { width: 100%; height: 100%; border: 0; margin: auto; }
+.docviewer-img { max-width: 100%; max-height: 100%; object-fit: contain; margin: auto; }
 
 /* Drag-and-drop upload zone (also click-to-browse). */
 .filedrop {
@@ -864,6 +875,23 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
   cursor: pointer; text-decoration: underline; text-underline-offset: 2px;
 }
 .filedrop-folder:hover { color: var(--ink); }
+
+/* Upload progress bar (byte-level, shown while documents upload). */
+.upload-prog { margin-bottom: 8px; }
+.upload-prog-track {
+  height: 8px; border-radius: 999px; overflow: hidden;
+  background: var(--grey-bg, var(--line));
+}
+.upload-prog-fill {
+  height: 100%; border-radius: 999px;
+  background: var(--navy, #4f46e5);
+  transition: width 0.18s ease;
+}
+.upload-prog-text {
+  display: flex; justify-content: space-between; gap: 8px;
+  margin-top: 4px; font-size: 11.5px; color: var(--muted);
+}
+.upload-prog-pct { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
 
 .thread-item {
   border: 1px solid var(--line);

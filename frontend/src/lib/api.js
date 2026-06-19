@@ -96,6 +96,42 @@ function docSkipReason(file, relPath) {
   return '';
 }
 
+// Upload one batch via XMLHttpRequest so we get real byte-level progress
+// (fetch can't report upload progress). Resolves with the saved-docs array.
+// `onBytes(loaded)` fires as bytes leave the browser.
+function uploadBatchXHR(parentType, parentId, list, onBytes) {
+  return new Promise((resolve, reject) => {
+    const fd = new FormData();
+    const relPaths = [];
+    for (const { file, relPath } of list) {
+      fd.append('files', file);
+      relPaths.push(relPath || '');
+    }
+    fd.append('rel_paths', JSON.stringify(relPaths));
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `/api/documents/${parentType}/${parentId}`);
+    const token = getToken();
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onBytes) onBytes(e.loaded);
+    };
+    xhr.onload = () => {
+      let data = null;
+      try { data = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch { data = null; }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+      } else {
+        const err = new Error((data && data.error) || 'Upload failed.');
+        err.status = xhr.status;
+        reject(err);
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error during upload.'));
+    xhr.send(fd);
+  });
+}
+
 // Split items into request-sized batches: ≤25 files and ≤95 MB each. A single
 // file larger than the cap still goes out alone (the server will reject it with
 // a clear message rather than us guessing).
@@ -283,8 +319,9 @@ export const api = {
   // Upload an arbitrary number of files/folders by splitting them into
   // request-sized batches (Cloudflare rejects any single request over 100 MB).
   // Junk OS files and disallowed extensions are dropped up front and reported
-  // back so the UI can show a "skipped N files" summary. `onProgress({done,
-  // total})` fires after each batch. Returns { saved, skipped }.
+  // back so the UI can show a "skipped N files" summary. `onProgress` fires
+  // continuously with { done, total, loaded, totalBytes, pct } so the UI can
+  // render a real upload bar. Returns { saved, skipped }.
   uploadDocsBatched: async (parentType, parentId, items, onProgress) => {
     const list = normalizeDocItems(items);
     const skipped = [];
@@ -295,13 +332,30 @@ export const api = {
       else keep.push(it);
     }
     const batches = batchDocs(keep);
+    const totalBytes = keep.reduce((s, it) => s + (it.file.size || 0), 0);
     const saved = [];
-    let done = 0;
+    let doneFiles = 0;
+    let bytesBefore = 0; // bytes fully sent in completed batches
+    const report = (loaded) => {
+      if (!onProgress) return;
+      const sent = Math.min(bytesBefore + loaded, totalBytes);
+      onProgress({
+        done: doneFiles,
+        total: keep.length,
+        loaded: sent,
+        totalBytes,
+        pct: totalBytes ? Math.min(100, Math.round((sent / totalBytes) * 100)) : 100,
+      });
+    };
+    report(0);
     for (const batch of batches) {
-      const res = await api.uploadDocs(parentType, parentId, batch);
+      const batchBytes = batch.reduce((s, it) => s + (it.file.size || 0), 0);
+      const res = await uploadBatchXHR(parentType, parentId, batch,
+        (loaded) => report(Math.min(loaded, batchBytes)));
       if (Array.isArray(res)) saved.push(...res);
-      done += batch.length;
-      if (onProgress) onProgress({ done, total: keep.length });
+      doneFiles += batch.length;
+      bytesBefore += batchBytes;
+      report(0);
     }
     return { saved, skipped };
   },

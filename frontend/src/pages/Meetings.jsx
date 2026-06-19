@@ -7,7 +7,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
-  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop,
+  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
@@ -545,6 +545,7 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
   const [pendingFiles, setPendingFiles] = useState([]);
   const [createdId, setCreatedId] = useState(null);
   const [createdCode, setCreatedCode] = useState(null);
+  const [uploadProg, setUploadProg] = useState(null);
 
   // Dependent dropdown: load this authority's sub-divisions when it changes.
   useEffect(() => {
@@ -645,7 +646,7 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
       if (pendingFiles.length) {
         // A failure here throws to the catch; the meeting still exists, so the
         // user can click again to retry just the upload (no duplicate).
-        await api.uploadDocsBatched('meeting', meetingId, pendingFiles);
+        await api.uploadDocsBatched('meeting', meetingId, pendingFiles, setUploadProg);
       }
       onSaved(meetingCode);
     } catch (e) {
@@ -656,6 +657,7 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
       );
     } finally {
       setBusy(false);
+      setUploadProg(null);
     }
   }
 
@@ -713,6 +715,11 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
               </button>
             </div>
           ))}
+          {uploadProg && (
+            <div style={{ marginTop: 10 }}>
+              <UploadProgress pct={uploadProg.pct} done={uploadProg.done} total={uploadProg.total} />
+            </div>
+          )}
           <div style={{ marginTop: 10 }}>
             <FileDrop
               label="+ Add document"

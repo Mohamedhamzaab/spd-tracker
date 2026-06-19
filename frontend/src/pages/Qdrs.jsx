@@ -9,7 +9,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
-  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop,
+  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import DocumentsPanel from '../components/DocumentsPanel.jsx';
 import { useLive } from '../lib/liveStream.js';
@@ -125,6 +125,7 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
   const [pendingFiles, setPendingFiles] = useState([]);
   const [createdId, setCreatedId] = useState(null);
   const [createdCode, setCreatedCode] = useState(null);
+  const [uploadProg, setUploadProg] = useState(null);
   const onChange = (n, v) => setValues((s) => ({ ...s, [n]: v }));
 
   const subOptions = (subDivisions || []).map((s) => ({
@@ -164,7 +165,7 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
         setCreatedCode(code);
       }
       if (pendingFiles.length) {
-        await api.uploadDocsBatched('qdrs', id, pendingFiles);
+        await api.uploadDocsBatched('qdrs', id, pendingFiles, setUploadProg);
       }
       onSaved(code);
     } catch (e) {
@@ -175,6 +176,7 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
       );
     } finally {
       setBusy(false);
+      setUploadProg(null);
     }
   }
 
@@ -225,6 +227,11 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
               </button>
             </div>
           ))}
+          {uploadProg && (
+            <div style={{ marginTop: 10 }}>
+              <UploadProgress pct={uploadProg.pct} done={uploadProg.done} total={uploadProg.total} />
+            </div>
+          )}
           <div style={{ marginTop: 10 }}>
             <FileDrop
               label="+ Add document"

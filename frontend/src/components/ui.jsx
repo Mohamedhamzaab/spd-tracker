@@ -258,6 +258,24 @@ export function FileDrop({ onFiles, uploading, multiple = true, folders = true, 
   );
 }
 
+/* ---- upload progress bar ------------------------------------------------ */
+// A thin determinate bar for document uploads. `pct` 0–100; `done`/`total`
+// are file counts. Render it while an upload is in flight.
+export function UploadProgress({ pct = 0, done = 0, total = 0, label = 'Uploading' }) {
+  const safe = Math.max(0, Math.min(100, Math.round(pct || 0)));
+  return (
+    <div className="upload-prog" role="progressbar" aria-valuenow={safe} aria-valuemin={0} aria-valuemax={100}>
+      <div className="upload-prog-track">
+        <div className="upload-prog-fill" style={{ width: safe + '%' }} />
+      </div>
+      <div className="upload-prog-text">
+        <span>{label}{total ? ` ${done}/${total} file${total === 1 ? '' : 's'}` : ''}…</span>
+        <span className="upload-prog-pct">{safe}%</span>
+      </div>
+    </div>
+  );
+}
+
 /* ---- loading & empty ---------------------------------------------------- */
 export function Loading({ label = 'Loading' }) {
   return (

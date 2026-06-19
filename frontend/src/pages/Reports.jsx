@@ -52,7 +52,7 @@ export default function Reports() {
     {
       key: 'register-xlsx',
       title: 'Engagement Register — Excel',
-      desc: 'One workbook with a summary cover sheet plus Authorities, Sub-Divisions, Communications, and Meetings tabs. The headline deliverable.',
+      desc: 'One workbook with a summary cover sheet plus Authorities, Sub-Divisions, Communications, Meetings, and QDRS tabs. The headline deliverable.',
       path: '/exports/engagement-register.xlsx',
       filename: 'engagement-register.xlsx',
       primary: true,
@@ -61,7 +61,7 @@ export default function Reports() {
     {
       key: 'register-pdf',
       title: 'Engagement Register — PDF',
-      desc: 'Multi-page landscape PDF with KPI tiles and the same four sections. Easier to email or print.',
+      desc: 'Multi-page landscape PDF with KPI tiles and the same five sections (incl. QDRS). Easier to email or print.',
       path: '/exports/engagement-register.pdf',
       filename: 'engagement-register.pdf',
       primary: true,
@@ -95,6 +95,14 @@ export default function Reports() {
       desc: 'Meeting register with time, attendees, primary sub-division, and MoM status (Pending / Draft / Final).',
       path: '/exports/meetings.xlsx',
       filename: 'meetings.xlsx',
+      dated: true,
+    },
+    {
+      key: 'qdrs-xlsx',
+      title: 'QDRS only — Excel',
+      desc: 'QDRS data-received log per sub-authority, with category, reference, document count, and status (Data received / Pending data).',
+      path: '/exports/qdrs.xlsx',
+      filename: 'qdrs.xlsx',
       dated: true,
     },
   ];

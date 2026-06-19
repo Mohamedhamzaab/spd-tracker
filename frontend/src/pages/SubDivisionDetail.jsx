@@ -8,7 +8,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Section, Modal, FormFields, ConfirmDialog,
-  EngagementPill, StatusPill, DirectionPill, Pill, fmtDate, fileSize, useToast, FileDrop,
+  EngagementPill, StatusPill, DirectionPill, Pill, fmtDate, fileSize, useToast, FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
 import { SubForm } from './SubDivisions.jsx';
@@ -467,6 +467,7 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
   const [pendingFiles, setPendingFiles] = useState([]);
   const [createdId, setCreatedId] = useState(null);
   const [createdCode, setCreatedCode] = useState(null);
+  const [uploadProg, setUploadProg] = useState(null);
   const onChange = (n, v) => setValues((s) => ({ ...s, [n]: v }));
 
   async function save() {
@@ -488,7 +489,7 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
         setCreatedCode(commCode);
       }
       if (pendingFiles.length) {
-        await api.uploadDocsBatched('communication', commId, pendingFiles);
+        await api.uploadDocsBatched('communication', commId, pendingFiles, setUploadProg);
       }
       onSaved(commCode);
     } catch (e) {
@@ -499,6 +500,7 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
       );
     } finally {
       setBusy(false);
+      setUploadProg(null);
     }
   }
 
@@ -549,6 +551,11 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
             </button>
           </div>
         ))}
+        {uploadProg && (
+          <div style={{ marginTop: 10 }}>
+            <UploadProgress pct={uploadProg.pct} done={uploadProg.done} total={uploadProg.total} />
+          </div>
+        )}
         <div style={{ marginTop: 10 }}>
           <FileDrop
             label="+ Add document"

@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
-import { Loading, ErrorBanner, FileDrop, fileSize, useToast } from './ui.jsx';
+import { Loading, ErrorBanner, FileDrop, UploadProgress, fileSize, useToast } from './ui.jsx';
 import DocViewer, { isPreviewable } from './DocViewer.jsx';
 
 // Build a nested { name, path, folders[], files[] } tree from a flat document
@@ -253,11 +253,18 @@ export default function DocumentsPanel({ parentType, parentId, code, canEdit, on
 
       {editable && (
         <div style={{ marginTop: 10 }}>
+          {uploading && (
+            <UploadProgress
+              pct={progress?.pct ?? 0}
+              done={progress?.done ?? 0}
+              total={progress?.total ?? 0}
+            />
+          )}
           <FileDrop
             onFiles={upload}
             uploading={uploading}
             label="+ Upload documents"
-            busyLabel={progress ? `Uploading ${progress.done}/${progress.total}…` : 'Uploading…'}
+            busyLabel={progress ? `Uploading ${progress.done}/${progress.total} (${progress.pct ?? 0}%)…` : 'Uploading…'}
           />
         </div>
       )}

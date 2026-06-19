@@ -108,6 +108,18 @@ async function fetchMeetings(from, to) {
     params
   )).rows;
 }
+// QDRS = data-received log per sub-authority. Optional date window + authority.
+async function fetchQdrs(from, to, authorityId) {
+  const params = [];
+  const where = [];
+  if (authorityId) { params.push(authorityId); where.push(`authority_id = $${params.length}`); }
+  if (from) { params.push(from); where.push(`qdrs_date >= $${params.length}::date`); }
+  if (to) { params.push(to); where.push(`qdrs_date <= $${params.length}::date`); }
+  const sql = 'SELECT * FROM v_qdrs'
+    + (where.length ? ' WHERE ' + where.join(' AND ') : '')
+    + ' ORDER BY qdrs_code';
+  return (await query(sql, params)).rows;
+}
 
 // --- sheet builders ---------------------------------------------------------
 function buildAuthoritiesSheet(book, rows) {
@@ -254,6 +266,39 @@ function buildMeetingsSheet(book, rows) {
   return sheet;
 }
 
+// QDRS records have no portal-style status field, so we derive a received
+// status from whether the data files actually arrived (documents attached).
+function qdrsStatus(r) {
+  return Number(r.document_count) > 0 ? 'Data received' : 'Pending data';
+}
+
+function buildQdrsSheet(book, rows) {
+  const sheet = book.addWorksheet('QDRS', { views: [{ state: 'frozen', ySplit: 1 }] });
+  sheet.columns = [
+    { header: 'Code',              key: 'qdrs_code',         width: 10 },
+    { header: 'Date',              key: 'qdrs_date',         width: 12 },
+    { header: 'Authority Code',    key: 'authority_code',    width: 14 },
+    { header: 'Authority',         key: 'authority_name',    width: 30 },
+    { header: 'Sub-Authority Ref', key: 'sub_reference',     width: 16 },
+    { header: 'Sub-Authority',     key: 'sub_division_name', width: 32 },
+    { header: 'Category',          key: 'category',          width: 20 },
+    { header: 'Reference',         key: 'reference',         width: 24 },
+    { header: 'Status',            key: 'status',            width: 16 },
+    { header: 'Documents',         key: 'document_count',    width: 10 },
+    { header: 'Summary',           key: 'summary',           width: 60 },
+  ];
+  rows.forEach((r) => sheet.addRow({ ...r, status: qdrsStatus(r) }));
+  setHeaderStyle(sheet);
+  // Status: received green, pending amber.
+  sheet.getColumn('status').eachCell({ includeEmpty: false }, (cell, rowIdx) => {
+    if (rowIdx === 1) return;
+    if (cell.value === 'Data received') cell.font = { color: { argb: GREEN } };
+    else if (cell.value === 'Pending data') cell.font = { bold: true, color: { argb: AMBER } };
+  });
+  applyAutoFilter(sheet, 'K', rows.length + 1);
+  return sheet;
+}
+
 function buildCoverSheet(book, { title, subtitle, kpis }) {
   const cover = book.addWorksheet('Summary', { views: [{ showGridLines: false }] });
   cover.columns = [{ width: 4 }, { width: 24 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 18 }, { width: 8 }];
@@ -366,11 +411,31 @@ router.get(
 );
 
 router.get(
+  '/qdrs.xlsx',
+  wrap(async (req, res) => {
+    const { from, to } = dateRange(req);
+    const rows = await fetchQdrs(from, to);
+    const book = new ExcelJS.Workbook();
+    book.creator = 'SPD Tracker';
+    buildQdrsSheet(book, rows);
+    await logAudit({
+      actor_id: req.user.id, event: 'data.export.qdrs',
+      payload: { format: 'xlsx', rows: rows.length, from, to }, req,
+    });
+    setDownloadHeaders(res, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      `${dl('qdrs')}.xlsx`);
+    await book.xlsx.write(res);
+    res.end();
+  })
+);
+
+router.get(
   '/engagement-register.xlsx',
   wrap(async (req, res) => {
     const { from, to } = dateRange(req);
-    const [authorities, subs, comms, meetings] = await Promise.all([
-      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(from, to), fetchMeetings(from, to),
+    const [authorities, subs, comms, meetings, qdrs] = await Promise.all([
+      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(from, to),
+      fetchMeetings(from, to), fetchQdrs(from, to),
     ]);
     const book = new ExcelJS.Workbook();
     book.creator = 'SPD Tracker';
@@ -383,13 +448,14 @@ router.get(
         { label: 'Authorities',     value: authorities.length },
         { label: 'Sub-Divisions',   value: subs.length },
         { label: 'Communications',  value: comms.length },
-        { label: 'Overdue items',   value: comms.filter((c) => c.is_overdue).length },
+        { label: 'QDRS received',   value: qdrs.filter((r) => Number(r.document_count) > 0).length },
       ],
     });
     buildAuthoritiesSheet(book, authorities);
     buildSubDivisionsSheet(book, subs);
     buildCommunicationsSheet(book, comms);
     buildMeetingsSheet(book, meetings);
+    buildQdrsSheet(book, qdrs);
 
     await logAudit({
       actor_id: req.user.id, event: 'data.export.engagement_register',
@@ -397,7 +463,7 @@ router.get(
         format: 'xlsx', from, to,
         rows: {
           authorities: authorities.length, sub_divisions: subs.length,
-          communications: comms.length, meetings: meetings.length,
+          communications: comms.length, meetings: meetings.length, qdrs: qdrs.length,
         },
       }, req,
     });
@@ -431,6 +497,8 @@ router.get(
        ORDER BY m.meeting_date DESC, m.id DESC`, [id]
     )).rows;
 
+    const qdrs = await fetchQdrs(null, null, id);
+
     const book = new ExcelJS.Workbook();
     book.creator = 'SPD Tracker';
     book.title = `${auth.code} — ${auth.name}`;
@@ -440,20 +508,21 @@ router.get(
       subtitle: auth.code + ' · ' + (auth.category || ''),
       kpis: [
         { label: 'Sub-Divisions',  value: subs.length },
-        { label: 'Engaged',        value: auth.sub_divisions_engaged },
         { label: 'Communications', value: comms.length },
-        { label: 'Overdue items',  value: comms.filter((c) => c.is_overdue).length },
+        { label: 'Meetings',       value: meetings.length },
+        { label: 'QDRS records',   value: qdrs.length },
       ],
     });
     buildSubDivisionsSheet(book, subs);
     buildCommunicationsSheet(book, comms);
     if (meetings.length) buildMeetingsSheet(book, meetings);
+    if (qdrs.length) buildQdrsSheet(book, qdrs);
 
     await logAudit({
       actor_id: req.user.id, event: 'data.export.authority',
       target_type: 'authority', target_id: id,
       payload: { format: 'xlsx', authority_code: auth.code,
-        rows: { sub_divisions: subs.length, communications: comms.length, meetings: meetings.length } },
+        rows: { sub_divisions: subs.length, communications: comms.length, meetings: meetings.length, qdrs: qdrs.length } },
       req,
     });
     setDownloadHeaders(res, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -593,8 +662,9 @@ router.get(
   '/engagement-register.pdf',
   wrap(async (req, res) => {
     const { from, to } = dateRange(req);
-    const [authorities, subs, comms, meetings] = await Promise.all([
-      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(from, to), fetchMeetings(from, to),
+    const [authorities, subs, comms, meetings, qdrs] = await Promise.all([
+      fetchAuthorities(), fetchSubDivisions(), fetchCommunications(from, to),
+      fetchMeetings(from, to), fetchQdrs(from, to),
     ]);
 
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
@@ -609,8 +679,8 @@ router.get(
       { label: 'Authorities',    value: authorities.length },
       { label: 'Sub-Divisions',  value: subs.length },
       { label: 'Communications', value: comms.length },
-      { label: 'Overdue',        value: comms.filter((c) => c.is_overdue).length },
       { label: 'Meetings',       value: meetings.length },
+      { label: 'QDRS',           value: qdrs.length },
     ]);
 
     pdfSection(doc, 'Authorities');
@@ -678,12 +748,31 @@ router.get(
       );
     }
 
+    if (qdrs.length) {
+      doc.addPage();
+      pdfHeader(doc, { title: 'QDRS — Data Received', subtitle: 'ECG · Design Consultancy · Contract No. 6' });
+      pdfTable(doc,
+        [
+          { label: 'Code',     get: (r) => r.qdrs_code,          units: 1 },
+          { label: 'Date',     get: (r) => fmtDateSafe(r.qdrs_date), units: 1.5 },
+          { label: 'Auth',     get: (r) => r.authority_code,     units: 1 },
+          { label: 'Sub',      get: (r) => r.sub_reference,      units: 1.5 },
+          { label: 'Category', get: (r) => r.category || '',     units: 2.5 },
+          { label: 'Reference', get: (r) => r.reference || '',   units: 2.5 },
+          { label: 'Status',   get: (r) => qdrsStatus(r),        units: 1.6 },
+          { label: 'Docs',     get: (r) => r.document_count,     units: 0.8 },
+        ],
+        qdrs,
+        { title: 'Engagement Register', subtitle: 'QDRS' }
+      );
+    }
+
     await logAudit({
       actor_id: req.user.id, event: 'data.export.engagement_register',
       payload: {
         format: 'pdf',
         rows: { authorities: authorities.length, sub_divisions: subs.length,
-                communications: comms.length, meetings: meetings.length },
+                communications: comms.length, meetings: meetings.length, qdrs: qdrs.length },
       },
       req,
     });
@@ -715,6 +804,7 @@ router.get(
        WHERE m.authority_id = $1 AND m.deleted_at IS NULL
        ORDER BY m.meeting_date DESC, m.id DESC`, [id]
     )).rows;
+    const qdrs = await fetchQdrs(null, null, id);
 
     const doc = new PDFDocument({ size: 'A4', layout: 'landscape', margin: 40 });
     setDownloadHeaders(res, 'application/pdf', `${dl('authority-' + auth.code)}.pdf`);
@@ -723,10 +813,10 @@ router.get(
     pdfHeader(doc, { title: auth.name, subtitle: auth.code + ' · ' + (auth.category || '') });
     pdfKpiTiles(doc, [
       { label: 'Sub-Divisions',  value: subs.length },
-      { label: 'Engaged',        value: auth.sub_divisions_engaged },
       { label: 'Communications', value: comms.length },
       { label: 'Overdue',        value: comms.filter((c) => c.is_overdue).length },
       { label: 'Meetings',       value: meetings.length },
+      { label: 'QDRS',           value: qdrs.length },
     ]);
 
     pdfSection(doc, 'Sub-Divisions');
@@ -786,11 +876,29 @@ router.get(
       );
     }
 
+    if (qdrs.length) {
+      doc.addPage();
+      pdfHeader(doc, { title: auth.name + ' — QDRS', subtitle: auth.code + ' · Data received' });
+      pdfTable(doc,
+        [
+          { label: 'Code',     get: (r) => r.qdrs_code,          units: 1 },
+          { label: 'Date',     get: (r) => fmtDateSafe(r.qdrs_date), units: 1.5 },
+          { label: 'Sub',      get: (r) => r.sub_reference,      units: 1.5 },
+          { label: 'Category', get: (r) => r.category || '',     units: 2.5 },
+          { label: 'Reference', get: (r) => r.reference || '',   units: 2.5 },
+          { label: 'Status',   get: (r) => qdrsStatus(r),        units: 1.6 },
+          { label: 'Docs',     get: (r) => r.document_count,     units: 0.8 },
+        ],
+        qdrs,
+        { title: auth.name, subtitle: 'QDRS' }
+      );
+    }
+
     await logAudit({
       actor_id: req.user.id, event: 'data.export.authority',
       target_type: 'authority', target_id: id,
       payload: { format: 'pdf', authority_code: auth.code,
-        rows: { sub_divisions: subs.length, communications: comms.length, meetings: meetings.length } },
+        rows: { sub_divisions: subs.length, communications: comms.length, meetings: meetings.length, qdrs: qdrs.length } },
       req,
     });
     doc.end();
