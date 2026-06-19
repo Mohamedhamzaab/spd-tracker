@@ -5,11 +5,16 @@
 //  Office files (.docx/.xlsx/...) can't render in-browser, so the lists only
 //  show "View" for previewable types and keep "Download" for everything.
 // ---------------------------------------------------------------------------
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import { api } from '../lib/api.js';
 import { Loading, ErrorBanner } from './ui.jsx';
 
+// dxf-viewer (+ its own three.js) is heavy, so load it only when a CAD drawing
+// is actually opened — keeps it out of the main app bundle.
+const CadViewer = lazy(() => import('./CadViewer.jsx'));
+
 const IMG_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg'];
+const CAD_EXT = ['dwg', 'dxf'];
 
 function ext(doc) {
   return (doc?.original_name || '').toLowerCase().split('.').pop();
@@ -18,11 +23,15 @@ function isImage(doc) {
   const m = (doc?.mime_type || '').toLowerCase();
   return m.startsWith('image/') || IMG_EXT.includes(ext(doc));
 }
+// CAD drawings render via dxf-viewer (DWG converted to DXF server-side).
+function isCad(doc) {
+  return CAD_EXT.includes(ext(doc));
+}
 // Types the browser can render inline.
 export function isPreviewable(doc) {
   const m = (doc?.mime_type || '').toLowerCase();
   if (m === 'application/pdf' || m.startsWith('image/')) return true;
-  return ['pdf', ...IMG_EXT].includes(ext(doc));
+  return ['pdf', ...IMG_EXT, ...CAD_EXT].includes(ext(doc));
 }
 
 const ZOOM_MIN = 0.5;
@@ -41,13 +50,15 @@ export default function DocViewer({ doc, onClose }) {
   const resetZoom = () => setZoom(1);
 
   // Fetch the file (authenticated) → blob: URL. Revoke on close/unmount.
+  // CAD drawings are handled by CadViewer (its own DXF fetch), so skip here.
   useEffect(() => {
     let cancelled = false;
     let objUrl = null;
-    setLoading(true);
     setError('');
     setUrl(null);
     setZoom(1);
+    if (isCad(doc)) { setLoading(false); return; }
+    setLoading(true);
     api
       .fetchDocBlobUrl(doc.id)
       .then((u) => {
@@ -88,7 +99,7 @@ export default function DocViewer({ doc, onClose }) {
         <div className="docviewer-head">
           <div className="docviewer-name" title={doc.original_name}>{doc.original_name}</div>
           <div className="docviewer-actions">
-            {!loading && !error && (
+            {!loading && !error && !isCad(doc) && (
               <div className="docviewer-zoom" role="group" aria-label="Zoom">
                 <button className="btn btn-sm btn-ghost" onClick={zoomOut} disabled={zoom <= ZOOM_MIN} aria-label="Zoom out">−</button>
                 <button className="btn btn-sm btn-ghost docviewer-zoom-label" onClick={resetZoom} title="Reset zoom">{pct}%</button>
@@ -102,7 +113,11 @@ export default function DocViewer({ doc, onClose }) {
           </div>
         </div>
         <div className="docviewer-body">
-          {loading ? (
+          {isCad(doc) ? (
+            <Suspense fallback={<Loading label="Loading CAD viewer" />}>
+              <CadViewer docId={doc.id} />
+            </Suspense>
+          ) : loading ? (
             <Loading label="Loading document" />
           ) : error ? (
             <div style={{ padding: 20 }}><ErrorBanner message={error} /></div>

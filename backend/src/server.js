@@ -47,6 +47,9 @@ app.use(
           directives: {
             'frame-src': ["'self'", 'blob:'],
             'img-src': ["'self'", 'data:', 'blob:'],
+            // The CAD viewer (dxf-viewer) fetches the converted DXF from an
+            // in-memory blob: URL, so connect-src must allow blob: too.
+            'connect-src': ["'self'", 'blob:'],
           },
         }
       : false,
