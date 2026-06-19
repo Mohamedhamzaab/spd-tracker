@@ -1,9 +1,8 @@
 // ---------------------------------------------------------------------------
-//  CadViewer — renders a CAD drawing in-page with dxf-viewer (MPL-2.0, WebGL).
-//  The backend serves an open DXF for the document (.dxf as-is, .dwg converted
-//  server-side via LibreDWG), which we fetch authenticated → blob URL and hand
-//  to dxf-viewer. Scroll to zoom, drag to pan; layers can be toggled. The
-//  drawing data never leaves our own servers.
+//  CadDxfViewer — renders a native .dxf drawing in-page with dxf-viewer
+//  (MPL-2.0, WebGL): pan, zoom, per-layer show/hide. Used only for .dxf files;
+//  .dwg drawings are rendered to SVG server-side (CadSvgViewer) because this
+//  WASM build can't read DXF and LibreDWG's DXF *output* trips strict parsers.
 // ---------------------------------------------------------------------------
 import { useEffect, useRef, useState } from 'react';
 import { DxfViewer } from 'dxf-viewer';
@@ -13,7 +12,7 @@ import { Loading, ErrorBanner } from './ui.jsx';
 // Self-hosted font so text/dimension labels render (geometry renders without).
 const FONTS = ['/fonts/Roboto-Regular.ttf'];
 
-export default function CadViewer({ docId }) {
+export default function CadDxfViewer({ docId }) {
   const hostRef = useRef(null);
   const viewerRef = useRef(null);
   const [status, setStatus] = useState('loading'); // loading | ready | error
@@ -60,7 +59,7 @@ export default function CadViewer({ docId }) {
   function toggleLayer(name) {
     setHidden((prev) => {
       const next = new Set(prev);
-      const willShow = next.has(name); // currently hidden → show it
+      const willShow = next.has(name);
       if (willShow) next.delete(name); else next.add(name);
       if (viewerRef.current) viewerRef.current.ShowLayer(name, willShow);
       return next;

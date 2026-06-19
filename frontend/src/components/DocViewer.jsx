@@ -9,9 +9,11 @@ import { useEffect, useState, lazy, Suspense } from 'react';
 import { api } from '../lib/api.js';
 import { Loading, ErrorBanner } from './ui.jsx';
 
-// dxf-viewer (+ its own three.js) is heavy, so load it only when a CAD drawing
-// is actually opened — keeps it out of the main app bundle.
-const CadViewer = lazy(() => import('./CadViewer.jsx'));
+// CAD viewers are heavy, so load them only when a drawing is opened — and load
+// only the one that matches: an SVG viewer for .dwg (rendered server-side), and
+// dxf-viewer (+ its own three.js) for native .dxf.
+const CadSvgViewer = lazy(() => import('./CadSvgViewer.jsx'));
+const CadDxfViewer = lazy(() => import('./CadDxfViewer.jsx'));
 
 const IMG_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg'];
 const CAD_EXT = ['dwg', 'dxf'];
@@ -115,7 +117,9 @@ export default function DocViewer({ doc, onClose }) {
         <div className="docviewer-body">
           {isCad(doc) ? (
             <Suspense fallback={<Loading label="Loading CAD viewer" />}>
-              <CadViewer docId={doc.id} />
+              {ext(doc) === 'dwg'
+                ? <CadSvgViewer docId={doc.id} />
+                : <CadDxfViewer docId={doc.id} />}
             </Suspense>
           ) : loading ? (
             <Loading label="Loading document" />

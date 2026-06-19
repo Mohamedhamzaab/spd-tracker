@@ -417,8 +417,7 @@ export const api = {
     return URL.createObjectURL(blob);
   },
 
-  // Fetch a CAD drawing as DXF (a .dwg is converted server-side) and return a
-  // blob: URL for the in-page CAD viewer. Caller must revoke it.
+  // Fetch a native .dxf drawing and return a blob: URL for dxf-viewer.
   fetchDxfBlobUrl: async (id) => {
     const res = await fetch('/api/documents/' + id + '/dxf', {
       headers: { Authorization: `Bearer ${getToken()}` },
@@ -430,5 +429,18 @@ export const api = {
     }
     const blob = await res.blob();
     return URL.createObjectURL(blob);
+  },
+
+  // Fetch a .dwg rendered to SVG (server-side via LibreDWG) as text.
+  fetchCadSvg: async (id) => {
+    const res = await fetch('/api/documents/' + id + '/svg', {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) {
+      let msg = 'Could not render the drawing.';
+      try { const j = await res.json(); msg = j.error || msg; } catch { /* not JSON */ }
+      throw new Error(msg);
+    }
+    return res.text();
   },
 };

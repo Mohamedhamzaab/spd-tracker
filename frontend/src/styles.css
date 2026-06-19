@@ -850,6 +850,10 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
 .cadviewer { position: relative; flex: 1 1 auto; align-self: stretch; width: 100%; min-height: 0; background: #000; }
 .cadviewer-host { position: absolute; inset: 0; }
 .cadviewer-host canvas { display: block; }
+/* SVG (.dwg) host: pan/zoom surface over the model-space-black background. */
+.cadviewer-svg { overflow: hidden; background: #000; cursor: grab; touch-action: none; }
+.cadviewer-svg:active { cursor: grabbing; }
+.cadviewer-svg > svg { will-change: transform; }
 .cadviewer-overlay {
   position: absolute; inset: 0; z-index: 3;
   display: flex; align-items: center; justify-content: center;
