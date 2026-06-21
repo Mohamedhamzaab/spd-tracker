@@ -636,7 +636,11 @@ function pdfTable(doc, columns, rows, opts = {}) {
     doc.font('Helvetica').fontSize(FS).fillColor('#1A1A1A');
     columns.forEach((c, i) => {
       const raw = c.get(r);
-      const s = raw == null ? '' : String(raw);
+      // Collapse newlines / tabs / whitespace runs to a single space so a cell
+      // can never render multi-line. A free-text field with line breaks (e.g. a
+      // pasted summary) otherwise makes pdfkit auto-add pages mid-cell, which
+      // desynced the table's own pagination and left blank pages in the export.
+      const s = raw == null ? '' : String(raw).replace(/\s+/g, ' ').trim();
       doc.text(fit(s, colW(i) - 8), colX(i) + 4, y + 4.5,
         { width: colW(i) - 8, lineBreak: false });
     });
