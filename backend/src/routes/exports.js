@@ -622,6 +622,14 @@ function pdfTable(doc, columns, rows, opts = {}) {
     doc.y = y + cellH;
   }
 
+  // If the preceding section title pushed the cursor near/below the page
+  // bottom, start a fresh page before drawing the header. Otherwise each header
+  // cell's text() call, positioned past the page bottom, spills onto its own
+  // page — producing a run of near-blank pages in the export.
+  if (doc.y + cellH * 2 > bottom) {
+    doc.addPage();
+    pdfHeader(doc, { title: opts.title || 'Report', subtitle: opts.subtitle });
+  }
   drawHeader();
   rows.forEach((r, idx) => {
     if (doc.y + cellH > bottom) {
