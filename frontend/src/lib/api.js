@@ -231,6 +231,7 @@ export const api = {
   updateUser: (id, b) => req('/users/' + id, { method: 'PATCH', body: b }),
   resendInvite: (id) => req('/users/' + id + '/resend-invite', { method: 'POST' }),
   forceResetUser: (id) => req('/users/' + id + '/force-reset', { method: 'POST' }),
+  setTempPassword: (id) => req('/users/' + id + '/set-temp-password', { method: 'POST' }),
   clearUserMfa: (id) => req('/users/' + id + '/clear-mfa', { method: 'POST' }),
   deleteUser: (id) => req('/users/' + id, { method: 'DELETE' }),
 

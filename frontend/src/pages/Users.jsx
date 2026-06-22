@@ -66,6 +66,7 @@ export default function Users() {
   const [showInvite, setShowInvite] = useState(false);
   const [editing, setEditing] = useState(null);
   const [confirming, setConfirming] = useState(null);
+  const [settingPw, setSettingPw] = useState(null);
 
   async function reload() {
     setError('');
@@ -245,6 +246,15 @@ export default function Users() {
                           )}
                           <button
                             className="btn btn-ghost"
+                            onClick={() => setSettingPw(u)}
+                            disabled={isSelf}
+                            title={isSelf ? 'Use Change Password on your own account'
+                              : 'Generate a temporary password to hand over (no email)'}
+                          >
+                            Set password
+                          </button>
+                          <button
+                            className="btn btn-ghost"
                             onClick={() => onForceReset(u.id)}
                             disabled={isSelf}
                             title={isSelf ? 'Use Change Password on your own account' : ''}
@@ -293,7 +303,101 @@ export default function Users() {
           onConfirm={() => onDelete(confirming.id)}
         />
       )}
+      {settingPw && (
+        <SetPasswordModal
+          user={settingPw}
+          onClose={() => setSettingPw(null)}
+          onDone={() => { setSettingPw(null); reload(); }}
+        />
+      )}
     </>
+  );
+}
+
+// Two-phase modal: confirm → generate a temporary password, then reveal it once
+// with a copy button and the security caveats. The password is shown only here;
+// it is never emailed or stored in readable form.
+function SetPasswordModal({ user, onClose, onDone }) {
+  const toast = useToast();
+  const [phase, setPhase] = useState('confirm'); // confirm | done
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [password, setPassword] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  async function generate() {
+    setErr('');
+    setBusy(true);
+    try {
+      const r = await api.setTempPassword(user.id);
+      setPassword(r.temp_password);
+      setPhase('done');
+    } catch (e) {
+      setErr(e.message || 'Could not set a temporary password.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(password);
+      setCopied(true);
+      toast('Password copied.');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setErr('Copy failed — select the password and copy it manually.');
+    }
+  }
+
+  if (phase === 'confirm') {
+    return (
+      <Modal
+        title="Set a temporary password"
+        sub={`${user.name} · ${user.email}`}
+        onClose={onClose}
+        footer={
+          <>
+            <button className="btn" onClick={onClose} disabled={busy}>Cancel</button>
+            <button className="btn btn-primary" onClick={generate} disabled={busy}>
+              {busy ? 'Generating…' : 'Generate password'}
+            </button>
+          </>
+        }
+      >
+        <ErrorBanner message={err} />
+        <div className="stack" style={{ fontSize: 13, lineHeight: 1.55 }}>
+          <p>This generates a one-time password you hand over yourself — no email is sent. Use it for accounts whose organisation blocks our invitation mail.</p>
+          <p>On first sign-in the user must <strong>change this password</strong> and <strong>set up two-factor authentication</strong> before they can see anything. Any pending invite link is invalidated.</p>
+          <p className="cell-sub">Deliver the password by phone or in person — not by email or group chat.</p>
+        </div>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal
+      title="Temporary password ready"
+      sub={`${user.name} · ${user.email}`}
+      onClose={onDone}
+      footer={<button className="btn btn-primary" onClick={onDone}>Done</button>}
+    >
+      <ErrorBanner message={err} />
+      <div className="stack" style={{ fontSize: 13, lineHeight: 1.55 }}>
+        <div className="field">
+          <label className="field-label">Temporary password</label>
+          <div className="temp-pw">
+            <code className="temp-pw-value">{password}</code>
+            <button className="btn btn-sm" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
+          </div>
+        </div>
+        <div className="info-banner">
+          <strong>Shown once.</strong> Copy it now — you won't be able to see it again.
+          Give it to <strong>{user.name}</strong> by phone or in person, and have them sign in to
+          set their own password and two-factor authentication.
+        </div>
+      </div>
+    </Modal>
   );
 }
 

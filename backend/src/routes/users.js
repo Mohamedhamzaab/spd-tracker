@@ -10,14 +10,18 @@
 //                                    is_disabled
 //  POST   /api/users/:id/force-reset bump token_version (kicks user out of
 //                                    every device) and email a reset link
+//  POST   /api/users/:id/set-temp-password  set a generated temporary password
+//                                    and hand it over manually (no email) — for
+//                                    users whose org blocks our invite mail.
 //  POST   /api/users/:id/clear-mfa   wipe TOTP enrollment
 //  DELETE /api/users/:id             delete account (refused if last
 //                                    super_admin or self)
 // ---------------------------------------------------------------------------
 const express = require('express');
+const crypto = require('crypto');
 const { query } = require('../db');
 const { wrap, httpError } = require('../helpers');
-const { requireSuperAdmin } = require('../auth');
+const { requireSuperAdmin, hashPassword } = require('../auth');
 const tokens = require('../tokens');
 const mail = require('../mail');
 const { logAudit } = require('../audit');
@@ -26,6 +30,45 @@ const ROLES = new Set(['super_admin', 'admin', 'reviewer']);
 
 const router = express.Router();
 router.use(requireSuperAdmin);
+
+// Words chosen to be short, distinct and unambiguous over the phone (no
+// homophones, no easily-confused pairs). Used only to build a one-time temp
+// password the admin reads out; the user must change it on first login.
+const TEMP_WORDS = [
+  'anchor', 'amber', 'apple', 'arrow', 'autumn', 'bamboo', 'beacon', 'birch',
+  'bishop', 'bottle', 'bridge', 'bronze', 'canyon', 'cargo', 'cedar', 'cobalt',
+  'comet', 'copper', 'coral', 'cotton', 'crystal', 'desert', 'diamond', 'dolphin',
+  'eagle', 'ember', 'falcon', 'fennel', 'forest', 'galaxy', 'garnet', 'ginger',
+  'granite', 'harbor', 'hazel', 'helmet', 'indigo', 'island', 'ivory', 'jasmine',
+  'jungle', 'kayak', 'kettle', 'lagoon', 'lantern', 'ledger', 'lemon', 'lunar',
+  'magnet', 'mango', 'maple', 'marble', 'meadow', 'meteor', 'mosaic', 'nectar',
+  'nickel', 'oasis', 'olive', 'onyx', 'orbit', 'orchid', 'otter', 'oxygen',
+  'pebble', 'pepper', 'pewter', 'pigeon', 'pilot', 'pine', 'planet', 'pottery',
+  'prairie', 'quartz', 'quiver', 'rabbit', 'raven', 'ribbon', 'river', 'rocket',
+  'saffron', 'sapphire', 'satin', 'shadow', 'silver', 'spruce', 'summit', 'sunset',
+  'tango', 'temple', 'thunder', 'timber', 'topaz', 'tulip', 'tundra', 'velvet',
+  'violet', 'walnut', 'willow', 'window', 'winter', 'zephyr', 'zigzag', 'zodiac',
+];
+
+// Unbiased index into a list of length n (rejection sampling on 32 random bits).
+function randInt(n) {
+  const limit = Math.floor(0xffffffff / n) * n;
+  let x;
+  do { x = crypto.randomBytes(4).readUInt32BE(0); } while (x >= limit);
+  return x % n;
+}
+
+// e.g. "Harbor-Cedar-Lunar-Quartz-58" — four distinct words + a 2-digit number.
+// Easy to dictate, and only a throwaway (must-change + MFA-gated + read-only).
+function makeTempPassword() {
+  const used = new Set();
+  const words = [];
+  while (words.length < 4) {
+    const w = TEMP_WORDS[randInt(TEMP_WORDS.length)];
+    if (!used.has(w)) { used.add(w); words.push(w[0].toUpperCase() + w.slice(1)); }
+  }
+  return `${words.join('-')}-${10 + randInt(90)}`;
+}
 
 function publicUser(u) {
   return {
@@ -272,6 +315,56 @@ router.post(
     });
 
     res.json({ ok: true });
+  })
+);
+
+// Set a generated temporary password and return it ONCE so the admin can hand
+// it over out-of-band (for users whose org blocks our invite email). The
+// account is activated but must change the password and enrol MFA before it can
+// do anything (enforced server-side by requireClearedGates). The password is
+// never emailed and never written to the audit log.
+router.post(
+  '/:id/set-temp-password',
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    if (!id) throw httpError(400, 'Invalid id.');
+    if (id === req.user.id) {
+      throw httpError(400, 'Use Change Password to reset your own account.');
+    }
+    const { rows } = await query('SELECT id, name, email FROM users WHERE id = $1', [id]);
+    const u = rows[0];
+    if (!u) throw httpError(404, 'User not found.');
+
+    const tempPassword = makeTempPassword();
+    const passwordHash = await hashPassword(tempPassword);
+
+    await query(
+      `UPDATE users
+         SET password_hash = $2,
+             password_must_change = TRUE,
+             is_disabled = FALSE,
+             failed_login_count = 0,
+             locked_until = NULL,
+             token_version = token_version + 1
+       WHERE id = $1`,
+      [id, passwordHash]
+    );
+    // Invalidate any outstanding invite / reset links for this account.
+    await query(
+      `UPDATE auth_tokens SET used_at = now() WHERE user_id = $1 AND used_at IS NULL`,
+      [id]
+    );
+
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'user.temp_password_set',
+      target_type: 'user',
+      target_id: id,
+      payload: { email: u.email }, // never log the password itself
+      req,
+    });
+
+    res.json({ ok: true, email: u.email, name: u.name, temp_password: tempPassword });
   })
 );
 

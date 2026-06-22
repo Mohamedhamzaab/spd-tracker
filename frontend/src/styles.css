@@ -767,6 +767,17 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
   background: var(--bg);
   margin-bottom: 8px;
 }
+/* One-time temporary password reveal (Users → Set password). */
+.temp-pw { display: flex; align-items: center; gap: 8px; }
+.temp-pw-value {
+  flex: 1; min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px; font-weight: 600; letter-spacing: 0.4px;
+  color: var(--ink); background: var(--grey-bg, var(--bg));
+  border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 9px 12px; user-select: all; word-break: break-all;
+}
+
 .doc-name { font-size: 12.5px; font-weight: 500; flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .doc-meta { font-size: 11px; color: var(--faint); }
