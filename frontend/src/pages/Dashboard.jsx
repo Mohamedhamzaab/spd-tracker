@@ -77,6 +77,7 @@ export default function Dashboard() {
       attention: ATTENTION_DEFS.map((d) => ({ label: d.label, tone: d.tone, to: d.to, count: att[d.key] || 0 })),
       ladder: (data.ladder || []).map((l) => ({ status: l.status, count: l.count })),
       team: data.team || [],
+      qdrs: data.qdrs || { total: 0, withFiles: 0, awaiting: 0, recent: [] },
       recent: data.recent || [],
       recentMeetings: data.recentMeetings || [],
       meetingsMonthly: data.meetingsMonthly || [],

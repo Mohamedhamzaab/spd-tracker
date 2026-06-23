@@ -291,6 +291,38 @@ function RecentActivity({ comms, meetings }) {
   );
 }
 
+/* ---- QDRS brief: received-data headline + latest entries ---------------- */
+function QdrsBrief({ qdrs }) {
+  const q = qdrs || { total: 0, withFiles: 0, awaiting: 0, recent: [] };
+  const recent = q.recent || [];
+  return (
+    <div className="qdrs-brief">
+      <div className="qdrs-brief-stat">
+        <span className="qdrs-brief-total">{q.total}</span>
+        <span className="qdrs-brief-sub">
+          record{q.total === 1 ? '' : 's'} · {q.withFiles} with data · {q.awaiting} awaiting
+        </span>
+      </div>
+      <div className="recent-group">
+        {recent.length === 0
+          ? <div className="recent-empty">No QDRS records yet.</div>
+          : recent.map((r) => (
+            <BriefRow
+              key={r.id || r.code}
+              to={`/app/qdrs?open=${r.id}`}
+              code={r.code}
+              title={r.subdivision || r.subReference || '—'}
+              meta={[r.authorityCode, fmtDate(r.date), r.category].filter(Boolean).join(' · ')}
+              pills={<Pill tone={r.hasFiles ? 'green' : 'amber'}>
+                {r.hasFiles ? 'Data received' : 'Awaiting files'}
+              </Pill>}
+            />
+          ))}
+      </div>
+    </div>
+  );
+}
+
 /* ---- meetings by mode (monthly stacked bars) ---------------------------- */
 function StackedBars({ data }) {
   const [hi, setHi] = useState(null);
@@ -448,8 +480,8 @@ export default function DashboardView({ model: m }) {
       </div>
 
       <div className="dash-split">
-        <Panel title="Engagement Funnel" sub="Sub-divisions by status" grow>
-          <Funnel rows={m.ladder} />
+        <Panel title="QDRS Brief" sub="Latest data received" grow>
+          <QdrsBrief qdrs={m.qdrs} />
         </Panel>
         <Panel title="Attention Required" sub="Open items">
           <div className="attn-list">{m.attention.map((a) => <AttnRow key={a.label} {...a} />)}</div>

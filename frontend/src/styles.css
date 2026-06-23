@@ -277,6 +277,15 @@ a:hover { text-decoration: underline; }
 .funnel-fill.bar-g { background: var(--green); }
 .funnel-value { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--ink); }
 
+/* QDRS brief (dashboard panel) — received-data headline + recent entries. */
+.qdrs-brief-stat {
+  display: flex; align-items: baseline; gap: 9px;
+  padding-bottom: 12px; margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.qdrs-brief-total { font-size: 26px; font-weight: 700; line-height: 1; color: var(--ink); font-variant-numeric: tabular-nums; }
+.qdrs-brief-sub { font-size: 12px; color: var(--muted); }
+
 /* Recent table --------------------------------------------------------- */
 .dash-table-wrap { overflow-x: auto; }
 .dash-table { width: 100%; border-collapse: collapse; }

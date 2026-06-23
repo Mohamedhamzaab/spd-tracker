@@ -235,6 +235,37 @@ router.get(
       openTasks: u.open_tasks,
     }));
 
+    // QDRS brief — received-data headline + the latest entries (deep-linkable).
+    // "with files" = the received data actually arrived (documents attached).
+    const qdrsSummaryRow = (await query(`
+      SELECT count(*)::int AS total,
+             count(*) FILTER (WHERE document_count > 0)::int AS with_files
+        FROM v_qdrs
+    `)).rows[0] || { total: 0, with_files: 0 };
+    const recentQdrsRows = await query(`
+      SELECT id, qdrs_code, to_char(qdrs_date, 'YYYY-MM-DD') AS qdrs_date,
+             sub_reference, sub_division_name, authority_code, category,
+             document_count
+        FROM v_qdrs
+       ORDER BY qdrs_date DESC, id DESC
+       LIMIT 5
+    `);
+    const qdrs = {
+      total: num(qdrsSummaryRow.total),
+      withFiles: num(qdrsSummaryRow.with_files),
+      awaiting: num(qdrsSummaryRow.total) - num(qdrsSummaryRow.with_files),
+      recent: recentQdrsRows.rows.map((r) => ({
+        id: r.id,
+        code: r.qdrs_code,
+        date: r.qdrs_date,
+        subReference: r.sub_reference,
+        subdivision: r.sub_division_name,
+        authorityCode: r.authority_code,
+        category: r.category || '',
+        hasFiles: num(r.document_count) > 0,
+      })),
+    };
+
     res.json({
       totals: {
         total_authorities: num(t.total_authorities),
@@ -279,6 +310,7 @@ router.get(
       recent,
       recentMeetings,
       team,
+      qdrs,
       ladder,
       byCategory,
       meetingsByPurpose,
