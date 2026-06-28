@@ -574,14 +574,17 @@ SELECT
     COALESCE(s.outbound_count, 0)  AS outbound_count,
     COALESCE(s.inbound_count, 0)   AS inbound_count,
     COALESCE(s.overdue_count, 0)   AS overdue_count,
-    -- "Last activity" spans communications AND meetings (a meeting is activity).
-    GREATEST(s.last_activity, mt.last_meeting) AS last_activity,
+    -- "Last activity" spans communications, meetings AND QDRS data received.
+    GREATEST(s.last_activity, mt.last_meeting, qd.last_qdrs) AS last_activity,
     CASE
-        -- Not contacted only when we've neither communicated NOR met with them.
+        -- Not contacted only when there has been NO communication, NO meeting
+        -- and NO QDRS data received from them.
         WHEN COALESCE(s.outbound_count,0) + COALESCE(s.inbound_count,0) = 0
              AND COALESCE(mt.meeting_count,0) = 0
+             AND COALESCE(qd.qdrs_count,0) = 0
             THEN 'Identified'
-        -- A meeting (or an outbound with no reply yet) counts as Contacted.
+        -- A meeting, QDRS submission, or an outbound with no reply yet, all
+        -- count as at least Contacted.
         WHEN COALESCE(s.inbound_count,0) = 0
             THEN 'Contacted'
         WHEN sd.outcome_secured = TRUE
@@ -609,6 +612,15 @@ LEFT JOIN (
     WHERE deleted_at IS NULL AND primary_sub_id IS NOT NULL
     GROUP BY primary_sub_id
 ) mt ON mt.sub_division_id = sd.id
+-- Receiving QDRS data from a sub-division also means we've engaged with them.
+LEFT JOIN (
+    SELECT sub_division_id,
+           count(*)        AS qdrs_count,
+           max(qdrs_date)  AS last_qdrs
+    FROM qdrs_records
+    WHERE deleted_at IS NULL
+    GROUP BY sub_division_id
+) qd ON qd.sub_division_id = sd.id
 WHERE sd.deleted_at IS NULL;
 
 -- Authority with sub-division counts.
