@@ -574,10 +574,14 @@ SELECT
     COALESCE(s.outbound_count, 0)  AS outbound_count,
     COALESCE(s.inbound_count, 0)   AS inbound_count,
     COALESCE(s.overdue_count, 0)   AS overdue_count,
-    s.last_activity,
+    -- "Last activity" spans communications AND meetings (a meeting is activity).
+    GREATEST(s.last_activity, mt.last_meeting) AS last_activity,
     CASE
+        -- Not contacted only when we've neither communicated NOR met with them.
         WHEN COALESCE(s.outbound_count,0) + COALESCE(s.inbound_count,0) = 0
+             AND COALESCE(mt.meeting_count,0) = 0
             THEN 'Identified'
+        -- A meeting (or an outbound with no reply yet) counts as Contacted.
         WHEN COALESCE(s.inbound_count,0) = 0
             THEN 'Contacted'
         WHEN sd.outcome_secured = TRUE
@@ -596,6 +600,15 @@ LEFT JOIN (
     FROM v_communication vc
     GROUP BY vc.sub_division_id
 ) s ON s.sub_division_id = sd.id
+-- Meetings engage the sub-division they name as primary; that counts as contact.
+LEFT JOIN (
+    SELECT primary_sub_id AS sub_division_id,
+           count(*)         AS meeting_count,
+           max(meeting_date) AS last_meeting
+    FROM meetings
+    WHERE deleted_at IS NULL AND primary_sub_id IS NOT NULL
+    GROUP BY primary_sub_id
+) mt ON mt.sub_division_id = sd.id
 WHERE sd.deleted_at IS NULL;
 
 -- Authority with sub-division counts.
