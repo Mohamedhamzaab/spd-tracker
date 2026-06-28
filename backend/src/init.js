@@ -12,7 +12,8 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
-const { pool } = require('./db');
+const { pool, withTransaction } = require('./db');
+const { renumberMeetings } = require('./renumberComms');
 
 async function applySchema() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
@@ -115,6 +116,14 @@ async function main() {
   }
   await ensureSuperAdmin();
   await repairFilenames();
+  // Re-flow meeting codes so same-day meetings stay chronological by start time
+  // (applies the time-aware ordering to existing data). Idempotent + non-fatal.
+  try {
+    await withTransaction((client) => renumberMeetings(client));
+    console.log('[init] Meeting codes normalised (chronological by date + time).');
+  } catch (err) {
+    console.error('[init] Meeting code normalisation skipped:', err.message);
+  }
   // NOTE: do NOT call pool.end() here. server.js shares the same pool
   // via db.js, and ending it would make every subsequent query fail with
   // "Cannot use a pool after calling end on the pool".

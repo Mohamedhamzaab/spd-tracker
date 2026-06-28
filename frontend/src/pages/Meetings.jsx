@@ -31,7 +31,12 @@ function useDebouncedValue(value, ms) {
 
 const MEETING_COLS = {
   meeting_code:   { value: (r) => r.meeting_code },
-  meeting_date:   { value: (r) => r.meeting_date, type: 'date', defaultDir: 'desc' },
+  // Sort by date AND start time so same-day meetings order chronologically
+  // (earliest first); a missing time counts as 00:00.
+  meeting_date:   {
+    value: (r) => `${String(r.meeting_date || '').slice(0, 10)}T${r.meeting_time ? String(r.meeting_time).slice(0, 8) : '00:00:00'}`,
+    type: 'date', defaultDir: 'desc',
+  },
   authority_name: { value: (r) => r.authority_name || '' },
   primary_sub:    { value: (r) => r.primary_sub_reference || r.primary_sub_name || '' },
   purpose:        { value: (r) => r.purpose || '' },

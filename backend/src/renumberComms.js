@@ -16,14 +16,18 @@
 //  All config values (table/column/prefix/width/date column) are internal
 //  constants, never user input, so the string interpolation here is safe.
 // ---------------------------------------------------------------------------
-async function renumberByDate(client, { table, codeCol, prefix, width, dateCol }) {
+async function renumberByDate(client, { table, codeCol, prefix, width, dateCol, timeCol }) {
   await client.query(`UPDATE ${table} SET ${codeCol} = 'TMP-' || id`);
+  // When the table has a time-of-day column (meetings), same-date rows order
+  // by start time so the codes are fully chronological; a missing time counts
+  // as 00:00 (start of day). dateCol/timeCol are internal constants.
+  const timeOrder = timeCol ? `coalesce(${timeCol}, '00:00:00') ASC, ` : '';
   await client.query(
     `WITH ordered AS (
        SELECT id,
               '${prefix}-' || lpad(
                 (row_number() OVER (
-                  ORDER BY (deleted_at IS NOT NULL), ${dateCol} ASC, id ASC
+                  ORDER BY (deleted_at IS NOT NULL), ${dateCol} ASC, ${timeOrder}id ASC
                 ))::text, ${width}, '0'
               ) AS new_code
          FROM ${table}
@@ -44,7 +48,7 @@ const renumberCommunications = (client) =>
 const renumberMeetings = (client) =>
   renumberByDate(client, {
     table: 'meetings', codeCol: 'meeting_code',
-    prefix: 'M', width: 3, dateCol: 'meeting_date',
+    prefix: 'M', width: 3, dateCol: 'meeting_date', timeCol: 'meeting_time',
   });
 
 const renumberQdrs = (client) =>

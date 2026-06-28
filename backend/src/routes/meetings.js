@@ -66,7 +66,7 @@ router.get(
          JOIN authorities a ON a.id = m.authority_id AND a.deleted_at IS NULL
          LEFT JOIN sub_divisions sd ON sd.id = m.primary_sub_id` +
       ' WHERE ' + where.join(' AND ') +
-      ' ORDER BY m.meeting_date DESC, m.id DESC';
+      " ORDER BY m.meeting_date DESC, coalesce(m.meeting_time, '00:00:00') DESC, m.id DESC";
     const { rows } = await query(sql, params);
     res.json(rows);
   })
