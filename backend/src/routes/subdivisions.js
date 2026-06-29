@@ -12,6 +12,38 @@ const { renumberCommunications } = require('../renumberComms');
 
 const router = express.Router();
 
+// Additional contacts ride along with the sub-division payload as a `contacts`
+// array. Normalise it: trim every field, drop wholly-empty cards. Returns null
+// when the caller did NOT send a contacts array at all, which the writers read
+// as "leave the existing contacts untouched" (so a list-page edit that never
+// loaded them can't wipe them).
+function cleanContacts(raw) {
+  if (!Array.isArray(raw)) return null;
+  return raw
+    .map((c) => ({
+      name: (c.name || '').trim() || null,
+      designation: (c.designation || '').trim() || null,
+      email: (c.email || '').trim() || null,
+      phone: (c.phone || '').trim() || null,
+    }))
+    .filter((c) => c.name || c.designation || c.email || c.phone);
+}
+
+// Replace-all: the parent's edit form owns the whole set, so we clear and
+// re-insert in the caller's transaction. sort_order preserves card order.
+async function replaceContacts(client, subId, contacts) {
+  await client.query('DELETE FROM sub_division_contacts WHERE sub_division_id = $1', [subId]);
+  for (let i = 0; i < contacts.length; i++) {
+    const c = contacts[i];
+    await client.query(
+      `INSERT INTO sub_division_contacts
+         (sub_division_id, name, designation, email, phone, sort_order)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
+      [subId, c.name, c.designation, c.email, c.phone, i]
+    );
+  }
+}
+
 // GET /api/sub-divisions  -  whole register, optionally filtered.
 //   ?authority_id=
 //   ?status=Identified,Contacted,...    (subset, comma-separated)
@@ -101,8 +133,16 @@ router.get(
         ORDER BY q.qdrs_date DESC, q.id DESC`,
       [id]
     );
+    const contacts = await query(
+      `SELECT id, name, designation, email, phone
+         FROM sub_division_contacts
+        WHERE sub_division_id = $1
+        ORDER BY sort_order, id`,
+      [id]
+    );
     res.json({
       ...sub.rows[0],
+      contacts: contacts.rows,
       communications: comms.rows,
       meetings: meetings.rows,
       qdrs: qdrs.rows,
@@ -164,7 +204,10 @@ router.post(
           b.contact_phone || null,
         ]
       );
-      return ins.rows[0].id;
+      const newId = ins.rows[0].id;
+      const contacts = cleanContacts(b.contacts);
+      if (contacts && contacts.length) await replaceContacts(client, newId, contacts);
+      return newId;
     });
 
     const row = await query('SELECT * FROM v_sub_division WHERE id = $1', [created]);
@@ -190,40 +233,46 @@ router.put(
     const exists = await query('SELECT id FROM sub_divisions WHERE id = $1', [id]);
     if (!exists.rows[0]) throw httpError(404, 'Sub-division not found.');
 
-    await query(
-      `UPDATE sub_divisions SET
-         name = COALESCE($2, name),
-         discipline = $3,
-         primary_objective = $4,
-         target_stage = $5,
-         date_identified = $6,
-         primary_contact = $7,
-         designation = $8,
-         contact_email = $9,
-         contact_phone = $14,
-         data_collection_status = COALESCE($10, data_collection_status),
-         consultation_status = COALESCE($11, consultation_status),
-         noc_status = COALESCE($12, noc_status),
-         outcome_secured = COALESCE($13, outcome_secured),
-         updated_at = now()
-       WHERE id = $1`,
-      [
-        id,
-        b.name ? b.name.trim() : null,
-        b.discipline || null,
-        b.primary_objective || null,
-        b.target_stage || null,
-        b.date_identified || null,
-        b.primary_contact || null,
-        b.designation || null,
-        b.contact_email || null,
-        b.data_collection_status || null,
-        b.consultation_status || null,
-        b.noc_status || null,
-        typeof b.outcome_secured === 'boolean' ? b.outcome_secured : null,
-        b.contact_phone || null,
-      ]
-    );
+    const contacts = cleanContacts(b.contacts);
+    await withTransaction(async (client) => {
+      await client.query(
+        `UPDATE sub_divisions SET
+           name = COALESCE($2, name),
+           discipline = $3,
+           primary_objective = $4,
+           target_stage = $5,
+           date_identified = $6,
+           primary_contact = $7,
+           designation = $8,
+           contact_email = $9,
+           contact_phone = $14,
+           data_collection_status = COALESCE($10, data_collection_status),
+           consultation_status = COALESCE($11, consultation_status),
+           noc_status = COALESCE($12, noc_status),
+           outcome_secured = COALESCE($13, outcome_secured),
+           updated_at = now()
+         WHERE id = $1`,
+        [
+          id,
+          b.name ? b.name.trim() : null,
+          b.discipline || null,
+          b.primary_objective || null,
+          b.target_stage || null,
+          b.date_identified || null,
+          b.primary_contact || null,
+          b.designation || null,
+          b.contact_email || null,
+          b.data_collection_status || null,
+          b.consultation_status || null,
+          b.noc_status || null,
+          typeof b.outcome_secured === 'boolean' ? b.outcome_secured : null,
+          b.contact_phone || null,
+        ]
+      );
+      // Only touch contacts when the client actually sent the array; this keeps
+      // a list-page edit (which never loaded them) from clearing the set.
+      if (contacts !== null) await replaceContacts(client, id, contacts);
+    });
     const row = await query('SELECT * FROM v_sub_division WHERE id = $1', [id]);
     await logAudit({
       actor_id: req.user.id,

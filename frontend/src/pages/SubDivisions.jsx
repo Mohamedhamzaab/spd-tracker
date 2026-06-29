@@ -342,6 +342,22 @@ export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
+  // Additional contacts. When editing, `existing` may come from the list page
+  // (no contacts loaded) or the detail page (contacts present). Start at null
+  // when unknown so we can fetch them before allowing an edit — never send an
+  // empty array we didn't actually load, or we'd wipe the stored contacts.
+  const [contacts, setContacts] = useState(
+    editing ? (existing.contacts ?? null) : []
+  );
+  useEffect(() => {
+    if (editing && existing.contacts === undefined) {
+      api
+        .subDivision(existing.id)
+        .then((full) => setContacts(full.contacts || []))
+        .catch(() => setContacts([]));
+    }
+  }, []);
+
   const onChange = (n, v) => setValues((s) => ({ ...s, [n]: v }));
 
   const authOptions = authorities.map((a) => ({
@@ -384,6 +400,8 @@ export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
     try {
       const payload = { ...values, authority_id: Number(values.authority_id) };
       if (!payload.date_identified) payload.date_identified = null;
+      // Only send contacts once they're loaded (null = still fetching on edit).
+      if (contacts !== null) payload.contacts = contacts;
       if (editing) {
         await api.updateSub(existing.id, payload);
         onSaved(existing.sub_reference);
@@ -421,6 +439,103 @@ export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
     >
       <ErrorBanner message={error} />
       <FormFields fields={fields} values={values} onChange={onChange} disabled={busy} />
+      <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
+        <div className="section-title" style={{ marginBottom: 4 }}>Additional contacts</div>
+        <div className="section-note" style={{ marginBottom: 12 }}>
+          The primary contact is above. Add a card here for each extra person
+          whose business card you collected.
+        </div>
+        <ContactsEditor contacts={contacts} setContacts={setContacts} disabled={busy} />
+      </div>
     </Modal>
+  );
+}
+
+// Add/remove an arbitrary number of extra contacts. Each card mirrors the
+// primary's four fields. `contacts === null` means the set is still loading.
+function ContactsEditor({ contacts, setContacts, disabled }) {
+  if (contacts === null) {
+    return <div className="section-note">Loading contacts…</div>;
+  }
+  const update = (i, key, val) =>
+    setContacts((cur) => cur.map((c, j) => (j === i ? { ...c, [key]: val } : c)));
+  const add = () =>
+    setContacts((cur) => [...cur, { name: '', designation: '', email: '', phone: '' }]);
+  const remove = (i) => setContacts((cur) => cur.filter((_, j) => j !== i));
+
+  return (
+    <div>
+      {contacts.length === 0 && (
+        <div className="section-note" style={{ marginBottom: 12 }}>
+          No additional contacts yet.
+        </div>
+      )}
+      {contacts.map((c, i) => (
+        <div className="contact-card" key={i}>
+          <div className="contact-card-head">
+            <span className="section-note">Contact {i + 2}</span>
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              disabled={disabled}
+              onClick={() => remove(i)}
+            >
+              Remove
+            </button>
+          </div>
+          <div className="form-grid">
+            <div className="field">
+              <label className="field-label">Name</label>
+              <input
+                className="input"
+                value={c.name || ''}
+                disabled={disabled}
+                onChange={(e) => update(i, 'name', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label">Designation</label>
+              <input
+                className="input"
+                value={c.designation || ''}
+                disabled={disabled}
+                onChange={(e) => update(i, 'designation', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label">Email</label>
+              <input
+                className="input"
+                type="email"
+                placeholder="name@authority.gov.qa"
+                value={c.email || ''}
+                disabled={disabled}
+                onChange={(e) => update(i, 'email', e.target.value)}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label">Phone</label>
+              <input
+                className="input"
+                type="tel"
+                placeholder="+974 ..."
+                value={c.phone || ''}
+                disabled={disabled}
+                onChange={(e) => update(i, 'phone', e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="btn btn-sm"
+        disabled={disabled}
+        onClick={add}
+        style={{ marginTop: 4 }}
+      >
+        + Add contact
+      </button>
+    </div>
   );
 }

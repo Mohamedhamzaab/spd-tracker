@@ -168,6 +168,22 @@ CREATE TABLE IF NOT EXISTS sub_divisions (
     UNIQUE (authority_id, seq_no)
 );
 
+-- Additional contacts for a sub-division, beyond the primary contact held on
+-- the sub_divisions row itself. One row per extra business card (name, role,
+-- email, phone). Fully owned by the parent: the edit form replaces this set,
+-- and a hard delete of the sub-division cascades these away.
+CREATE TABLE IF NOT EXISTS sub_division_contacts (
+    id              SERIAL PRIMARY KEY,
+    sub_division_id INTEGER NOT NULL REFERENCES sub_divisions(id) ON DELETE CASCADE,
+    name            TEXT,
+    designation     TEXT,
+    email           TEXT,
+    phone           TEXT,
+    sort_order      INTEGER NOT NULL DEFAULT 0,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_sdc_sub ON sub_division_contacts(sub_division_id);
+
 -- ---------------------------------------------------------------------------
 --  COMMUNICATIONS  -  one row per event. comm_code (C-0001) is generated.
 --  An Inbound row may reference the Outbound row it replies to.

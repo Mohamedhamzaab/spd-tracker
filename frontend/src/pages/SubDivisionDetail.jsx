@@ -133,6 +133,34 @@ export default function SubDivisionDetail() {
               />
               <Item label="NOC Status" value={<StatusPill status={data.noc_status} />} />
             </div>
+            {data.contacts && data.contacts.length > 0 && (
+              <div style={{ marginTop: 18, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+                <div className="section-title" style={{ marginBottom: 10 }}>
+                  Additional Contacts
+                </div>
+                <div className="detail-grid">
+                  {data.contacts.map((c) => (
+                    <Item
+                      key={c.id}
+                      label={
+                        (c.name || 'Contact') +
+                        (c.designation ? ' · ' + c.designation : '')
+                      }
+                      value={
+                        <>
+                          {c.email && (
+                            <a href={`mailto:${c.email}`}>{c.email}</a>
+                          )}
+                          {c.email && c.phone && ' · '}
+                          {c.phone && <a href={`tel:${c.phone}`}>{c.phone}</a>}
+                          {!c.email && !c.phone && '-'}
+                        </>
+                      }
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </Section>
         </div>
 

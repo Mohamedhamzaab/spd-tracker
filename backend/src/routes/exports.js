@@ -79,7 +79,25 @@ async function fetchAuthorities() {
   return (await query('SELECT * FROM v_authority ORDER BY code')).rows;
 }
 async function fetchSubDivisions() {
-  return (await query('SELECT * FROM v_sub_division ORDER BY authority_code, seq_no')).rows;
+  return (await query(
+    `SELECT sd.*, c.additional_contacts
+       FROM v_sub_division sd
+       LEFT JOIN (
+         SELECT sub_division_id,
+                string_agg(
+                  trim(
+                    coalesce(name, '')
+                    || CASE WHEN coalesce(designation,'') <> '' THEN ' (' || designation || ')' ELSE '' END
+                    || CASE WHEN coalesce(email,'')       <> '' THEN ' · ' || email ELSE '' END
+                    || CASE WHEN coalesce(phone,'')       <> '' THEN ' · ' || phone ELSE '' END
+                  ),
+                  E'\n' ORDER BY sort_order, id
+                ) AS additional_contacts
+           FROM sub_division_contacts
+          GROUP BY sub_division_id
+       ) c ON c.sub_division_id = sd.id
+      ORDER BY sd.authority_code, sd.seq_no`
+  )).rows;
 }
 async function fetchCommunications(from, to) {
   const params = [];
@@ -160,11 +178,14 @@ function buildSubDivisionsSheet(book, rows) {
     { header: 'Primary Contact', key: 'primary_contact',        width: 22 },
     { header: 'Email',           key: 'contact_email',          width: 26 },
     { header: 'Phone',           key: 'contact_phone',          width: 18 },
+    { header: 'Additional Contacts', key: 'additional_contacts', width: 40 },
   ];
   rows.forEach((r) => sheet.addRow({
     ...r,
     outcome_secured: r.outcome_secured ? 'Yes' : 'No',
   }));
+  // Additional contacts can hold several cards; wrap so each shows on its line.
+  sheet.getColumn('additional_contacts').alignment = { wrapText: true, vertical: 'top' };
   setHeaderStyle(sheet);
   // Tint the overdue column red when > 0.
   const overdueCol = sheet.getColumn('overdue_count');
@@ -174,7 +195,7 @@ function buildSubDivisionsSheet(book, rows) {
       cell.font = { bold: true, color: { argb: RED } };
     }
   });
-  applyAutoFilter(sheet, 'M', rows.length + 1);
+  applyAutoFilter(sheet, 'P', rows.length + 1);
   return sheet;
 }
 
