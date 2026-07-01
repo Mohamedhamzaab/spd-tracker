@@ -218,7 +218,9 @@ export default function Users() {
                       </td>
                       <td>{u.organisation || '—'}</td>
                       <td>
-                        {u.mfa_enrolled ? (
+                        {u.mfa_exempt ? (
+                          <Pill tone="grey">Exempt</Pill>
+                        ) : u.mfa_enrolled ? (
                           <Pill tone="green">Enrolled</Pill>
                         ) : (
                           <Pill tone="amber">Not enrolled</Pill>
@@ -481,6 +483,7 @@ function EditModal({ user, onClose, onSubmit }) {
   const [role, setRole] = useState(user.role);
   const [organisation, setOrganisation] = useState(user.organisation || '');
   const [isDisabled, setIsDisabled] = useState(!!user.is_disabled);
+  const [mfaExempt, setMfaExempt] = useState(!!user.mfa_exempt);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -489,7 +492,7 @@ function EditModal({ user, onClose, onSubmit }) {
     setErr('');
     setBusy(true);
     try {
-      await onSubmit({ name, role, organisation, is_disabled: isDisabled });
+      await onSubmit({ name, role, organisation, is_disabled: isDisabled, mfa_exempt: mfaExempt });
     } catch (e2) {
       setErr(e2.message);
     } finally {
@@ -543,6 +546,21 @@ function EditModal({ user, onClose, onSubmit }) {
             />
             <span>Disabled (cannot sign in)</span>
           </label>
+        </div>
+        <div className="field">
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={mfaExempt}
+              onChange={(e) => setMfaExempt(e.target.checked)}
+            />
+            <span>Exempt from two-factor authentication</span>
+          </label>
+          <div className="field-help">
+            For internal SPD staff only. They sign in with just their username
+            and password — no authenticator app. Leaves the account protected
+            by password, lockout and rate-limiting, but with no second factor.
+          </div>
         </div>
       </form>
     </Modal>

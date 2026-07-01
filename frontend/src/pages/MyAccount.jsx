@@ -81,6 +81,7 @@ export default function MyAccount() {
 
   const remaining = meta.backup_codes_remaining || 0;
   const mfaEnrolled = !!meta.mfa_enrolled;
+  const mfaExempt = !!meta.mfa_exempt;
   const tone = remaining === 0 ? 'red' : remaining <= 2 ? 'amber' : 'green';
 
   return (
@@ -123,7 +124,9 @@ export default function MyAccount() {
             <div className="detail-item">
               <div className="dl">MFA</div>
               <div className="dv">
-                {mfaEnrolled ? (
+                {mfaExempt ? (
+                  <Pill tone="grey">Exempt</Pill>
+                ) : mfaEnrolled ? (
                   <Pill tone="green">Enrolled {meta.mfa_enrolled_at ? `· ${fmtDate(meta.mfa_enrolled_at)}` : ''}</Pill>
                 ) : (
                   <Pill tone="amber">Not enrolled</Pill>
@@ -192,7 +195,13 @@ export default function MyAccount() {
 
         <div className="card card-pad">
           <Section title="Two-factor authentication" />
-          {!mfaEnrolled ? (
+          {mfaExempt ? (
+            <p className="cell-sub">
+              This account is exempt from two-factor authentication — you sign in
+              with your username and password only. Contact a super-admin if this
+              should change.
+            </p>
+          ) : !mfaEnrolled ? (
             <>
               <p className="cell-sub" style={{ marginBottom: 12 }}>
                 MFA is required on every account.

@@ -104,7 +104,7 @@ async function requireAuth(req, res, next) {
 
     const { rows } = await query(
       `SELECT id, name, email, role, organisation, token_version, is_disabled,
-              password_must_change, mfa_enrolled_at
+              password_must_change, mfa_enrolled_at, mfa_exempt
        FROM users WHERE id = $1`,
       [payload.id]
     );
@@ -126,6 +126,7 @@ async function requireAuth(req, res, next) {
       // public user object the routes return.
       password_must_change: !!fresh.password_must_change,
       mfa_enrolled: !!fresh.mfa_enrolled_at,
+      mfa_exempt: !!fresh.mfa_exempt,
     };
     next();
   } catch (err) {
@@ -144,7 +145,7 @@ function requireClearedGates(req, res, next) {
   if (req.user.password_must_change) {
     return next(httpError(403, 'You must change your password before continuing.'));
   }
-  if (!req.user.mfa_enrolled) {
+  if (!req.user.mfa_enrolled && !req.user.mfa_exempt) {
     return next(httpError(403, 'You must finish setting up two-factor authentication before continuing.'));
   }
   next();
@@ -291,10 +292,15 @@ router.post(
       [user.id]
     );
 
+    // An MFA-exempt account (internal SPD staff, approved by a super-admin)
+    // never gets the second-factor step: a correct password yields a full
+    // session straight away, and requireClearedGates lets it through.
+    const mfaActive = !!user.mfa_enrolled_at && !user.mfa_exempt;
+
     // Two-step gate: if the user has finished MFA enrollment, we issue a
     // short-lived challenge token instead of a full session JWT. The full
     // session is minted by /mfa/verify once they prove the TOTP code.
-    if (user.mfa_enrolled_at) {
+    if (mfaActive) {
       // ...unless this browser is a trusted device for this user — then the
       // second factor was already proven here within the trust window, so go
       // straight to a full session.
@@ -320,6 +326,7 @@ router.post(
           },
           password_must_change: !!user.password_must_change,
           mfa_enrolled: true,
+          mfa_exempt: !!user.mfa_exempt,
         });
       }
 
@@ -362,8 +369,10 @@ router.post(
         organisation: user.organisation,
       },
       password_must_change: !!user.password_must_change,
-      mfa_enrolled: false,
-      mfa_enrollment_required: true,
+      mfa_enrolled: !!user.mfa_enrolled_at,
+      mfa_exempt: !!user.mfa_exempt,
+      // Exempt accounts skip enrolment entirely; everyone else must set it up.
+      mfa_enrollment_required: !user.mfa_exempt,
     });
   })
 );
@@ -375,7 +384,7 @@ router.get(
   wrap(async (req, res) => {
     const { rows } = await query(
       `SELECT id, name, email, role, organisation, password_must_change,
-              mfa_enrolled_at, mfa_backup_codes, last_login_at
+              mfa_enrolled_at, mfa_exempt, mfa_backup_codes, last_login_at
        FROM users WHERE id = $1`,
       [req.user.id]
     );
@@ -391,6 +400,7 @@ router.get(
       password_must_change: !!u.password_must_change,
       mfa_enrolled: !!u.mfa_enrolled_at,
       mfa_enrolled_at: u.mfa_enrolled_at,
+      mfa_exempt: !!u.mfa_exempt,
       backup_codes_remaining: mfa.remainingBackupCodes(u.mfa_backup_codes),
       last_login_at: u.last_login_at,
     });

@@ -14,18 +14,22 @@ export function StoreProvider({ children }) {
   const [ready, setReady] = useState(false);
   const [mustChangePassword, setMustChangePassword] = useState(false);
   const [mfaEnrolled, setMfaEnrolled] = useState(false);
+  // Exempt accounts (internal SPD staff) clear the MFA gate without enrolling.
+  const [mfaExempt, setMfaExempt] = useState(false);
   const [backupRemaining, setBackupRemaining] = useState(0);
 
   // Adopt a fresh session payload (user + flags) and load reference lists
   // when the session is fully usable.
-  const adoptSession = useCallback(async ({ token, user: u, password_must_change, mfa_enrolled, backup_codes_remaining }) => {
+  const adoptSession = useCallback(async ({ token, user: u, password_must_change, mfa_enrolled, mfa_exempt, backup_codes_remaining }) => {
     if (token) setToken(token);
     setUser(u);
     setMustChangePassword(!!password_must_change);
     setMfaEnrolled(!!mfa_enrolled);
+    setMfaExempt(!!mfa_exempt);
     setBackupRemaining(backup_codes_remaining || 0);
     // Skip pre-loading reference lists when the session is still in a gate.
-    if (!password_must_change && mfa_enrolled !== false) {
+    // An exempt account has no MFA gate, so treat it as cleared.
+    if (!password_must_change && (mfa_enrolled !== false || mfa_exempt)) {
       try {
         const ls = await api.lists();
         setLists(ls);
@@ -46,9 +50,10 @@ export function StoreProvider({ children }) {
             setUser(me.user);
             setMustChangePassword(!!me.password_must_change);
             setMfaEnrolled(!!me.mfa_enrolled);
+            setMfaExempt(!!me.mfa_exempt);
             setBackupRemaining(me.backup_codes_remaining || 0);
           }
-          if (!me.password_must_change && me.mfa_enrolled) {
+          if (!me.password_must_change && (me.mfa_enrolled || me.mfa_exempt)) {
             const ls = await api.lists();
             if (!cancelled) setLists(ls);
           }
@@ -92,6 +97,7 @@ export function StoreProvider({ children }) {
     setUser(null);
     setMustChangePassword(false);
     setMfaEnrolled(false);
+    setMfaExempt(false);
     setBackupRemaining(0);
     setLists({});
   }, []);
@@ -137,6 +143,7 @@ export function StoreProvider({ children }) {
     signOut,
     mustChangePassword,
     mfaEnrolled,
+    mfaExempt,
     backupRemaining,
     onPasswordChanged,
     onMfaEnrolled,

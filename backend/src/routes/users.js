@@ -80,6 +80,7 @@ function publicUser(u) {
     is_disabled: u.is_disabled,
     has_password: !!u.password_hash,
     mfa_enrolled: !!u.mfa_enrolled_at,
+    mfa_exempt: !!u.mfa_exempt,
     invited_at: u.invited_at,
     last_login_at: u.last_login_at,
     created_at: u.created_at,
@@ -103,7 +104,7 @@ router.get(
   wrap(async (_req, res) => {
     const { rows } = await query(
       `SELECT id, name, email, role, organisation, is_disabled,
-              password_hash, mfa_enrolled_at, invited_at, last_login_at, created_at
+              password_hash, mfa_enrolled_at, mfa_exempt, invited_at, last_login_at, created_at
        FROM users
        ORDER BY role, name`
     );
@@ -131,7 +132,7 @@ router.post(
           password_must_change, invited_by, invited_at)
        VALUES ($1,$2,$3,$4, TRUE, $5, now())
        RETURNING id, name, email, role, organisation, is_disabled,
-                 password_hash, mfa_enrolled_at, invited_at, last_login_at, created_at`,
+                 password_hash, mfa_enrolled_at, mfa_exempt, invited_at, last_login_at, created_at`,
       [name, email, role, organisation, req.user.id]
     );
     const created = rows[0];
@@ -214,6 +215,9 @@ router.patch(
     if (req.body.is_disabled !== undefined) {
       patch.is_disabled = !!req.body.is_disabled;
     }
+    if (req.body.mfa_exempt !== undefined) {
+      patch.mfa_exempt = !!req.body.mfa_exempt;
+    }
 
     // Don't allow super-admins to disable or downgrade themselves out of
     // existence.
@@ -248,7 +252,7 @@ router.patch(
       `UPDATE users SET ${sets.join(', ')}
        WHERE id = $${args.length}
        RETURNING id, name, email, role, organisation, is_disabled,
-                 password_hash, mfa_enrolled_at, invited_at, last_login_at, created_at`,
+                 password_hash, mfa_enrolled_at, mfa_exempt, invited_at, last_login_at, created_at`,
       args
     );
 
@@ -269,6 +273,16 @@ router.patch(
         event: patch.is_disabled ? 'user.disabled' : 'user.enabled',
         target_type: 'user',
         target_id: id,
+        req,
+      });
+    }
+    if (patch.mfa_exempt !== undefined && patch.mfa_exempt !== u.mfa_exempt) {
+      await logAudit({
+        actor_id: req.user.id,
+        event: patch.mfa_exempt ? 'user.mfa_exempt_granted' : 'user.mfa_exempt_revoked',
+        target_type: 'user',
+        target_id: id,
+        payload: { email: u.email },
         req,
       });
     }

@@ -163,18 +163,19 @@ function RequireSuperAdmin({ children }) {
 }
 
 function AppShell() {
-  const { mustChangePassword, mfaEnrolled } = useStore();
+  const { mustChangePassword, mfaEnrolled, mfaExempt } = useStore();
   const location = useLocation();
   const path = location.pathname;
   const [drawerOpen, setDrawerOpen] = useState(false);
   // Two stacked gates, evaluated in order:
   //   1. password reset comes first — admins forcing a reset want the new
   //      password set before MFA is touched.
-  //   2. MFA enrollment is mandatory for every role.
+  //   2. MFA enrollment is mandatory for every role, EXCEPT accounts a
+  //      super-admin has explicitly exempted (internal SPD staff).
   if (mustChangePassword && path !== '/app/change-password') {
     return <Navigate to="/app/change-password" replace />;
   }
-  if (!mfaEnrolled && !mustChangePassword && path !== '/app/mfa-setup') {
+  if (!mfaEnrolled && !mfaExempt && !mustChangePassword && path !== '/app/mfa-setup') {
     return <Navigate to="/app/mfa-setup" replace />;
   }
   return (

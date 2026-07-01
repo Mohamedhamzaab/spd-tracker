@@ -72,6 +72,9 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_disabled          BOOLEAN     NOT 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by           INTEGER;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_at           TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS password_must_change BOOLEAN     NOT NULL DEFAULT FALSE;
+-- Exempt an account from the mandatory TOTP second factor (for internal SPD
+-- staff who sign in with username + password only). Super-admin controlled.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_exempt           BOOLEAN     NOT NULL DEFAULT FALSE;
 
 DO $fk_invited_by$
 BEGIN
