@@ -98,8 +98,21 @@ app.use('/api/lists', lists);
 // Serve the built front end if it has been built.
 const clientDir = path.resolve(__dirname, '../../frontend/dist');
 if (fs.existsSync(clientDir)) {
-  app.use(express.static(clientDir));
+  // Hashed asset files (index-<hash>.js/css) are content-addressed, so they
+  // can be cached forever. The HTML shell must NEVER be cached, or a browser
+  // keeps running an old bundle after a deploy — which previously left an
+  // exempt user stuck on the (stale) MFA-setup gate.
+  app.use(express.static(clientDir, {
+    setHeaders(res, filePath) {
+      if (filePath.endsWith('index.html')) {
+        res.setHeader('Cache-Control', 'no-cache');
+      } else if (/[\\/]assets[\\/]/.test(filePath)) {
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      }
+    },
+  }));
   app.get(/^\/(?!api).*/, (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
     res.sendFile(path.join(clientDir, 'index.html'));
   });
 }

@@ -102,10 +102,20 @@ export function StoreProvider({ children }) {
     setLists({});
   }, []);
 
-  // Called after self-service password change. Adopts the fresh token.
+  // Called after self-service password change. Adopts the fresh token, then
+  // re-reads the account from the server so the MFA gate reflects current
+  // truth (e.g. an exemption granted after this session started) instead of
+  // whatever was captured at login.
   const onPasswordChanged = useCallback(async (newToken) => {
     if (newToken) setToken(newToken);
     setMustChangePassword(false);
+    try {
+      const me = await api.me();
+      setMfaEnrolled(!!me.mfa_enrolled);
+      setMfaExempt(!!me.mfa_exempt);
+    } catch {
+      // ignore — the gate falls back to the login-time flags
+    }
     try {
       const ls = await api.lists();
       setLists(ls);

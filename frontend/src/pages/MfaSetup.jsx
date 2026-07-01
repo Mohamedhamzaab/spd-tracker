@@ -11,7 +11,7 @@ import { useStore } from '../lib/store.jsx';
 import { ErrorBanner, Loading } from '../components/ui.jsx';
 
 export default function MfaSetup() {
-  const { onMfaEnrolled, mfaEnrolled } = useStore();
+  const { onMfaEnrolled, mfaEnrolled, mfaExempt } = useStore();
   const navigate = useNavigate();
 
   const [data, setData] = useState(null);
@@ -21,8 +21,8 @@ export default function MfaSetup() {
   const [acknowledged, setAcknowledged] = useState(false);
 
   useEffect(() => {
-    if (mfaEnrolled) {
-      // No need to enrol again.
+    if (mfaEnrolled || mfaExempt) {
+      // Already enrolled, or exempt from MFA entirely — no setup needed.
       navigate('/app', { replace: true });
       return;
     }
@@ -34,7 +34,7 @@ export default function MfaSetup() {
         setError(err.message || 'Could not start MFA setup.');
       }
     })();
-  }, [mfaEnrolled, navigate]);
+  }, [mfaEnrolled, mfaExempt, navigate]);
 
   async function submit(e) {
     e.preventDefault();
