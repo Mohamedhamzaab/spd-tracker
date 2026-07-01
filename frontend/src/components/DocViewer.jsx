@@ -6,6 +6,7 @@
 //  else keeps its Download button.
 // ---------------------------------------------------------------------------
 import { useEffect, useState, lazy, Suspense } from 'react';
+import { createPortal } from 'react-dom';
 import { api } from '../lib/api.js';
 import { Loading, ErrorBanner } from './ui.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
@@ -115,7 +116,12 @@ export default function DocViewer({ doc, onClose }) {
     : undefined;
   const frameStyle = { width: pct + '%', height: pct + '%', flexShrink: 0 };
 
-  return (
+  // Portal to <body>: the viewer is often opened from inside a modal whose
+  // backdrop uses backdrop-filter, which turns the modal into the containing
+  // block for position:fixed children. That would pin this viewer to the top
+  // of the scrollable modal instead of the viewport (opens off-screen when the
+  // user has scrolled down). Rendering at the body root keeps it truly fixed.
+  return createPortal(
     <div className="docviewer-scrim" onClick={onClose}>
       <div className="docviewer" onClick={(e) => e.stopPropagation()}>
         <div className="docviewer-head">
@@ -176,6 +182,7 @@ export default function DocViewer({ doc, onClose }) {
           </ErrorBoundary>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
