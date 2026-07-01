@@ -408,6 +408,7 @@ function InviteModal({ onClose, onSubmit }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('reviewer');
   const [organisation, setOrganisation] = useState('');
+  const [mfaExempt, setMfaExempt] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -416,7 +417,7 @@ function InviteModal({ onClose, onSubmit }) {
     setErr('');
     setBusy(true);
     try {
-      await onSubmit({ name, email, role, organisation });
+      await onSubmit({ name, email, role, organisation, mfa_exempt: mfaExempt });
     } catch (e2) {
       setErr(e2.message);
     } finally {
@@ -472,6 +473,22 @@ function InviteModal({ onClose, onSubmit }) {
             onChange={(e) => setOrganisation(e.target.value)}
             placeholder="ECG, Egis, Safari Park Doha, …"
           />
+        </div>
+        <div className="field">
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={mfaExempt}
+              onChange={(e) => setMfaExempt(e.target.checked)}
+            />
+            <span>Exempt from two-factor authentication</span>
+          </label>
+          <div className="field-help">
+            For internal SPD staff only. The account signs in with just a
+            username and password from the very first login — no authenticator
+            app. Pair this with “Set password” for accounts whose organisation
+            blocks our invitation email.
+          </div>
         </div>
       </form>
     </Modal>

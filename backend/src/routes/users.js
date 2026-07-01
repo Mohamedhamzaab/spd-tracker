@@ -119,6 +119,9 @@ router.post(
     const email = (req.body.email || '').trim().toLowerCase();
     const role = (req.body.role || '').trim();
     const organisation = (req.body.organisation || '').trim() || null;
+    // Born exempt: internal SPD accounts that should never be asked for a
+    // second factor. Set at creation so the very first sign-in skips MFA.
+    const mfaExempt = req.body.mfa_exempt === true;
     if (!name || !email) throw httpError(400, 'Name and email are required.');
     if (!ROLES.has(role)) throw httpError(400, 'Role must be super_admin, admin, or reviewer.');
 
@@ -129,11 +132,11 @@ router.post(
     const { rows } = await query(
       `INSERT INTO users
          (name, email, role, organisation,
-          password_must_change, invited_by, invited_at)
-       VALUES ($1,$2,$3,$4, TRUE, $5, now())
+          password_must_change, invited_by, invited_at, mfa_exempt)
+       VALUES ($1,$2,$3,$4, TRUE, $5, now(), $6)
        RETURNING id, name, email, role, organisation, is_disabled,
                  password_hash, mfa_enrolled_at, mfa_exempt, invited_at, last_login_at, created_at`,
-      [name, email, role, organisation, req.user.id]
+      [name, email, role, organisation, req.user.id, mfaExempt]
     );
     const created = rows[0];
 
