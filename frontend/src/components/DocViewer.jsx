@@ -8,6 +8,7 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { api } from '../lib/api.js';
 import { Loading, ErrorBanner } from './ui.jsx';
+import ErrorBoundary from './ErrorBoundary.jsx';
 
 // CAD viewers are heavy, so load them only when a drawing is opened — and load
 // only the one that matches: an SVG viewer for .dwg (rendered server-side), and
@@ -134,6 +135,21 @@ export default function DocViewer({ doc, onClose }) {
           </div>
         </div>
         <div className="docviewer-body">
+          <ErrorBoundary
+            resetKey={doc.id}
+            fallback={
+              <div className="docviewer-fallback">
+                <ErrorBanner message="This file couldn’t be previewed in the browser." />
+                <button
+                  className="btn btn-primary"
+                  style={{ marginTop: 12 }}
+                  onClick={() => api.downloadDoc(doc.id, doc.original_name)}
+                >
+                  Download instead
+                </button>
+              </div>
+            }
+          >
           {isCad(doc) ? (
             <Suspense fallback={<Loading label="Loading CAD viewer" />}>
               {ext(doc) === 'dwg'
@@ -157,6 +173,7 @@ export default function DocViewer({ doc, onClose }) {
           ) : (
             <iframe src={url} title={doc.original_name} className="docviewer-frame" style={frameStyle} />
           )}
+          </ErrorBoundary>
         </div>
       </div>
     </div>

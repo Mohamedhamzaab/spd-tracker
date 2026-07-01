@@ -41,12 +41,37 @@ export default function OfficeXlsxViewer({ docId, zoom = 1 }) {
   }, [docId]);
 
   // Render only the active sheet to HTML (SheetJS escapes every cell value).
-  const html = useMemo(() => {
-    if (!wb) return '';
-    const name = wb.SheetNames[active];
-    const ws = name && wb.Sheets[name];
-    if (!ws) return '';
-    return XLSX.utils.sheet_to_html(ws, { id: 'xlsx-sheet' });
+  // Guarded: a malformed sheet must not throw during render (that would crash
+  // the app), and a huge sheet is clipped so it can't freeze the tab.
+  const { html, truncated } = useMemo(() => {
+    if (!wb) return { html: '', truncated: false };
+    try {
+      const name = wb.SheetNames[active];
+      const ws = name && wb.Sheets[name];
+      if (!ws) return { html: '', truncated: false };
+
+      const MAX_ROWS = 2000;
+      const MAX_COLS = 100;
+      let target = ws;
+      let trunc = false;
+      if (ws['!ref']) {
+        const r = XLSX.utils.decode_range(ws['!ref']);
+        if (r.e.r - r.s.r > MAX_ROWS || r.e.c - r.s.c > MAX_COLS) {
+          trunc = true;
+          target = { ...ws };
+          target['!ref'] = XLSX.utils.encode_range({
+            s: { r: r.s.r, c: r.s.c },
+            e: {
+              r: Math.min(r.e.r, r.s.r + MAX_ROWS),
+              c: Math.min(r.e.c, r.s.c + MAX_COLS),
+            },
+          });
+        }
+      }
+      return { html: XLSX.utils.sheet_to_html(target, { id: 'xlsx-sheet' }), truncated: trunc };
+    } catch {
+      return { html: '', truncated: false, failed: true };
+    }
   }, [wb, active]);
 
   if (loading) return <Loading label="Reading spreadsheet" />;
@@ -70,8 +95,15 @@ export default function OfficeXlsxViewer({ docId, zoom = 1 }) {
           ))}
         </div>
       )}
+      {truncated && (
+        <div className="section-note" style={{ padding: '6px 12px' }}>
+          Large sheet — showing the first 2000 rows. Download the file for the full data.
+        </div>
+      )}
       <div className="xlsx-sheet-wrap" style={{ zoom }}>
-        <div dangerouslySetInnerHTML={{ __html: html }} />
+        {html
+          ? <div dangerouslySetInnerHTML={{ __html: html }} />
+          : <div className="section-note" style={{ padding: 16 }}>This sheet couldn’t be displayed.</div>}
       </div>
     </div>
   );
