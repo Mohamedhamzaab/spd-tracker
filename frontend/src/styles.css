@@ -789,6 +789,12 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
   background: var(--bg);
   margin-bottom: 8px;
 }
+/* A clickable document row: the whole chip opens/downloads the file. */
+.doc-chip-open { cursor: pointer; transition: border-color 120ms, background 120ms; }
+.doc-chip-open:hover { border-color: var(--navy); background: var(--surface); }
+.doc-chip-open:focus-visible { outline: 2px solid var(--navy); outline-offset: 1px; }
+.doc-chip-open .doc-name { text-decoration: underline; text-decoration-color: transparent; }
+.doc-chip-open:hover .doc-name { text-decoration-color: currentColor; }
 /* One-time temporary password reveal (Users → Set password). */
 .temp-pw { display: flex; align-items: center; gap: 8px; }
 .temp-pw-value {

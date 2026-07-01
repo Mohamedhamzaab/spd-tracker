@@ -48,8 +48,23 @@ function sortedFiles(node) {
 }
 
 function FileRow({ doc, canEdit, onView, onDownload, onRemove }) {
+  const previewable = isPreviewable(doc);
+  // The whole row is the primary target: click to preview when we can render
+  // the type, otherwise download it. The buttons stop propagation so they keep
+  // their own action instead of double-firing the row handler.
+  const open = () => (previewable ? onView(doc) : onDownload(doc));
+  const stop = (fn) => (e) => { e.stopPropagation(); fn(); };
   return (
-    <div className="doc-chip">
+    <div
+      className="doc-chip doc-chip-open"
+      role="button"
+      tabIndex={0}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      }}
+      title={previewable ? 'Click to preview' : 'Click to download'}
+    >
       <span className="doc-file-icon" aria-hidden="true">📄</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="doc-name">{doc.original_name}</div>
@@ -58,12 +73,12 @@ function FileRow({ doc, canEdit, onView, onDownload, onRemove }) {
           {doc.uploaded_by ? ' · ' + doc.uploaded_by : ''}
         </div>
       </div>
-      {isPreviewable(doc) && (
-        <button className="btn btn-sm" onClick={() => onView(doc)}>View</button>
+      {previewable && (
+        <button className="btn btn-sm" onClick={stop(() => onView(doc))}>View</button>
       )}
-      <button className="btn btn-sm" onClick={() => onDownload(doc)}>Download</button>
+      <button className="btn btn-sm" onClick={stop(() => onDownload(doc))}>Download</button>
       {canEdit && (
-        <button className="btn btn-sm btn-ghost" onClick={() => onRemove(doc)}>Remove</button>
+        <button className="btn btn-sm btn-ghost" onClick={stop(() => onRemove(doc))}>Remove</button>
       )}
     </div>
   );
