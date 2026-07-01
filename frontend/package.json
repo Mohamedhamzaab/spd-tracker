@@ -12,6 +12,7 @@
   "dependencies": {
     "@react-three/drei": "^9.114.0",
     "@react-three/fiber": "^8.17.10",
+    "docx-preview": "^0.3.7",
     "dxf-viewer": "^1.0.48",
     "framer-motion": "^11.11.9",
     "i18next": "^26.3.0",
@@ -19,7 +20,8 @@
     "react-dom": "^18.3.1",
     "react-i18next": "^17.0.8",
     "react-router-dom": "^6.26.2",
-    "three": "^0.169.0"
+    "three": "^0.169.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.1",

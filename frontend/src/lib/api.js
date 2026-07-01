@@ -418,6 +418,16 @@ export const api = {
     return URL.createObjectURL(blob);
   },
 
+  // Fetch a document (authenticated) as an ArrayBuffer, for client-side
+  // parsers that need the raw bytes (Word via docx-preview, Excel via SheetJS).
+  fetchDocArrayBuffer: async (id) => {
+    const res = await fetch('/api/documents/' + id + '/download', {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    if (!res.ok) throw new Error('Could not load the document.');
+    return res.arrayBuffer();
+  },
+
   // Fetch a native .dxf drawing and return a blob: URL for dxf-viewer.
   fetchDxfBlobUrl: async (id) => {
     const res = await fetch('/api/documents/' + id + '/dxf', {

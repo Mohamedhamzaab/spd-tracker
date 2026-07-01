@@ -2,8 +2,8 @@
 //  DocViewer — in-page overlay that previews a document without leaving the
 //  page. The file is fetched authenticated and rendered from an in-memory
 //  blob: URL (PDF in an iframe, images in <img>). Read-only: it never writes.
-//  Office files (.docx/.xlsx/...) can't render in-browser, so the lists only
-//  show "View" for previewable types and keep "Download" for everything.
+//  Word (.docx) and Excel (.xlsx/.csv) render client-side too — everything
+//  else keeps its Download button.
 // ---------------------------------------------------------------------------
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { api } from '../lib/api.js';
@@ -14,9 +14,18 @@ import { Loading, ErrorBanner } from './ui.jsx';
 // dxf-viewer (+ its own three.js) for native .dxf.
 const CadSvgViewer = lazy(() => import('./CadSvgViewer.jsx'));
 const CadDxfViewer = lazy(() => import('./CadDxfViewer.jsx'));
+// Office viewers (docx-preview / SheetJS) are pulled in only when a Word or
+// Excel file is opened — each renders fully in the browser from the raw bytes.
+const OfficeDocxViewer = lazy(() => import('./OfficeDocxViewer.jsx'));
+const OfficeXlsxViewer = lazy(() => import('./OfficeXlsxViewer.jsx'));
 
 const IMG_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tif', 'tiff', 'svg'];
 const CAD_EXT = ['dwg', 'dxf'];
+// Modern XML office formats only — the client-side libraries can't read the
+// legacy binary .doc (those keep their Download button). SheetJS does read
+// legacy .xls, so it stays in the Excel set.
+const DOCX_EXT = ['docx'];
+const XLSX_EXT = ['xlsx', 'xlsm', 'xls', 'csv'];
 
 function ext(doc) {
   return (doc?.original_name || '').toLowerCase().split('.').pop();
@@ -29,11 +38,21 @@ function isImage(doc) {
 function isCad(doc) {
   return CAD_EXT.includes(ext(doc));
 }
+function isDocx(doc) {
+  return DOCX_EXT.includes(ext(doc));
+}
+function isXlsx(doc) {
+  return XLSX_EXT.includes(ext(doc));
+}
+// Office files render their own bytes client-side, so they skip the blob fetch.
+function isOffice(doc) {
+  return isDocx(doc) || isXlsx(doc);
+}
 // Types the browser can render inline.
 export function isPreviewable(doc) {
   const m = (doc?.mime_type || '').toLowerCase();
   if (m === 'application/pdf' || m.startsWith('image/')) return true;
-  return ['pdf', ...IMG_EXT, ...CAD_EXT].includes(ext(doc));
+  return ['pdf', ...IMG_EXT, ...CAD_EXT, ...DOCX_EXT, ...XLSX_EXT].includes(ext(doc));
 }
 
 const ZOOM_MIN = 0.5;
@@ -59,7 +78,7 @@ export default function DocViewer({ doc, onClose }) {
     setError('');
     setUrl(null);
     setZoom(1);
-    if (isCad(doc)) { setLoading(false); return; }
+    if (isCad(doc) || isOffice(doc)) { setLoading(false); return; }
     setLoading(true);
     api
       .fetchDocBlobUrl(doc.id)
@@ -120,6 +139,14 @@ export default function DocViewer({ doc, onClose }) {
               {ext(doc) === 'dwg'
                 ? <CadSvgViewer docId={doc.id} />
                 : <CadDxfViewer docId={doc.id} />}
+            </Suspense>
+          ) : isDocx(doc) ? (
+            <Suspense fallback={<Loading label="Loading Word viewer" />}>
+              <OfficeDocxViewer docId={doc.id} zoom={zoom} />
+            </Suspense>
+          ) : isXlsx(doc) ? (
+            <Suspense fallback={<Loading label="Loading Excel viewer" />}>
+              <OfficeXlsxViewer docId={doc.id} zoom={zoom} />
             </Suspense>
           ) : loading ? (
             <Loading label="Loading document" />

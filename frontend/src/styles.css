@@ -881,6 +881,29 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
 
 /* In-page CAD (DWG/DXF) viewer — WebGL canvas fills the body; tools overlay. */
 .cadviewer { position: relative; flex: 1 1 auto; align-self: stretch; width: 100%; min-height: 0; background: #000; }
+
+/* In-page Office viewers — Word (docx-preview) and Excel (SheetJS). */
+.office-doc { flex: 1 1 auto; align-self: stretch; width: 100%; min-height: 0; }
+.office-docx { overflow: auto; background: var(--grey-bg); }
+/* docx-preview draws its own paginated white pages; give them breathing room. */
+.office-docx .docx-wrapper { padding: 20px 0; }
+.office-xlsx { display: flex; flex-direction: column; overflow: hidden; background: var(--surface); }
+.xlsx-tabs {
+  display: flex; gap: 4px; padding: 8px 10px; flex-shrink: 0;
+  border-bottom: 1px solid var(--line); overflow-x: auto; background: var(--surface);
+}
+.xlsx-tab {
+  padding: 4px 12px; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--ink); font-size: 12px;
+  white-space: nowrap; cursor: pointer;
+}
+.xlsx-tab-on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.xlsx-sheet-wrap { flex: 1 1 auto; overflow: auto; padding: 14px; }
+.xlsx-sheet-wrap table { border-collapse: collapse; font-size: 13px; background: #fff; }
+.xlsx-sheet-wrap td, .xlsx-sheet-wrap th {
+  border: 1px solid var(--line); padding: 4px 9px; white-space: nowrap;
+  max-width: 420px; overflow: hidden; text-overflow: ellipsis;
+}
 .cadviewer-host { position: absolute; inset: 0; }
 .cadviewer-host canvas { display: block; }
 /* SVG (.dwg) host: pan/zoom surface over the model-space-black background. */
