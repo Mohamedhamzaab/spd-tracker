@@ -687,17 +687,17 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
       <FormFields fields={fields} values={values} onChange={onChange} disabled={busy} />
       {editing ? (
         <>
-          <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+          <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
             <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
             <MeetingDocs meetingId={existing.id} />
           </div>
-          <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+          <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
             <div className="section-title" style={{ marginBottom: 10 }}>Tasks</div>
             <TasksPanel parentType="meeting" parentId={existing.id} />
           </div>
         </>
       ) : (
-        <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+        <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
           <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
           {pendingFiles.length === 0 && (
             <div className="section-note" style={{ marginBottom: 10 }}>

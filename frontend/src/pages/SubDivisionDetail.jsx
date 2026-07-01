@@ -556,7 +556,7 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
         onChange={onChange}
         disabled={busy}
       />
-      <div style={{ marginTop: 22, borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+      <div style={{ marginTop: 22, borderTop: '1px solid var(--line)', paddingTop: 18 }}>
         <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
         {pendingFiles.length === 0 && (
           <div className="section-note" style={{ marginBottom: 10 }}>
