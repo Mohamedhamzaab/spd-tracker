@@ -505,6 +505,139 @@ CREATE INDEX IF NOT EXISTS idx_comm_trash     ON communications (deleted_at) WHE
 CREATE INDEX IF NOT EXISTS idx_meeting_trash  ON meetings       (deleted_at) WHERE deleted_at IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_doc_trash      ON documents      (deleted_at) WHERE deleted_at IS NOT NULL;
 
+-- ---------------------------------------------------------------------------
+--  STAKEHOLDER ENGAGEMENT  -  the matrix, the assessment and the action
+--  register that replace the hand-maintained "Stakeholder Engagement Matrix"
+--  workbook. Three ideas hold it together:
+--
+--   1. Ratings live on the SUB-DIVISION, never the authority. KAHRAMAA has no
+--      rating of its own; Water and Electricity are rated separately and do
+--      differ. An authority with one sub-division simply shows that one.
+--   2. An action's STATUS IS NOT STORED. It is derived from the progress
+--      rows: none = Pending, some = Open/Ongoing, a closure row = Closed.
+--      Nobody can claim progress without registering the evidence for it.
+--   3. Every source points at a REGISTERED record (meeting / communication /
+--      QDRS). 'external' is allowed but must carry a reference, and the UI
+--      flags it, so an unevidenced claim is visible rather than silent.
+-- ---------------------------------------------------------------------------
+
+-- Stakeholder ratings, held on the engaging unit. Plain TEXT validated against
+-- the reference lists in routes/lists.js, matching how discipline / noc_status
+-- already work.
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS influence              TEXT; -- 'H' | 'L'
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS involvement            TEXT; -- 'H' | 'L'
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS engagement_current     TEXT; -- Unaware..Leading
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS engagement_desired     TEXT; -- Unaware..Leading
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS communication_priority TEXT; -- 'A'..'D'
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS gap_remarks            TEXT;
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS gap_action_by          TEXT;
+
+-- The "Action By" vocabulary. A managed list so ECG / SPD / EGIS stay one
+-- spelling each; optionally tied to an authority so PWA means one thing.
+CREATE TABLE IF NOT EXISTS engagement_orgs (
+    id           SERIAL PRIMARY KEY,
+    name         TEXT    NOT NULL UNIQUE,
+    authority_id INTEGER REFERENCES authorities(id) ON DELETE SET NULL,
+    is_internal  BOOLEAN NOT NULL DEFAULT FALSE,
+    sort_order   INTEGER NOT NULL DEFAULT 0,
+    is_active    BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- One row per action. No status column by design (see note 2 above), and no
+-- stored code — the hierarchical number is computed in v_engagement_action so
+-- it can never drift out of step with the register.
+CREATE TABLE IF NOT EXISTS engagement_actions (
+    id                      SERIAL PRIMARY KEY,
+    sub_division_id         INTEGER NOT NULL REFERENCES sub_divisions(id) ON DELETE CASCADE,
+    description             TEXT    NOT NULL,
+    source_type             TEXT    NOT NULL CHECK (source_type IN
+                              ('meeting', 'communication', 'qdrs', 'external')),
+    source_id               INTEGER,
+    source_ref_external     TEXT,
+    recorded_date           DATE    NOT NULL,
+    due_milestone           TEXT,
+    due_date                DATE,
+    -- Deliberate exits from the register. Each is refused without its reason.
+    resolution              TEXT    CHECK (resolution IN ('cancelled', 'superseded')),
+    cancel_reason           TEXT,
+    superseded_by_id        INTEGER REFERENCES engagement_actions(id) ON DELETE SET NULL,
+    superseded_ref_external TEXT,
+    created_by              INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    deleted_at              TIMESTAMPTZ,
+    deleted_by              INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    deletion_group_id       UUID,
+    -- A system source needs the record; an external one needs its reference.
+    CONSTRAINT engagement_actions_source_check CHECK (
+        (source_type = 'external'
+           AND source_ref_external IS NOT NULL AND btrim(source_ref_external) <> '')
+     OR (source_type <> 'external' AND source_id IS NOT NULL)
+    ),
+    -- Cancelled states why; superseded names what replaced it. (Named for the
+    -- reason, not the column: Postgres auto-names the column-level CHECK above
+    -- "engagement_actions_resolution_check", which would collide.)
+    CONSTRAINT engagement_actions_resolution_reason_check CHECK (
+        resolution IS NULL
+     OR (resolution = 'cancelled'
+           AND cancel_reason IS NOT NULL AND btrim(cancel_reason) <> '')
+     OR (resolution = 'superseded'
+           AND (superseded_by_id IS NOT NULL
+             OR (superseded_ref_external IS NOT NULL
+                   AND btrim(superseded_ref_external) <> '')))
+    )
+);
+CREATE INDEX IF NOT EXISTS idx_eng_action_sub  ON engagement_actions(sub_division_id)
+    WHERE deleted_at IS NULL;
+CREATE INDEX IF NOT EXISTS idx_eng_action_live ON engagement_actions(id)
+    WHERE deleted_at IS NULL;
+
+-- Who owns an action. Many-to-many so "ECG / WA / Zoo Solutions" is three
+-- tags rather than one unsearchable string.
+CREATE TABLE IF NOT EXISTS engagement_action_orgs (
+    action_id  INTEGER NOT NULL REFERENCES engagement_actions(id) ON DELETE CASCADE,
+    org_id     INTEGER NOT NULL REFERENCES engagement_orgs(id)    ON DELETE CASCADE,
+    PRIMARY KEY (action_id, org_id)
+);
+
+-- An action raised under one stakeholder but relevant to others.
+CREATE TABLE IF NOT EXISTS engagement_action_links (
+    action_id       INTEGER NOT NULL REFERENCES engagement_actions(id) ON DELETE CASCADE,
+    sub_division_id INTEGER NOT NULL REFERENCES sub_divisions(id)      ON DELETE CASCADE,
+    PRIMARY KEY (action_id, sub_division_id)
+);
+
+-- The timeline. Progress, closure, cancellation and supersession are all
+-- entries here, so one action's whole history reads in a single sequence.
+CREATE TABLE IF NOT EXISTS engagement_action_progress (
+    id                  SERIAL PRIMARY KEY,
+    action_id           INTEGER NOT NULL REFERENCES engagement_actions(id) ON DELETE CASCADE,
+    kind                TEXT    NOT NULL DEFAULT 'progress' CHECK (kind IN
+                          ('progress', 'closure', 'cancellation', 'supersession')),
+    entry_date          DATE    NOT NULL,
+    note                TEXT    NOT NULL,
+    source_type         TEXT    CHECK (source_type IN
+                          ('meeting', 'communication', 'qdrs', 'external')),
+    source_id           INTEGER,
+    source_ref_external TEXT,
+    created_by          INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Same evidence rule as the action itself, applied per entry.
+    CONSTRAINT engagement_progress_source_check CHECK (
+        source_type IS NULL
+     OR (source_type = 'external'
+           AND source_ref_external IS NOT NULL AND btrim(source_ref_external) <> '')
+     OR (source_type <> 'external' AND source_id IS NOT NULL)
+    ),
+    -- Closure must cite a source. Progress may be a plain note.
+    CONSTRAINT engagement_progress_closure_check CHECK (
+        kind <> 'closure' OR source_type IS NOT NULL
+    )
+);
+CREATE INDEX IF NOT EXISTS idx_eng_progress_action
+    ON engagement_action_progress(action_id, entry_date DESC, id DESC);
+
 -- ===========================================================================
 --  VIEWS  -  all derived values. The application reads these, never the
 --  base tables directly, so the engagement rules live in one place.
@@ -660,3 +793,139 @@ LEFT JOIN (
     GROUP BY authority_id
 ) x ON x.authority_id = a.id
 WHERE a.deleted_at IS NULL;
+
+-- ---------------------------------------------------------------------------
+--  Stakeholder matrix: the power/interest classification and the engagement
+--  ladder, reproducing the workbook's own formulas so the export matches it
+--  cell for cell. Ratings are read from the sub-division; the authority row
+--  in the register is only a grouping header.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_engagement_matrix AS
+WITH ladder(step, name) AS (
+    VALUES (1,'Unaware'), (2,'Resistant'), (3,'Neutral'), (4,'Supportive'), (5,'Leading')
+)
+SELECT
+    sd.id                 AS sub_division_id,
+    sd.authority_id,
+    sd.sub_reference,
+    sd.name               AS sub_division_name,
+    sd.seq_no,
+    a.code                AS authority_code,
+    a.name                AS authority_name,
+    sd.influence,
+    sd.involvement,
+    sd.engagement_current,
+    sd.engagement_desired,
+    sd.communication_priority,
+    sd.gap_remarks,
+    sd.gap_action_by,
+    sd.noc_status,
+    -- Power x Interest quadrant, exactly as the workbook computes it.
+    CASE
+        WHEN sd.influence = 'H' AND sd.involvement = 'H' THEN 'Manage Closely'
+        WHEN sd.influence = 'H' AND sd.involvement = 'L' THEN 'Keep Satisfied'
+        WHEN sd.influence = 'L' AND sd.involvement = 'H' THEN 'Keep Informed'
+        WHEN sd.influence = 'L' AND sd.involvement = 'L' THEN 'Monitor'
+        ELSE NULL
+    END AS action_priority,
+    (sd.influence = 'H' AND sd.involvement = 'H') AS is_critical,
+    -- Gap between where the stakeholder is and where we need them to be.
+    CASE
+        WHEN sd.engagement_current IS NULL OR sd.engagement_desired IS NULL THEN NULL
+        WHEN sd.engagement_current = sd.engagement_desired THEN '✓ Aligned'
+        ELSE 'Gap: ' || sd.engagement_current || ' → ' || sd.engagement_desired
+    END AS gap_status,
+    cur.step  AS current_step,
+    des.step  AS desired_step,
+    -- Positive when the stakeholder sits below where they need to be.
+    CASE WHEN cur.step IS NULL OR des.step IS NULL THEN NULL
+         ELSE des.step - cur.step END AS gap_size
+FROM sub_divisions sd
+JOIN authorities a ON a.id = sd.authority_id AND a.deleted_at IS NULL
+LEFT JOIN ladder cur ON cur.name = sd.engagement_current
+LEFT JOIN ladder des ON des.name = sd.engagement_desired
+WHERE sd.deleted_at IS NULL;
+
+-- ---------------------------------------------------------------------------
+--  The action register. Two derivations carry the whole feature:
+--
+--  action_code  the workbook's hierarchical number, computed rather than
+--               stored. An authority holding several sub-divisions numbers
+--               4 -> 4.1 -> 4.1.1; one holding a single sub-division collapses
+--               to 5 -> 5.1, which is exactly what the workbook does.
+--  status       Pending until someone registers progress, Open/Ongoing once
+--               they have, Closed on a closure entry — with Cancelled and
+--               Superseded as the two deliberate exits.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_engagement_action AS
+WITH auth_no AS (
+    SELECT id, row_number() OVER (ORDER BY name, id) AS n
+    FROM authorities WHERE deleted_at IS NULL
+),
+sub_tally AS (
+    SELECT authority_id, count(*) AS n
+    FROM sub_divisions WHERE deleted_at IS NULL
+    GROUP BY authority_id
+),
+seq AS (
+    SELECT id,
+           row_number() OVER (PARTITION BY sub_division_id
+                              ORDER BY recorded_date, id) AS n
+    FROM engagement_actions WHERE deleted_at IS NULL
+),
+tally AS (
+    SELECT action_id,
+           count(*) FILTER (WHERE kind = 'progress') AS progress_count,
+           count(*) FILTER (WHERE kind = 'closure')  AS closure_count,
+           max(entry_date)                            AS last_entry_date,
+           count(*) FILTER (WHERE source_type = 'external') AS external_count,
+           count(*)                                   AS entry_count
+    FROM engagement_action_progress
+    GROUP BY action_id
+)
+SELECT
+    ea.*,
+    sd.sub_reference,
+    sd.name        AS sub_division_name,
+    sd.authority_id,
+    a.code         AS authority_code,
+    a.name         AS authority_name,
+    m.action_priority,
+    m.is_critical,
+    m.gap_status,
+    -- Hierarchical number, collapsing the middle level for single-department
+    -- authorities so the export mirrors the workbook.
+    CASE WHEN COALESCE(st.n, 0) > 1
+         THEN an.n || '.' || sd.seq_no || '.' || sq.n
+         ELSE an.n || '.' || sq.n
+    END AS action_code,
+    an.n AS authority_no,
+    sq.n AS action_no,
+    COALESCE(t.progress_count, 0) AS progress_count,
+    COALESCE(t.entry_count, 0)    AS entry_count,
+    t.last_entry_date,
+    -- Status is earned, never typed.
+    CASE
+        WHEN ea.resolution = 'cancelled'      THEN 'Cancelled'
+        WHEN ea.resolution = 'superseded'     THEN 'Superseded'
+        WHEN COALESCE(t.closure_count, 0) > 0 THEN 'Closed'
+        WHEN COALESCE(t.progress_count, 0) > 0 THEN 'Open/Ongoing'
+        ELSE 'Pending'
+    END AS status,
+    -- Flags the register surfaces: work claimed without a system record, and
+    -- anything past its date while still open.
+    (ea.source_type = 'external' OR COALESCE(t.external_count, 0) > 0)
+        AS has_external_evidence,
+    (ea.due_date IS NOT NULL
+       AND ea.due_date < CURRENT_DATE
+       AND ea.resolution IS NULL
+       AND COALESCE(t.closure_count, 0) = 0) AS is_overdue
+FROM engagement_actions ea
+JOIN sub_divisions sd  ON sd.id = ea.sub_division_id AND sd.deleted_at IS NULL
+JOIN authorities   a   ON a.id  = sd.authority_id    AND a.deleted_at IS NULL
+JOIN auth_no       an  ON an.id = a.id
+JOIN seq           sq  ON sq.id = ea.id
+LEFT JOIN sub_tally st ON st.authority_id = a.id
+LEFT JOIN tally     t  ON t.action_id = ea.id
+LEFT JOIN v_engagement_matrix m ON m.sub_division_id = sd.id
+WHERE ea.deleted_at IS NULL;
