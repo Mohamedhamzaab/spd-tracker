@@ -1,0 +1,1740 @@
+{
+ "stakeholders": [
+  {
+   "sub_ref": "AKPZ-S01",
+   "influence": "L",
+   "involvement": "L",
+   "engagement_current": "Neutral",
+   "engagement_desired": "Neutral",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "AMIRI-S01",
+   "influence": "H",
+   "involvement": "L"
+  },
+  {
+   "sub_ref": "AWQAF-S01",
+   "influence": "L",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Unaware",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "CAA-S01",
+   "influence": "L",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Neutral",
+   "gap_action_by": "ECG",
+   "gap_remarks": "For information only, as building heights don’t require CAA approval",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "GORD-S01",
+   "influence": "L",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "C"
+  },
+  {
+   "sub_ref": "KM-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "A"
+  },
+  {
+   "sub_ref": "KM-S02",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Resistant",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Primary substation is not yet concluded (Location and Responsibility).",
+   "communication_priority": "A"
+  },
+  {
+   "sub_ref": "MCIT-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "C"
+  },
+  {
+   "sub_ref": "MM-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Neutral",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Follow up",
+   "communication_priority": "A"
+  },
+  {
+   "sub_ref": "MM-S02",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "MM-S03",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "MM-S04",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Communication initiation in progress, input required in Concept Design",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "MM-S05",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Leading",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Cost allocation constraints for Nursery and Animal Quarantine",
+   "communication_priority": "A"
+  },
+  {
+   "sub_ref": "MOECC-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "MOI-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Communication initiation in progress, input required in Concept Design",
+   "communication_priority": "C"
+  },
+  {
+   "sub_ref": "MOI-S02",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Resistant",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "MOI - SSD",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "MOI-S03",
+   "influence": "L",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Neutral",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Communication initiation in progress, input required in Concept Design",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "MOI-S04",
+   "influence": "H",
+   "involvement": "L",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "MOI-S05",
+   "influence": "H",
+   "involvement": "L",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "MOPH-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Neutral",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Communication initiation in progress, input required in Concept Design",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "MOT-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "MRFQ-S01",
+   "influence": "H",
+   "involvement": "L"
+  },
+  {
+   "sub_ref": "MWSL-S01",
+   "influence": "L",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "OOR-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "PEO-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Unaware",
+   "communication_priority": "C"
+  },
+  {
+   "sub_ref": "PWA-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "PWA-S02",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Resistant",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "SPD",
+   "gap_remarks": "missing Sewage networks",
+   "communication_priority": "A"
+  },
+  {
+   "sub_ref": "PWA-S03",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Resistant",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Reluctant to provide TSE due to insufficiency and summer demands",
+   "communication_priority": "A"
+  },
+  {
+   "sub_ref": "PWA-S04",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Neutral",
+   "engagement_desired": "Neutral",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "QAF-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Neutral",
+   "engagement_desired": "Neutral",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "QCOOL-S01",
+   "influence": "H",
+   "involvement": "L"
+  },
+  {
+   "sub_ref": "QE-S01",
+   "influence": "H",
+   "involvement": "H",
+   "engagement_current": "Neutral",
+   "engagement_desired": "Neutral",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "QMA-S01",
+   "influence": "L",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Neutral",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Communication initiation in progress",
+   "communication_priority": "C"
+  },
+  {
+   "sub_ref": "QNBN-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "QNBN-S02",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive"
+  },
+  {
+   "sub_ref": "QRAIL-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Neutral",
+   "engagement_desired": "Neutral",
+   "gap_action_by": "ECG",
+   "communication_priority": "D"
+  },
+  {
+   "sub_ref": "QT-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "C"
+  },
+  {
+   "sub_ref": "VDF-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Supportive",
+   "engagement_desired": "Supportive",
+   "communication_priority": "B"
+  },
+  {
+   "sub_ref": "WOQOD-S01",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Communication initiation in progress, input required in Concept Design",
+   "communication_priority": "C"
+  },
+  {
+   "sub_ref": "WOQOD-S02",
+   "influence": "H",
+   "involvement": "L",
+   "engagement_current": "Unaware",
+   "engagement_desired": "Supportive",
+   "gap_action_by": "ECG",
+   "gap_remarks": "Communication initiation in progress, input required in Concept Design",
+   "communication_priority": "C"
+  }
+ ],
+ "actions": [
+  {
+   "row": 5,
+   "wb_id": "1.1",
+   "sub_ref": "AKPZ-S01",
+   "description": "Will be communicated Internally as a subidivision under MMUP",
+   "doc_ref": null,
+   "recorded_date": null,
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": null
+  },
+  {
+   "row": 7,
+   "wb_id": "2.1",
+   "sub_ref": "CAA-S01",
+   "description": "Will be communicated based on the approved Master Plan, and define the Max height of the buildings",
+   "doc_ref": null,
+   "recorded_date": null,
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": null
+  },
+  {
+   "row": 9,
+   "wb_id": "3.1",
+   "sub_ref": "GORD-S01",
+   "description": "Item 4.1: GORD requested ECG to provide additional drawings illustrating various building typologies to support a better evaluation of project components.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SUS-GS-00001",
+   "recorded_date": "2026-05-05",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "During Concept Design Stage",
+   "remarks": "ECG Provided the required illustrative drawings for various building typologies."
+  },
+  {
+   "row": 10,
+   "wb_id": "3.2",
+   "sub_ref": "GORD-S01",
+   "description": "Item 4.2: GORD stated that they will provide ECG with the GSAS tools for the initial assessment under the Neighborhoods Scheme.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SUS-GS-00001",
+   "recorded_date": "2026-05-05",
+   "action_by": [
+    "GORD"
+   ],
+   "wb_status": "Pending",
+   "milestone": "During Concept Design Stage",
+   "remarks": "GSAS tool Provided, ECG proceeded accordingly of the required tools and ensure alignment with GSAS requirements. GORD has confirmed that the final area statement is required prior to proceeding with the calculation of GSAS fees for the schematic stage."
+  },
+  {
+   "row": 13,
+   "wb_id": "4.1.1",
+   "sub_ref": "KM-S01",
+   "description": "Refrence to the meeting with Kahramaa regarding the sumbission of bulk application form. The bulk Aplication form has been submitted to SPD/EGIS including Potable water demand",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-ELE-GE-00001",
+   "recorded_date": "2026-05-11",
+   "action_by": [
+    "SPD",
+    "EGIS"
+   ],
+   "wb_status": "Pending",
+   "milestone": "During Concept Design Stage",
+   "remarks": "ECG respond on 16-Jul-26. with the bulk load application details, waiting feedback by SPD/EGIS. ECG submitted the final BLA. SPD/EGIS provided additional comments on 22 July 2026. Final confirmation is awaited before proceeding with the application through the KAHRAMAA online portal."
+  },
+  {
+   "row": 15,
+   "wb_id": "4.2.1",
+   "sub_ref": "KM-S02",
+   "description": "Item 3.3: KAHRAMAA has advised that, based on the Bulk Application to be submitted, their planning team will study the feasibility of supplying part of the project loads from the existing primary substations, with the objective of expediting the power provision process and supporting the overall project programme.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-ELE-GE-00001",
+   "recorded_date": "2026-05-11",
+   "action_by": [
+    "SPD",
+    "EGIS"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "05-Jul-26: ECG response pending on SPD/ Egis comments (25 -Jun-26); delays to KAHRAMAA Bulk Application. Egis provided Additional clarification / supporting info after progress meeting 01 -Jul-26 and via email same day; ECG to respond by 05- Jul-26. after that,ECG respond on 16-Jul-26. with the bulk load application details, waiting feedback by SPD/EGIS."
+  },
+  {
+   "row": 16,
+   "wb_id": "4.2.2",
+   "sub_ref": "KM-S02",
+   "description": "The required Bulk Supply Application shall be submitted through the Owner.",
+   "doc_ref": "KM Meeting 17 August 2026",
+   "recorded_date": "2026-08-17",
+   "action_by": [
+    "SPD",
+    "EGIS"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "SPD to submit the Bulk Supply Application and coordinate all formal communication with KAHRAMAA."
+  },
+  {
+   "row": 17,
+   "wb_id": "4.2.3",
+   "sub_ref": "KM-S02",
+   "description": "Confirm the entity responsible for future O&M and formalize the arrangement through an MOU.",
+   "doc_ref": "KM Meeting 17 August 2026",
+   "recorded_date": "2026-08-17",
+   "action_by": [
+    "SPD",
+    "EGIS"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "SPD to coordinate with MM and KAHRAMAA to define the O&M responsibilities and initiate the required MOU at an early stage."
+  },
+  {
+   "row": 18,
+   "wb_id": "4.2.4",
+   "sub_ref": "KM-S02",
+   "description": "Evaluate KAHRAMAA undertaking the Primary Substation O&M.",
+   "doc_ref": "KM Meeting 17 August 2026",
+   "recorded_date": "2026-08-17",
+   "action_by": [
+    "SPD",
+    "EGIS"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "SPD to obtain KAHRAMAA’s requirements and applicable fees, then confirm the preferred O&M arrangement."
+  },
+  {
+   "row": 20,
+   "wb_id": "5.1",
+   "sub_ref": "MCIT-S01",
+   "description": "Prepare and submit required MCIT project data to keep them infomed by the project status",
+   "doc_ref": "Letter Ref. 3659-LET-ECG-MCIT-26-0001",
+   "recorded_date": "2026-05-13",
+   "action_by": [],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "ECG issued a letter as part of the coordinated authority submission package."
+  },
+  {
+   "row": 23,
+   "wb_id": "6.1.1",
+   "sub_ref": "MM-S01",
+   "description": "Item# 04: The possibility of merging the two plots of land (74370042 and 74370043) in one piece, which entails sending the proposal to Ministry of Municipality - Urban Planning Department by e-mail for study and approval.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MMUP-00001 (English Translated)",
+   "recorded_date": "2026-05-31",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Initial communication was made on 08 June 2026, followed by a meeting request for 10 June 2026. MM subsequently nominated Eng. Mariam as the project focal point, and all further coordination has been directed through her. Coordination between MMUP and the Public Parks Department is currently ongoing, with MMUP awaiting feedback from the Public Parks Department before providing a final response."
+  },
+  {
+   "row": 24,
+   "wb_id": "6.1.2",
+   "sub_ref": "MM-S01",
+   "description": "Item 05: Qatari Diar raised a usage query The future of the Buffer Zone on the eastern side of land with a width of 80 meters from the main street and feasibility of allocating the separation zone. An inquiry by Email for study and response from MMUP.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MMUP-00001 (English Translated)",
+   "recorded_date": "2026-05-31",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Refer to Point 6.1"
+  },
+  {
+   "row": 25,
+   "wb_id": "6.1.3",
+   "sub_ref": "MM-S01",
+   "description": "Item 05: Qatari Diar raised a usage query The future of the Buffer Zone on the eastern side of land with a width of 80 meters from the main street and feasibility of allocating the separation zone. An inquiry by Email for study and response from MMUP.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MMUP-00001 (English Translated)",
+   "recorded_date": "2026-05-31",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Refer to Point 6.1 Response. A follow-up email covering all outstanding action points was sent to MMUP on 4 Aug 2026; no response has been received to date."
+  },
+  {
+   "row": 26,
+   "wb_id": "6.1.4",
+   "sub_ref": "MM-S01",
+   "description": "Item 09: The possibility of integrating the proposed Safari Park parking areas with the existing Panda House parking facility (approximately 300 parking spaces) was discussed. The Ministry further indicated that the total parking requirement for the Safari Park may ultimately be determined through the Traffic Impact Study in coordination with MOT (Mowasalat) Note: Refer to Item C (MoT), 10.2 for Parking requirement.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MMUP-00001 (English Translated)",
+   "recorded_date": "2026-05-31",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Acknowledged. The matter will be further discussed in a meeting with MM to reach a final conclusion. The meeting has been postponed due to the recently announced mourning period and the suspension of work across all ministries during this week. We are following up with the concerned parties to reschedule the meeting at the earliest opportunity and will provide an update once confirmed."
+  },
+  {
+   "row": 27,
+   "wb_id": "6.1.5",
+   "sub_ref": "MM-S01",
+   "description": "Draft Arabic letter to MM – Urban Planning Department regarding the updated status of the requirements needed from their end",
+   "doc_ref": "Email (August 9, 2026)",
+   "recorded_date": "2026-08-09",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Completed. Draft Arabic follow-up letter prepared to MM–Urban Planning covering the status of the plot merger, Buffer Zone, applicable planning requirements, and other pending queries, with reference to the previous meeting and follow-up correspondence."
+  },
+  {
+   "row": 29,
+   "wb_id": "6.2.1",
+   "sub_ref": "MM-S02",
+   "description": "Item# 3.: Prepare and submit the complete list of animals proposed for Safari Park to the Wildlife Department, including each animal's name, specifications, country of origin, birth certificate, and the country from which the animal will be imported",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-AN-00001",
+   "recorded_date": "2026-06-25",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "The required animal inventory and supporting documentation will be compiled and submitted to the Wildlife Department after MP stage completed, in coordination with the Client and the appointed specialist animal consultant, to obtain the necessary approvals prior to animal importation."
+  },
+  {
+   "row": 31,
+   "wb_id": "6.3.1",
+   "sub_ref": "MM-S03",
+   "description": "Item# 3.0: WA shall submit the complete list of proposed plant species for the Safari Park to the Agricultural Affairs Department. The submission shall include the scientific name of each plant, proposed quantities, country of origin, proposed import method, and the anticipated propagation/nursery area.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-AN-00001",
+   "recorded_date": "2026-06-25",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "will be considered in the updated list of plants"
+  },
+  {
+   "row": 32,
+   "wb_id": "6.3.2",
+   "sub_ref": "MM-S03",
+   "description": "Item# 9: The Agricultural Affairs Department clarified that there are no prohibited countries for plant imports. However, the Department will provide its comments after reviewing the complete list of plant species proposed for the Safari Park.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-AN-00001",
+   "recorded_date": "2026-06-25",
+   "action_by": [
+    "MM"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "will be considered upon approval of MP"
+  },
+  {
+   "row": 33,
+   "wb_id": "6.3.3",
+   "sub_ref": "MM-S03",
+   "description": "Item# 10: If alternative source countries are available for importing certain plant species, WA should include these options in the full list of plant species.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-AN-00001",
+   "recorded_date": "2026-06-25",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "will be considered upon approval of MP"
+  },
+  {
+   "row": 35,
+   "wb_id": "6.4.1",
+   "sub_ref": "MM-S04",
+   "description": "Communication will be initiated upon master Plan Approval",
+   "doc_ref": null,
+   "recorded_date": null,
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": null
+  },
+  {
+   "row": 37,
+   "wb_id": "6.5.1",
+   "sub_ref": "MM-S05",
+   "description": "Item# 2.3:Develop the preferred connectivity solution by integrating the signalized crossing with the pedestrian bridge as part of the Master Plan.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "The preferred connectivity option will be incorporated into the Master Plan and will be further developed and validated during the subsequent design stages in coordination with the relevant authorities."
+  },
+  {
+   "row": 38,
+   "wb_id": "6.5.2",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.2:Coordinate the development of the existing mosque into a larger Friday Mosque in accordance with Awqaf requirements during the next design stage.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of CD",
+   "remarks": "To be addressed during the next design stage. ECG will develop the mosque design in accordance with Awqaf requirements and proceed with the required approvals."
+  },
+  {
+   "row": 39,
+   "wb_id": "6.5.3",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.3:Assess and incorporate the integration of Safari Park and Panda House parking while preserving existing vegetation and irrigation infrastructure.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Refer to above Response 6.5.1"
+  },
+  {
+   "row": 40,
+   "wb_id": "6.5.4",
+   "sub_ref": "MM-S05",
+   "description": "Item# 4.2:Include public transport assessment and accessibility within the Traffic Impact Study (TIS) in coordination with the Ministry of Transport.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of CD",
+   "remarks": "Meeting held with MOT-PTAD on 19 July 2026 regarding the Safari Park Project and the proposed public transport integration, including the proposed bus routes and bus stop locations."
+  },
+  {
+   "row": 41,
+   "wb_id": "6.5.6",
+   "sub_ref": "MM-S05",
+   "description": "Item# 4.4:Coordinate the integration of CCTV, security systems, and the Central Control Centre with the relevant authorities.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of CD",
+   "remarks": "Coordination in Progress with MOI-SSD and the Meeting will be held in 22 July 2026"
+  },
+  {
+   "row": 42,
+   "wb_id": "6.5.7",
+   "sub_ref": "MM-S05",
+   "description": "Item# 5.2:Increase the use of native plant species within public landscape areas and BOH zones to comply with MM sustainability requirements.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "will be considered in the updated list of plants"
+  },
+  {
+   "row": 43,
+   "wb_id": "6.5.8",
+   "sub_ref": "MM-S05",
+   "description": "Item# 5.3: ECG will issue a classified list of all unavailable species for review by the Public Gardens Department.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "will be considered in the updated list of plants"
+  },
+  {
+   "row": 44,
+   "wb_id": "6.5.9",
+   "sub_ref": "MM-S05",
+   "description": "Item# 5.4: ECG will verify the availability within the Gulf region of species that are not available locally, by referring to similar projects, in order to confirm their applicability under local climatic conditions.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "will be considered in the updated list of plants"
+  },
+  {
+   "row": 45,
+   "wb_id": "6.5.10",
+   "sub_ref": "MM-S05",
+   "description": "Item# 5.5: Coordinate with QD to allocate a dedicated nursery/planting area within Al Khor Park for Safari Park-specific plant species.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "SD Stage",
+   "remarks": "Coordination with QD will continue to identify the required area. The detailed implementation and operation & maintenance arrangements will be finalized during the Schematic Design as subsequent design stage in coordination with the Client and the relevant stakeholders."
+  },
+  {
+   "row": 46,
+   "wb_id": "6.5.11",
+   "sub_ref": "MM-S05",
+   "description": "Item# 5.6:Submit the required plant schedules and quantities at an early stage to facilitate logistics and procurement from MM nurseries.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "SD Stage",
+   "remarks": "will be considered in the updated list of plants"
+  },
+  {
+   "row": 47,
+   "wb_id": "6.5.12",
+   "sub_ref": "MM-S05",
+   "description": "Item# 5.7: The Public Gardens Department recommended studying root support using deep timber stakes as much as possible, in addition to protecting tree trunks with solid steel collars. Trees and their irrigation networks must be treated as a priority within the early works package.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "SD Stage",
+   "remarks": "Will be considred in SD Stage"
+  },
+  {
+   "row": 48,
+   "wb_id": "6.5.13",
+   "sub_ref": "MM-S05",
+   "description": "Item# 5.10:Incorporate the use of TSE and potable water networks into the irrigation strategy in accordance with the approved utility information.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "SD Stage",
+   "remarks": "Will be considred in SD Stage"
+  },
+  {
+   "row": 49,
+   "wb_id": "6.5.14",
+   "sub_ref": "MM-S05",
+   "description": "Item# 8.1:Evaluate and incorporate opportunities for Food Trucks, Vending Machines, and kiosks along the interface road located between Panda house and Public Park.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-18",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Will be addressed upon master Plan Approval"
+  },
+  {
+   "row": 50,
+   "wb_id": "6.5.15",
+   "sub_ref": "MM-S05",
+   "description": "Item# 2.2: Review the use of suitable local plant species and assess procurement of mature trees where required to achieve the required habitat maturity.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of SD",
+   "remarks": "will be considered in the updated list of plants and Schematic Stage"
+  },
+  {
+   "row": 51,
+   "wb_id": "6.5.16",
+   "sub_ref": "MM-S05",
+   "description": "Item# 2.5: MM-PPD requested the list of required plants with the anticipated quantities, separating the locally supplied species from the new imported species.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of SD",
+   "remarks": "will be considered in the updated list of plants and Schematic Stage"
+  },
+  {
+   "row": 52,
+   "wb_id": "6.5.17",
+   "sub_ref": "MM-S05",
+   "description": "Item# 2.9: WA to provide plant list with anticipated planting dates so that MM-PPD can check and reserve the stock within their nurseries for the SPP, at no additional cost as they are the end user. The transportation and the planting shall fall under the Design and Build contractor responsibility.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of SD",
+   "remarks": "A preliminary plant schedule will be shared with MM-PPD for nursery stock reservation, with final quantities confirmed during the landscape SD stage."
+  },
+  {
+   "row": 53,
+   "wb_id": "6.5.18",
+   "sub_ref": "MM-S05",
+   "description": "Item 2.10: The plant list shall be detailed by type, grouping and quantity, including any specific requirements and covering trees, shrubs, grass, ground cover and seasonal flowers, for MM-PPD consideration",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Will be addressed upon master Plan Approval"
+  },
+  {
+   "row": 54,
+   "wb_id": "6.5.19",
+   "sub_ref": "MM-S05",
+   "description": "Item# 2.12: The project team shall confirm the required nursery land area, check available quantities, and test / confirm the well water quality before relying on it for imported or sensitive plants.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Will be addressed upon master Plan Approval"
+  },
+  {
+   "row": 55,
+   "wb_id": "6.5.20",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.2: MM-PPD requested the Animal List (total number of animals per species together with their characteristics). Zoo Solutions is developing the list based on the recently approved master plan and the final zones. It was noted that the proposed total animal list to be checked against the animals currently available locally, and their suitability, in order to determine additional requirements.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA",
+    "Zoo Solutions"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Will be addressed upon master Plan Approval"
+  },
+  {
+   "row": 56,
+   "wb_id": "6.5.21",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.3:Develop the animal arrival and phasing strategy linked to construction readiness, including acclimatization requirements.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA",
+    "Zoo Solutions"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Will be addressed upon master Plan Approval"
+  },
+  {
+   "row": 57,
+   "wb_id": "6.5.22",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.5: The quarantine and arrival plan shall therefore consider separation by animal source, species, disease risk, logistics, and authority requirements.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Will be addressed upon master Plan Approval"
+  },
+  {
+   "row": 58,
+   "wb_id": "6.5.23",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.9:Assess the requirement for an animal holding/quarantine facility near the project site based on Zoo Solutions' recommendations and regulatory requirements.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA",
+    "Zoo Solutions"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Will be addressed upon master Plan Approval"
+  },
+  {
+   "row": 59,
+   "wb_id": "6.5.24",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.12: Prepare and submit the Veterinary Clinic / Quarantine Facility design package for authority review and approval",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of CD",
+   "remarks": "The Veterinary Clinic and Quarantine Facility design will be developed and submitted for authority review after the Approval of CD stage."
+  },
+  {
+   "row": 60,
+   "wb_id": "6.5.25",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.13: Assess the feasibility of utilizing animal solid waste as natural fertilizer and coordinate with the Waste Management Department for approval.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "ECG",
+    "WA",
+    "Zoo Solutions"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of MP",
+   "remarks": "will be assessed during CD stage in coordination with Zoo Solutions and the Waste Management Department to ensure compliance with regulatory requirements."
+  },
+  {
+   "row": 61,
+   "wb_id": "6.5.26",
+   "sub_ref": "MM-S05",
+   "description": "Item# 3.14: SPD highlighted that the need for the development / preparation of Animal Procurement Agent Tender Package that includes Agent Scope, BOQ, etc. in addition to potential shortlist and qualification criteria for Animal Procurement Agents).",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-PP-00002",
+   "recorded_date": "2026-06-23",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": null
+  },
+  {
+   "row": 62,
+   "wb_id": "6.5.27",
+   "sub_ref": "MM-S05",
+   "description": "Prepare Arabic follow-up email to MM–PPD requesting Panda House visitor numbers during public holidays/peak periods and confirmation on integrating the proposed Safari Park parking with the existing 300 Panda House spaces.",
+   "doc_ref": "Email (August 9, 2026)",
+   "recorded_date": "2026-08-09",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Completed. Draft Arabic follow-up email prepared to MM–PPD covering Panda House visitor numbers during public holidays/peak periods and the possibility of integrating the proposed Safari Park parking with the existing 300 Panda House spaces, with reference to previous coordination."
+  },
+  {
+   "row": 64,
+   "wb_id": "7.1",
+   "sub_ref": "MOECC-S01",
+   "description": "EIA / CEMP / OEMP scope engaged through Wataniya Environmental Services (WES) as MoECC interface consultant — no direct MoECC-addressed correspondence exists yet;",
+   "doc_ref": "ENG-012 series (via WES)",
+   "recorded_date": "2026-04-21",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "SPD initiation the process of Opening file on MoECC Portal, ECG will provide the required Data for support"
+  },
+  {
+   "row": 65,
+   "wb_id": "7.2",
+   "sub_ref": "MOECC-S01",
+   "description": "Fill out EIA form for SPD to facilitate the permit application, allowing ECG to start the Geotechnical investigation work on-site.",
+   "doc_ref": "ENG-012 series (via WES)",
+   "recorded_date": "2026-07-21",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "The completed application form, draft letter, and required supporting attachments sent to SPDfor submission to MOECC"
+  },
+  {
+   "row": 68,
+   "wb_id": "8.1.1",
+   "sub_ref": "MOI-S01",
+   "description": "QCDD declined to receive formal correspondence at this stage. During a coordination call between ECG and QCDD, it was informed that QCDD will provide requirements and comments only after the relevant design drawings are formally submitted for review.",
+   "doc_ref": "3659-LET-ECG-SKH-CD-00001",
+   "recorded_date": "2026-07-12",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of CD",
+   "remarks": null
+  },
+  {
+   "row": 70,
+   "wb_id": "8.2.1",
+   "sub_ref": "MOI-S02",
+   "description": "MOI-SSD compliance letter to Law & Regulations Specialists to ensure comply with the installation of security cameras and surveillance devices in accordance with the approved technical specifications",
+   "doc_ref": "3659-LET-ECG-MOISSD-26-0001. 3659-LET-ECG-MOI-SSD-26-0002.",
+   "recorded_date": "2026-05-14",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "ECG issued an official letter to MOI on 14 May 2026, followed by a reminder letter dated 7 July 2026 requesting the required information. Following coordination with Eng. Modather, a meeting was held on 22 July 2026 to discuss the project requirements and outstanding information."
+  },
+  {
+   "row": 71,
+   "wb_id": "8.2.2",
+   "sub_ref": "MOI-S02",
+   "description": "Reviewed and updated the MOM following the security systems coordination meeting.",
+   "doc_ref": "3659-LET-ECG-MOISSD-26-0001. 3659-LET-ECG-MOI-SSD-26-0002.",
+   "recorded_date": "2026-06-22",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "ECG issued MOM to MOI-SSD on 26 July 2026 for review and approval. Based on back and forth corrospondaces, the MOM approved and issued officailly to MOI-SSD on 3 Aug 2026"
+  },
+  {
+   "row": 72,
+   "wb_id": "8.2.3",
+   "sub_ref": "MOI-S02",
+   "description": "ECG to issue the required formal letters to MOI-SSD and coordinate with the relevant security department to obtain approval and confirm the project’s security-system, NCC connectivity, shared-pole, and security-room requirements.",
+   "doc_ref": "MOM- SPP-ECG-00_GN-00-MOM-SKH-SY-00001",
+   "recorded_date": "2026-07-22",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "ECG prepared and submitted the following letters to SPD for issuance to the concerned authorities: • Request for MOI-SSD approval of the proposed integrated security network. • Request for approval of shared poles with separate cable routes for CCTV and other systems. • Request for confirmation of the technical requirements and approved method for connecting the CCTV system to the NCC. • Request for confirmation from the Establishments and Authorities Security Department regarding the requirements for the Incident/MOI and Detention/Interview Rooms."
+  },
+  {
+   "row": 73,
+   "wb_id": "8.2.4",
+   "sub_ref": "MOI-S02",
+   "description": "Attend the coordination meeting with SPD on 17 August 2026 to discuss and finalize the draft letter concerning the security systems’ technical proposals before its formal submission to MOI.",
+   "doc_ref": null,
+   "recorded_date": "2026-08-17",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "ECG will attend the meeting scheduled for 17 August 2026 to discuss and finalize the points raised by SPD before submitting the letter to MOI."
+  },
+  {
+   "row": 75,
+   "wb_id": "8.3.1",
+   "sub_ref": "MOI-S03",
+   "description": "ECG issued an official letter requesting the required information from the MOI Traffic Department. However, the Department declined to receive the formal correspondence, confirming that no specific requirements or approval are required at the current Master Plan stage.",
+   "doc_ref": "3659-LET-ECG-SKH-TP-00001",
+   "recorded_date": "2026-07-09",
+   "action_by": [],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": null
+  },
+  {
+   "row": 77,
+   "wb_id": "9.1",
+   "sub_ref": "MOPH-S01",
+   "description": "ECG Still review the plan for first aid building once it ready we will start coordinating with MoPH",
+   "doc_ref": null,
+   "recorded_date": null,
+   "action_by": [],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of CD",
+   "remarks": null
+  },
+  {
+   "row": 79,
+   "wb_id": "10.1",
+   "sub_ref": "MOT-S01",
+   "description": "Item 3.1:Review the proposed MOT road improvement scheme, assess existing site conditions, undertake traffic modelling, and develop an integrated road network proposal for both the existing and ultimate development scenarios.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "TC",
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "During Concept Design Stage",
+   "remarks": "The Traffic Consultant will assess the proposed road network and the available reference schemes from a traffic perspective within the TIS and recommend any required traffic improvements."
+  },
+  {
+   "row": 80,
+   "wb_id": "10.2",
+   "sub_ref": "MOT-S01",
+   "description": "Item 4.2:Include public transport assessment and accessibility within the Traffic Impact Study (TIS) in coordination with the Ministry of Transport.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MM-00001",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "During Concept Design Stage",
+   "remarks": "The Assesement will be submitted as apart of TIS Report."
+  },
+  {
+   "row": 81,
+   "wb_id": "10.3",
+   "sub_ref": "MOT-S01",
+   "description": "Item 5.1: TC shall coordinate with PWA-DD to obtain the latest approved design for the Al Khor bypass and integrate it into the traffic study for subsequent analysis and assessment.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "As per QDRS there is not informations related the the proposed Al Khor bypass"
+  },
+  {
+   "row": 82,
+   "wb_id": "10.4",
+   "sub_ref": "MOT-S01",
+   "description": "Item 7.1Evaluate the preferred pedestrian connectivity solution between Safari Park and Panda House (at-grade crossing with pedestrian signal or pedestrian bridge) based on the Non-Motorized User (NMU) demand.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "As advised in the meeting held in 21 July 2025, MOT LTPD highlighted the need to integrate NMU development for the overall area with the design and advised ECG to officially request for the Qatar Bicycle Master Plan to integrate the Development NMU components. MOT-LTPD responded on 3 August 2026 and provided the relevant documents and proposed Al Khor Road cycling route for incorporation into the TIS."
+  },
+  {
+   "row": 83,
+   "wb_id": "10.5",
+   "sub_ref": "MOT-S01",
+   "description": "Item 8.1:Assess whether the proposed roundabouts and access arrangements require modification based on the Traffic Impact Study findings and coordinate any alternative arrangements with MOT.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "During Concept Design Stage",
+   "remarks": "The Assesement will be submitted as apart of TIS Report outcomes."
+  },
+  {
+   "row": 84,
+   "wb_id": "10.6",
+   "sub_ref": "MOT-S01",
+   "description": "Item 9.1:Coordinate with MM to confirm the Safari Park boundaries and the designated function of the 80 m buffer zone, and incorporate the outcome into the road network proposal.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "Refer to Point 6.1"
+  },
+  {
+   "row": 85,
+   "wb_id": "10.7",
+   "sub_ref": "MOT-S01",
+   "description": "Item 10.2:Update the Trip Generation Study, reassess visitation and traffic assumptions, prepare weekday/weekend arrival-departure profiles, define the study area, assess queue lengths, and ensure compliance with QTGPRM, QHDM, QAMG and MM parking guidelines before submission to MOT.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "During Concept Design Stage",
+   "remarks": "Assessment will be provided as part of TIS/Traffic Methodolgy Report."
+  },
+  {
+   "row": 86,
+   "wb_id": "10.8",
+   "sub_ref": "MOT-S01",
+   "description": "Item 11.1:Integrate the project's internal pedestrian and cycle network with the external cycle track as part of the Ultimate Design.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG",
+    "WA"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "Refere to Point 10.4 Response"
+  },
+  {
+   "row": 87,
+   "wb_id": "10.9",
+   "sub_ref": "MOT-S01",
+   "description": "Item 12.1:Coordinate with the Public Transport Department to assess and incorporate public transport integration, including feeder routes, service coverage, and bus stop locations, as part of the Traffic Impact Study.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-05-10",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "Meeting held in 19 July 2026, with MOT-PTAD indicates the proposed bus route and indicative locations for Bus Stops serving the development, which will be considred within TIS report."
+  },
+  {
+   "row": 88,
+   "wb_id": "10.1",
+   "sub_ref": "MOT-S01",
+   "description": "Finalised and formatted the latest coordination Meeting for MOT-PTAD for officail relase",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-TRN-TR-00001 (Rev. 01)",
+   "recorded_date": "2026-07-22",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "MOM issued on 29-July 2026"
+  },
+  {
+   "row": 89,
+   "wb_id": "10.11",
+   "sub_ref": "MOT-S01",
+   "description": "Finalised and formatted the latest coordination Meeting for MOT-LTPD for officail relase",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-MT-00001",
+   "recorded_date": "2026-07-27",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "MOM issued on 29-July 2026"
+  },
+  {
+   "row": 90,
+   "wb_id": "10.12",
+   "sub_ref": "MOT-S01",
+   "description": "Item 2.9: Request the official Qatar Bicycle Infrastructure Guidelines (QBIG) and integrate NMU requirements into the Safari Park design. Item 2.11: Obtain the Qatar Bicycle Master Plan for the surrounding area and connect the project’s bicycle network with nearby recreational attractions and roads.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-SKH-MT-00001",
+   "recorded_date": "2026-08-02",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "Items 2.9 and 2.11: ECG/Traffic Consultant issued Letter Ref. TC764/2026/MOT/LT/04 requesting the QBIG and QBMP information. MOT-LTPD responded on 3 August 2026 and provided the relevant documents and proposed Al Khor Road cycling route for incorporation into the TIS."
+  },
+  {
+   "row": 92,
+   "wb_id": "11.1",
+   "sub_ref": "OOR-S01",
+   "description": "Issue letter requet for their Record Documents and to Confirm Ooredoo utility location",
+   "doc_ref": "3659-LET-ECG-Ooredoo-26-0001 RFI Letter",
+   "recorded_date": "2026-05-04",
+   "action_by": [
+    "ECG",
+    "Ooredoo"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of CD",
+   "remarks": "ECG acknowledges receipt of the letter and reviewed the requirements in coordination with Ooredoo. A meeting held with Oredoo in 20 July 2026, and ECG will coordinate closely with Mr. Abdel Wahab Abdalla, Ooredoo Lease & Permits Consultant, regarding the required documentation, permit requirements, and approval procedures. The final drawings will be submitted after Master Plan approval for review and NOC."
+  },
+  {
+   "row": 95,
+   "wb_id": "12.1.1",
+   "sub_ref": "PWA-S01",
+   "description": "Request for Record Documents — existing road and drainage network drawings for Al Khor site boundary (roads portion; drainage-specific correspondence tracked under ASHGHAL - Drainage and Sewage).",
+   "doc_ref": "ENG-020-01",
+   "recorded_date": "2026-05-03",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Letter issued and acknowledged by ASHGHAL Design Department, and the road network plans were received. Following MOT’s confirmation of a future expressway, ECG/TC will coordinate with PWA to identify any additional requirements."
+  },
+  {
+   "row": 97,
+   "wb_id": "12.2.1",
+   "sub_ref": "PWA-S02",
+   "description": "Item 5.2:.ECG to present the foul generation from the Safari Park and evaluate options (holding tanks vs. localized/ on-site treatment), with pros and cons, for discussion with the client. ECG to raise with the client whether a network can be planned for the project at a higher level.",
+   "doc_ref": null,
+   "recorded_date": "2026-06-02",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "05-Jul-26: ECG response pending on ASHGHAL queries issued 11 June 2026; delays to ASHGHAL decisions. Egis provided Additional clarification/ supporting info after progress meeting 01 July 2026 and via email same day; ECG to respond by 05 July 2026."
+  },
+  {
+   "row": 98,
+   "wb_id": "12.2.2",
+   "sub_ref": "PWA-S02",
+   "description": "Draft Arabic letter to PWA : Follow up with PWA regarding the current/future foul sewer network, possible connection point, available capacity, programme, and approval requirements.",
+   "doc_ref": "Email 26Aug 26",
+   "recorded_date": "2026-08-26",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "ECG prepared the follow-up letter for issue through SPD and will continue evaluating independent foul sewage solutions, including on-site treatment, pending PWA’s response."
+  },
+  {
+   "row": 100,
+   "wb_id": "12.3.1",
+   "sub_ref": "PWA-S03",
+   "description": "Item 2.2:Confirm the exact TSE connection point, tapping location, and pipe material.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "PWA"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "On hold pending PWA’s confirmation regarding TSE availability for the project."
+  },
+  {
+   "row": 101,
+   "wb_id": "12.3.2",
+   "sub_ref": "PWA-S03",
+   "description": "Item 2.3:Submit the official TSE demand to enable PWA to assess the upstream network capacity and confirm supply availability.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "ECG",
+    "PWA"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Based on PWA’s response, TSE is currently unavailable. Its availability from 2028 onward cannot be confirmed at this stage and remains subject to planned network augmentation projects, budget availability, and the required approvals"
+  },
+  {
+   "row": 102,
+   "wb_id": "12.3.3",
+   "sub_ref": "PWA-S03",
+   "description": "Item 3.1:Confirm long-term TSE availability, particularly during summer periods and from 2028 onwards.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "PWA"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Refer to 12.3.2"
+  },
+  {
+   "row": 103,
+   "wb_id": "12.3.4",
+   "sub_ref": "PWA-S03",
+   "description": "Item 4.2:Provide detailed TSE water quality parameters and coordinate the polishing requirements for animal habitats and sensitive planting areas.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "ECG",
+    "PWA"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "PWA confirmed that the provided TSE quality complies with QSDM, Volume 4, Table 1.4.2."
+  },
+  {
+   "row": 104,
+   "wb_id": "12.3.5",
+   "sub_ref": "PWA-S03",
+   "description": "Item 5.2:Evaluate foul drainage options (holding tanks versus on-site treatment), present the assessment to the Client, and discuss the possibility of a future drainage network with PWA.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "ECG confirmed that tanker supply is not a feasible option due to the excessive number of daily tanker trips required. An on-site STP is also not preferred due to operational and maintenance complexities; therefore, connection to the TSE network remains the preferred option."
+  },
+  {
+   "row": 105,
+   "wb_id": "12.3.6",
+   "sub_ref": "PWA-S03",
+   "description": "Item 6.1:Issue an official letter to PWA including the TSE demand, project programmed, and the required technical information requests",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "Letter Issued under Ref. No .: 3659-LET-ECG-PWA-26-0002"
+  },
+  {
+   "row": 106,
+   "wb_id": "12.3.7",
+   "sub_ref": "PWA-S03",
+   "description": "Item 6.2:Review ECG's submission and provide an official response confirming network capacity, TSE availability, and maximum supply quantity.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "PWA"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "PWA issued a Technical Note confirming the current unavailability of TSE, in response to correspondence Ref. PVT-PWA/0067319/2026."
+  },
+  {
+   "row": 107,
+   "wb_id": "12.3.8",
+   "sub_ref": "PWA-S03",
+   "description": "Item 6.3:Finalize the TSE connection design, obtain the official PWA NOC, and proceed with the subsequent project stages.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-PWA-00001_",
+   "recorded_date": "2026-06-07",
+   "action_by": [
+    "ECG",
+    "PWA"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "On hold pending final confirmation of TSE unavailability."
+  },
+  {
+   "row": 108,
+   "wb_id": "12.3.9",
+   "sub_ref": "PWA-S03",
+   "description": "ECG to issue letter requesting TSE Demand, Connection Arrangement",
+   "doc_ref": "PVT-PWA_0067319_202621062026093324",
+   "recorded_date": "2026-06-15",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "ECG confirms that the required works have been carried out and submitted as per previous correspondence. However, there is an ongoing issue related to TSE capacity/availability as indicated by the authority response. Accordingly, SPD intervention is required to facilitate resolution and provide direction on the way forward with the concerned authority."
+  },
+  {
+   "row": 109,
+   "wb_id": "12.2.2",
+   "sub_ref": "PWA-S02",
+   "description": "Draft Arabic letter to PWA :Follow up with PWA regarding the current and future availability of TSE, particularly from 2028, including summer supply, the proposed connection point, and tapping requirements.",
+   "doc_ref": "Email 26Aug 26",
+   "recorded_date": "2026-08-26",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "ECG prepared the follow-up letter for issue through SPD and will update the irrigation strategy upon receiving PWA’s confirmation."
+  },
+  {
+   "row": 111,
+   "wb_id": "12.4.1",
+   "sub_ref": "PWA-S04",
+   "description": "ECG to issue RFI via QDRS",
+   "doc_ref": "RFI 126335",
+   "recorded_date": "2026-06-15",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "Ashghal-Beautificationprovidee the requested Information on 25-June-26"
+  },
+  {
+   "row": 113,
+   "wb_id": "13.1",
+   "sub_ref": "QAF-S01",
+   "description": "ECG to issue RFI via QDRS",
+   "doc_ref": "RFI 126335",
+   "recorded_date": "2026-06-15",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "qatar Armed force providee the requested Information"
+  },
+  {
+   "row": 115,
+   "wb_id": "14.1",
+   "sub_ref": "QE-S01",
+   "description": "ECG to issue RFI via QDRS",
+   "doc_ref": "RFI 126335",
+   "recorded_date": "2026-06-15",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "QatarEnergy confirmed an interface with its corridor and pipelines. The exact work limits NOT crossing Qatar Enegry Corridors"
+  },
+  {
+   "row": 117,
+   "wb_id": "15.1",
+   "sub_ref": "QNBN-S01",
+   "description": "Item 07: QNBN confirmed the presence of its network around the project boundary and requested an official letter from ECG to enable them to provide details of the existing network infrastructure available for connection to the project.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-ICT-GE-00001 (Rev. 02)",
+   "recorded_date": "2026-05-13",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "Upon finalization of the Master Plan, the duct connectivity requirements will be coordinated and confirmed with QNBN."
+  },
+  {
+   "row": 118,
+   "wb_id": "15.2",
+   "sub_ref": "QNBN-S01",
+   "description": "Item 3: QNBN requested to include Vodafone and Ooredoo to provide their requirements",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-ICT-GE-00001 (Rev. 02)",
+   "recorded_date": "2026-05-13",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "Communication in progress with Ooredoo and Vodafone"
+  },
+  {
+   "row": 119,
+   "wb_id": "15.3",
+   "sub_ref": "QNBN-S01",
+   "description": "Item 8: QNBN requested to include MOI-SSD, MOI Telecom, Vodafone to provide their requirements",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-ICT-GE-00001 (Rev. 02)",
+   "recorded_date": "2026-05-13",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "Communication in progress with MOI-SSD, and MOI Telecom"
+  },
+  {
+   "row": 121,
+   "wb_id": "16.1",
+   "sub_ref": "QT-S01",
+   "description": "No Objection from QTA To proceed with the No Objection request, kindly share the project Concept Report based on the initial project plans. The Concept Report should provide a clear summary of the project, including the overall concept, master plan, main components, proposed tourism and hospitality elements, timeline, target market, proposed hotel star rating, expected number of rooms/keys, and any other relevant information.",
+   "doc_ref": "Email",
+   "recorded_date": "2026-05-14",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of CD",
+   "remarks": "Upon CD Approval the concept report will shared with QTA"
+  },
+  {
+   "row": 123,
+   "wb_id": "17.1",
+   "sub_ref": "VDF-S01",
+   "description": "RFI or Letter Required to Grant the Required Information",
+   "doc_ref": "Letter Ref 3659-LET-ECG-VDF-26-0001",
+   "recorded_date": "2026-05-14",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Closed",
+   "milestone": "Upon Approval of MP",
+   "remarks": "ECG acknowledges receipt of the required data related to VF cables within Ooredoo ducts for future use. A coordination meeting will be held with VF to present and clarify the project components, and to identify any additional requirements necessary for obtaining the NOC."
+  },
+  {
+   "row": 124,
+   "wb_id": "17.2",
+   "sub_ref": "VDF-S01",
+   "description": "Coordinate with Vodafone to confirm telecom connectivity, duct, room, GSM coverage, IPTV, and Push-to-Talk requirements.",
+   "doc_ref": "Meeting 13-8-26",
+   "recorded_date": "2026-05-14",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": "Upon Approval of MP",
+   "remarks": "ECG held the coordination meeting with Vodafone on 13 August 2026 and obtained their preliminary requirements. ECG will submit the CAD Master Plan and building list for Vodafone’s assessment and confirmation of GSM tower locations and infrastructure requirements."
+  },
+  {
+   "row": 130,
+   "wb_id": "20.1",
+   "sub_ref": "AWQAF-S01",
+   "description": "Design the mosque in accordance with Awqaf requirements and submit for approvals.",
+   "doc_ref": "SPP-ECG-00_GN-00-MOM-MNG-MMUP-00001 (English Translated)",
+   "recorded_date": "2026-05-31",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "No Need NOC from Awqaf, ECG will follow Awaqaf regulations"
+  },
+  {
+   "row": 132,
+   "wb_id": "21.1",
+   "sub_ref": "PEO-S01",
+   "description": "Buildings Elevations to be submitted to PEO for Approval",
+   "doc_ref": null,
+   "recorded_date": "2026-05-31",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": "Upon Approval of CD",
+   "remarks": "To be addressed during the next design stage. ECG will Submit the Drawings after the Approvals for Buildings Eleveation from SPD"
+  },
+  {
+   "row": 135,
+   "wb_id": "23.1",
+   "sub_ref": "QRAIL-S01",
+   "description": "RFI or Letter Required to Grant the Required Information",
+   "doc_ref": "D.R 126391 - RFI",
+   "recorded_date": "2026-06-15",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Closed",
+   "milestone": null,
+   "remarks": "Qatar Rail confirmed that the proposed RFI polygon does not interface with the future Heavy Rail (GCC & Domestic) EAG scheme. The applicable Rail Protection Zone (RPZ), safety guidance, utility-crossing requirements, contact list, and general infrastructure conditions were provided for reference."
+  },
+  {
+   "row": 137,
+   "wb_id": "24.1",
+   "sub_ref": "MOI-S04",
+   "description": "Requested a coordination meeting with the designated focal point to present the project and obtain the relevant authority requirements.",
+   "doc_ref": "Email",
+   "recorded_date": "2026-07-28",
+   "action_by": [
+    "ECG"
+   ],
+   "wb_status": "Pending",
+   "milestone": null,
+   "remarks": "Awaiting confirmation of the meeting date and concerned MOI Telecom representatives. Follow up email sent on 4 Aug 206 requesting to expedite the meeting. Meeting held on11 Aug 26, to confirm their requirements for the project, including the centralized telecom room’s function, size and location; any required telecom tower; fibre connectivity; and the security communication system/service provider. CAD drawings showing the site area. ECG directed to follow-up with Technical Affairs Department."
+  },
+  {
+   "row": 139,
+   "wb_id": "25.1",
+   "sub_ref": "MOI-S05",
+   "description": "Requested a coordination meeting with the designated focal point to present the project and obtain the relevant authority requirements.",
+   "doc_ref": "Letter",
+   "recorded_date": "2026-07-28",
+   "action_by": [
+    "SPD"
+   ],
+   "wb_status": "Open/ Ongoing",
+   "milestone": null,
+   "remarks": "ECG shared the draft letter with SPD, and SPD subsequently issued it to the Establishments and Authorities Security Department."
+  }
+ ],
+ "orgs": [
+  {
+   "name": "ECG",
+   "is_internal": true
+  },
+  {
+   "name": "EGIS",
+   "is_internal": true
+  },
+  {
+   "name": "GORD",
+   "is_internal": false
+  },
+  {
+   "name": "MM",
+   "is_internal": false
+  },
+  {
+   "name": "Ooredoo",
+   "is_internal": false
+  },
+  {
+   "name": "PWA",
+   "is_internal": false
+  },
+  {
+   "name": "SPD",
+   "is_internal": true
+  },
+  {
+   "name": "TC",
+   "is_internal": true
+  },
+  {
+   "name": "WA",
+   "is_internal": true
+  },
+  {
+   "name": "Zoo Solutions",
+   "is_internal": true
+  }
+ ],
+ "milestones": [
+  "During Concept Design Stage",
+  "SD Stage",
+  "Upon Approval of CD",
+  "Upon Approval of MP",
+  "Upon Approval of SD"
+ ]
+}

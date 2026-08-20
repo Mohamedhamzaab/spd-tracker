@@ -554,7 +554,8 @@ CREATE TABLE IF NOT EXISTS engagement_actions (
     source_type             TEXT    NOT NULL,
     source_id               INTEGER,
     source_ref_external     TEXT,
-    recorded_date           DATE    NOT NULL,
+    recorded_date           DATE,
+    notes                   TEXT,
     due_milestone           TEXT,
     due_date                DATE,
     -- Deliberate exits from the register. Each is refused without its reason.
@@ -644,6 +645,13 @@ CREATE TABLE IF NOT EXISTS engagement_action_progress (
     created_by          INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- A handful of register entries carry no date and no reference of their own.
+-- The import stays faithful to that rather than inventing one, so the column
+-- is nullable here; the API still requires a date on anything created in the
+-- app. (Both statements are no-ops once already applied.)
+ALTER TABLE engagement_actions ALTER COLUMN recorded_date DROP NOT NULL;
+ALTER TABLE engagement_actions ADD COLUMN IF NOT EXISTS notes TEXT;
 
 -- Legacy names from earlier revisions of this file.
 ALTER TABLE engagement_action_progress
@@ -843,6 +851,12 @@ LEFT JOIN (
 ) x ON x.authority_id = a.id
 WHERE a.deleted_at IS NULL;
 
+-- v_engagement_action selects engagement_actions.*, so any column added to
+-- that table widens the view — which CREATE OR REPLACE VIEW refuses. Drop the
+-- pair first (cheap: they are pure derivations), same as v_communication above.
+DROP VIEW IF EXISTS v_engagement_action CASCADE;
+DROP VIEW IF EXISTS v_engagement_matrix CASCADE;
+
 -- ---------------------------------------------------------------------------
 --  Stakeholder matrix: the power/interest classification and the engagement
 --  ladder, reproducing the workbook's own formulas so the export matches it
@@ -919,7 +933,7 @@ sub_tally AS (
 seq AS (
     SELECT id,
            row_number() OVER (PARTITION BY sub_division_id
-                              ORDER BY recorded_date, id) AS n
+                              ORDER BY recorded_date NULLS LAST, id) AS n
     FROM engagement_actions WHERE deleted_at IS NULL
 ),
 tally AS (

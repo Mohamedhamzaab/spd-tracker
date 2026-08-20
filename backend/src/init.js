@@ -15,6 +15,7 @@ const path = require('path');
 const { pool, withTransaction } = require('./db');
 const { renumberMeetings } = require('./renumberComms');
 const { ensureEngagementStakeholders } = require('./engagementSeed');
+const { importEngagementWorkbook } = require('./engagementImport');
 
 async function applySchema() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
@@ -134,6 +135,33 @@ async function main() {
     }
   } catch (err) {
     console.error('[init] Engagement reconciliation skipped:', err.message);
+  }
+  // Seed the action register from the workbook, once, on an empty register.
+  try {
+    const r = await withTransaction((client) => importEngagementWorkbook(client));
+    if (r.skipped) {
+      console.log(`[init] Engagement import: ${r.skipped}.`);
+    } else {
+      console.log(
+        `[init] Engagement import: ${r.actions} actions, ${r.ratings} stakeholder ratings, ` +
+        `${r.progress} timeline entries (${r.closures} closures). ` +
+        `Sources: ${r.linked} linked to a registered record, ${r.external} external.`
+      );
+      if (r.unmatchedRefs.length) {
+        const uniq = [...new Set(r.unmatchedRefs)];
+        console.log(
+          `[init] Engagement import: ${uniq.length} document reference(s) had no match in the ` +
+          `register and were kept as external evidence — ${uniq.slice(0, 5).join(' | ')}` +
+          (uniq.length > 5 ? ` | +${uniq.length - 5} more` : '')
+        );
+      }
+      if (r.missingStakeholders.length) {
+        console.warn('[init] Engagement import: unresolved stakeholders —',
+          [...new Set(r.missingStakeholders)].join(', '));
+      }
+    }
+  } catch (err) {
+    console.error('[init] Engagement import skipped:', err.message);
   }
   // Re-flow meeting codes so same-day meetings stay chronological by start time
   // (applies the time-aware ordering to existing data). Idempotent + non-fatal.
