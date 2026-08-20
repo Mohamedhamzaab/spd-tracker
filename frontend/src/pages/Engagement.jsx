@@ -63,6 +63,23 @@ export default function Engagement() {
           <div className="page-crumb">Tracker</div>
           <div className="page-title">Stakeholder Engagement</div>
         </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            className="btn"
+            title="The matrix, assessment and register in the original workbook layout"
+            onClick={() => api.downloadExport(
+              '/exports/stakeholder-engagement.xlsx', 'stakeholder-engagement-matrix.xlsx')}
+          >
+            Export Excel
+          </button>
+          <button
+            className="btn"
+            onClick={() => api.downloadExport(
+              '/exports/stakeholder-engagement.pdf', 'stakeholder-engagement-matrix.pdf')}
+          >
+            Export PDF
+          </button>
+        </div>
       </div>
 
       <div className="page stack-lg">

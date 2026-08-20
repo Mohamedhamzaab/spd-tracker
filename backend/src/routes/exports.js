@@ -938,4 +938,107 @@ router.get(
   })
 );
 
+// --- stakeholder engagement matrix -----------------------------------------
+// The workbook this feature replaced, regenerated from the register: same
+// tabs, same layout, same colours, but values rather than live formulas.
+const { buildEngagementWorkbook, fetchRegister } = require('../engagementExport');
+
+router.get(
+  '/stakeholder-engagement.xlsx',
+  wrap(async (req, res) => {
+    const book = await buildEngagementWorkbook(ExcelJS);
+    setDownloadHeaders(
+      res,
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      `${dl('stakeholder-engagement-matrix')}.xlsx`
+    );
+    await book.xlsx.write(res);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'export.stakeholder_engagement.xlsx',
+      target_type: 'export',
+      req,
+    });
+    res.end();
+  })
+);
+
+router.get(
+  '/stakeholder-engagement.pdf',
+  wrap(async (req, res) => {
+    const { matrix, actions, noteBy, docRef } = await fetchRegister();
+
+    // Landscape A3 — the register is wide, and this keeps the action text
+    // readable instead of squeezing it into a column an inch across.
+    const doc = new PDFDocument({ size: 'A3', layout: 'landscape', margin: 40 });
+    setDownloadHeaders(res, 'application/pdf', `${dl('stakeholder-engagement-matrix')}.pdf`);
+    doc.pipe(res);
+
+    const rated = matrix.filter((m) => m.action_priority);
+    const count = (s) => actions.filter((a) => a.status === s).length;
+
+    pdfHeader(doc, {
+      title: 'Stakeholder Engagement Matrix',
+      subtitle: 'ECG · Design Consultancy · Contract No. 6   ·   Safari Park Doha',
+    });
+    pdfKpiTiles(doc, [
+      { label: 'Stakeholders', value: matrix.length },
+      { label: 'Critical', value: rated.filter((m) => m.is_critical).length },
+      { label: 'Pending', value: count('Pending') },
+      { label: 'Ongoing', value: count('Open/Ongoing') },
+      { label: 'Closed', value: count('Closed') },
+    ]);
+
+    pdfSection(doc, 'Stakeholder Matrix');
+    pdfTable(doc, [
+      { label: 'Stakeholder',     get: (m) => m.sub_division_name,                units: 3 },
+      { label: 'Authority',       get: (m) => m.authority_code,                   units: 1.4 },
+      { label: 'Influence',       get: (m) => m.influence || '—',                 units: 1 },
+      { label: 'Involvement',     get: (m) => m.involvement || '—',               units: 1 },
+      { label: 'Action Priority', get: (m) => m.action_priority || '—',           units: 1.6 },
+      { label: 'Critical',        get: (m) => (m.is_critical ? 'CRITICAL' : '—'), units: 1 },
+      { label: 'NOC Status',      get: (m) => m.noc_status || '—',                units: 1.6 },
+    ], matrix, { title: 'Stakeholder Engagement Matrix' });
+
+    doc.addPage();
+    pdfHeader(doc, {
+      title: 'Engagement Assessment',
+      subtitle: 'Where each stakeholder sits against where the project needs them',
+    });
+    pdfTable(doc, [
+      { label: 'Stakeholder', get: (m) => m.sub_division_name,        units: 3 },
+      { label: 'Current',     get: (m) => m.engagement_current || '—', units: 1.2 },
+      { label: 'Desired',     get: (m) => m.engagement_desired || '—', units: 1.2 },
+      { label: 'Gap',         get: (m) => m.gap_status || '—',         units: 2.2 },
+      { label: 'Owner',       get: (m) => m.gap_action_by || '—',      units: 1.2 },
+      { label: 'Gap Remarks', get: (m) => m.gap_remarks || '—',        units: 4 },
+    ], matrix, { title: 'Engagement Assessment' });
+
+    doc.addPage();
+    pdfHeader(doc, {
+      title: 'Action Register',
+      subtitle: 'Status follows the registered timeline — it is never entered by hand',
+    });
+    pdfTable(doc, [
+      { label: 'No.',         get: (a) => a.action_code,        units: 0.8 },
+      { label: 'Stakeholder', get: (a) => a.sub_division_name,  units: 2.2 },
+      { label: 'Action',      get: (a) => a.description,        units: 5.5 },
+      { label: 'Action By',   get: (a) => a.action_by || '—',   units: 1.6 },
+      { label: 'Due',         get: (a) => a.due_milestone
+                                 || (a.due_date ? String(a.due_date).slice(0, 10) : '—'), units: 1.8 },
+      { label: 'Status',      get: (a) => a.status,             units: 1.2 },
+      { label: 'Latest note', get: (a) => noteBy[a.id] || a.notes || '—', units: 4 },
+    ], actions, { title: 'Action Register' });
+
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'export.stakeholder_engagement.pdf',
+      target_type: 'export',
+      payload: { stakeholders: matrix.length, actions: actions.length },
+      req,
+    });
+    doc.end();
+  })
+);
+
 module.exports = router;
