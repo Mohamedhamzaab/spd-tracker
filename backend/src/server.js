@@ -29,6 +29,7 @@ const stream = require('./routes/stream');
 const comments = require('./routes/comments');
 const tasks = require('./routes/tasks');
 const { router: lists } = require('./routes/lists');
+const engagement = require('./routes/engagement');
 
 const app = express();
 // Behind Render's proxy, trust the first hop so req.ip reflects the client.
@@ -94,6 +95,7 @@ app.use('/api/views', views);
 app.use('/api/comments', comments);
 app.use('/api/tasks', tasks);
 app.use('/api/lists', lists);
+app.use('/api/engagement', engagement);
 
 // Serve the built front end if it has been built.
 const clientDir = path.resolve(__dirname, '../../frontend/dist');
