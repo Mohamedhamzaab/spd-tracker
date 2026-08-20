@@ -27,6 +27,7 @@ import AcceptInvite from './pages/AcceptInvite.jsx';
 import ChangePassword from './pages/ChangePassword.jsx';
 import MyAccount from './pages/MyAccount.jsx';
 import MfaSetup from './pages/MfaSetup.jsx';
+import Engagement from './pages/Engagement.jsx';
 import AuditLog from './pages/AuditLog.jsx';
 import Trash from './pages/Trash.jsx';
 import Reports from './pages/Reports.jsx';
@@ -45,6 +46,7 @@ const NAV = [
   { to: '/app/communications', i18nKey: 'nav.communications' },
   { to: '/app/meetings', i18nKey: 'nav.meetings' },
   { to: '/app/qdrs', i18nKey: 'nav.qdrs' },
+  { to: '/app/engagement', i18nKey: 'nav.engagement' },
   { to: '/app/tasks', i18nKey: 'nav.tasks' },
   { to: '/app/reports', i18nKey: 'nav.reports' },
 ];
@@ -58,6 +60,7 @@ const NAV_ICONS = {
   '/app/communications': <path d="M3 5h18v14H3zM3 6l9 7 9-7" />,
   '/app/meetings': <path d="M8 2v4M16 2v4M3 9h18M5 5h14v16H5z" />,
   '/app/qdrs': <path d="M8 3h8a1 1 0 0 1 1 1v16l-5-2.5L7 20V4a1 1 0 0 1 1-1zM9.5 9.5l1.5 1.5 3-3" />,
+  '/app/engagement': <><path d="M3 21V3M3 21h18" /><rect x="6" y="6" width="6" height="6" rx="1" /><path d="M15 15h4M15 18h4" /></>,
   '/app/tasks': <path d="M4 5h16v16H4zM8 12l3 3 5-6" />,
   '/app/reports': <path d="M5 20V12M11 20V6M17 20v-4M4 20h16" />,
   '/app/users': <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />,
@@ -208,6 +211,7 @@ function AppShell() {
             <Route path="communications" element={<Communications />} />
             <Route path="meetings" element={<Meetings />} />
             <Route path="qdrs" element={<Qdrs />} />
+            <Route path="engagement" element={<Engagement />} />
             <Route path="reports" element={<Reports />} />
             <Route path="tasks" element={<Tasks />} />
             <Route path="me" element={<MyAccount />} />

@@ -223,6 +223,23 @@ export const api = {
   createQdrs: (b) => req('/qdrs', { method: 'POST', body: b }),
   updateQdrs: (id, b) => req('/qdrs/' + id, { method: 'PUT', body: b }),
   deleteQdrs: (id) => req('/qdrs/' + id, { method: 'DELETE' }),
+
+  // --- stakeholder engagement ---------------------------------------------
+  engSummary: () => req('/engagement/summary'),
+  engMatrix: () => req('/engagement/matrix'),
+  engSetRating: (subId, b) =>
+    req('/engagement/matrix/' + subId, { method: 'PATCH', body: b }),
+  engActions: (params) => req('/engagement/actions' + qs(params)),
+  engAction: (id) => req('/engagement/actions/' + id),
+  engCreateAction: (b) => req('/engagement/actions', { method: 'POST', body: b }),
+  engUpdateAction: (id, b) => req('/engagement/actions/' + id, { method: 'PUT', body: b }),
+  engDeleteAction: (id) => req('/engagement/actions/' + id, { method: 'DELETE' }),
+  engAddProgress: (id, b) =>
+    req('/engagement/actions/' + id + '/progress', { method: 'POST', body: b }),
+  engDeleteProgress: (id) => req('/engagement/progress/' + id, { method: 'DELETE' }),
+  engResolve: (id, b) => req('/engagement/actions/' + id + '/resolve', { method: 'POST', body: b }),
+  engSources: (params) => req('/engagement/sources' + qs(params)),
+  engOrgs: () => req('/engagement/orgs'),
   bulkDeleteQdrs: (ids) => req('/qdrs/bulk-delete', { method: 'POST', body: { ids } }),
 
   // users (super_admin)
