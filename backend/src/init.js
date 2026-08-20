@@ -14,6 +14,7 @@ const fs = require('fs');
 const path = require('path');
 const { pool, withTransaction } = require('./db');
 const { renumberMeetings } = require('./renumberComms');
+const { ensureEngagementStakeholders } = require('./engagementSeed');
 
 async function applySchema() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
@@ -116,6 +117,24 @@ async function main() {
   }
   await ensureSuperAdmin();
   await repairFilenames();
+  // Close the gap between the register and the Stakeholder Engagement Matrix:
+  // a stakeholder can only be rated once it exists here. Inserts only what is
+  // missing, so re-running on every boot is a no-op.
+  try {
+    const added = await withTransaction((client) => ensureEngagementStakeholders(client));
+    if (added.authorities.length || added.subDivisions.length) {
+      console.log(
+        `[init] Engagement reconciliation: added ${added.authorities.length} authority(ies)` +
+        `${added.authorities.length ? ' [' + added.authorities.join(', ') + ']' : ''}` +
+        ` and ${added.subDivisions.length} sub-division(s)` +
+        `${added.subDivisions.length ? ' [' + added.subDivisions.join(', ') + ']' : ''}.`
+      );
+    } else {
+      console.log('[init] Engagement reconciliation: register already complete.');
+    }
+  } catch (err) {
+    console.error('[init] Engagement reconciliation skipped:', err.message);
+  }
   // Re-flow meeting codes so same-day meetings stay chronological by start time
   // (applies the time-aware ordering to existing data). Idempotent + non-fatal.
   try {

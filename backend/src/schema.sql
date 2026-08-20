@@ -551,15 +551,14 @@ CREATE TABLE IF NOT EXISTS engagement_actions (
     id                      SERIAL PRIMARY KEY,
     sub_division_id         INTEGER NOT NULL REFERENCES sub_divisions(id) ON DELETE CASCADE,
     description             TEXT    NOT NULL,
-    source_type             TEXT    NOT NULL CHECK (source_type IN
-                              ('meeting', 'communication', 'qdrs', 'external')),
+    source_type             TEXT    NOT NULL,
     source_id               INTEGER,
     source_ref_external     TEXT,
     recorded_date           DATE    NOT NULL,
     due_milestone           TEXT,
     due_date                DATE,
     -- Deliberate exits from the register. Each is refused without its reason.
-    resolution              TEXT    CHECK (resolution IN ('cancelled', 'superseded')),
+    resolution              TEXT,
     cancel_reason           TEXT,
     superseded_by_id        INTEGER REFERENCES engagement_actions(id) ON DELETE SET NULL,
     superseded_ref_external TEXT,
@@ -568,26 +567,49 @@ CREATE TABLE IF NOT EXISTS engagement_actions (
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
     deleted_at              TIMESTAMPTZ,
     deleted_by              INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    deletion_group_id       UUID,
-    -- A system source needs the record; an external one needs its reference.
-    CONSTRAINT engagement_actions_source_check CHECK (
-        (source_type = 'external'
-           AND source_ref_external IS NOT NULL AND btrim(source_ref_external) <> '')
-     OR (source_type <> 'external' AND source_id IS NOT NULL)
-    ),
-    -- Cancelled states why; superseded names what replaced it. (Named for the
-    -- reason, not the column: Postgres auto-names the column-level CHECK above
-    -- "engagement_actions_resolution_check", which would collide.)
-    CONSTRAINT engagement_actions_resolution_reason_check CHECK (
-        resolution IS NULL
-     OR (resolution = 'cancelled'
-           AND cancel_reason IS NOT NULL AND btrim(cancel_reason) <> '')
-     OR (resolution = 'superseded'
-           AND (superseded_by_id IS NOT NULL
-             OR (superseded_ref_external IS NOT NULL
-                   AND btrim(superseded_ref_external) <> '')))
-    )
+    deletion_group_id       UUID
 );
+
+-- The evidence rules live here as explicit DROP/ADD rather than inline in the
+-- CREATE above, because CREATE TABLE IF NOT EXISTS silently skips a table that
+-- already exists — a rule tightened later would never reach production. Same
+-- pattern already used for documents_parent_type_check.
+--
+-- Names follow Postgres's own <table>_<column>_check convention, so if a check
+-- is ever written inline again the DROP still finds it. Any name used by an
+-- earlier revision is dropped here too, so an environment that ran one of
+-- those converges instead of carrying a stale rule alongside the current one.
+ALTER TABLE engagement_actions
+  DROP CONSTRAINT IF EXISTS engagement_actions_resolution_reason_check;
+ALTER TABLE engagement_actions
+  DROP CONSTRAINT IF EXISTS engagement_actions_source_type_check;
+ALTER TABLE engagement_actions
+  ADD  CONSTRAINT engagement_actions_source_type_check
+  CHECK (source_type IN ('meeting', 'communication', 'qdrs', 'external'));
+
+-- A system source must name the record; an external one must carry a reference.
+ALTER TABLE engagement_actions
+  DROP CONSTRAINT IF EXISTS engagement_actions_source_check;
+ALTER TABLE engagement_actions
+  ADD  CONSTRAINT engagement_actions_source_check CHECK (
+      (source_type = 'external'
+         AND source_ref_external IS NOT NULL AND btrim(source_ref_external) <> '')
+   OR (source_type <> 'external' AND source_id IS NOT NULL)
+  );
+
+-- Cancelled states why; superseded names what replaced it.
+ALTER TABLE engagement_actions
+  DROP CONSTRAINT IF EXISTS engagement_actions_resolution_check;
+ALTER TABLE engagement_actions
+  ADD  CONSTRAINT engagement_actions_resolution_check CHECK (
+      resolution IS NULL
+   OR (resolution = 'cancelled'
+         AND cancel_reason IS NOT NULL AND btrim(cancel_reason) <> '')
+   OR (resolution = 'superseded'
+         AND (superseded_by_id IS NOT NULL
+           OR (superseded_ref_external IS NOT NULL
+                 AND btrim(superseded_ref_external) <> '')))
+  );
 CREATE INDEX IF NOT EXISTS idx_eng_action_sub  ON engagement_actions(sub_division_id)
     WHERE deleted_at IS NULL;
 CREATE INDEX IF NOT EXISTS idx_eng_action_live ON engagement_actions(id)
@@ -613,28 +635,55 @@ CREATE TABLE IF NOT EXISTS engagement_action_links (
 CREATE TABLE IF NOT EXISTS engagement_action_progress (
     id                  SERIAL PRIMARY KEY,
     action_id           INTEGER NOT NULL REFERENCES engagement_actions(id) ON DELETE CASCADE,
-    kind                TEXT    NOT NULL DEFAULT 'progress' CHECK (kind IN
-                          ('progress', 'closure', 'cancellation', 'supersession')),
+    kind                TEXT    NOT NULL DEFAULT 'progress',
     entry_date          DATE    NOT NULL,
     note                TEXT    NOT NULL,
-    source_type         TEXT    CHECK (source_type IN
-                          ('meeting', 'communication', 'qdrs', 'external')),
+    source_type         TEXT,
     source_id           INTEGER,
     source_ref_external TEXT,
     created_by          INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
-    -- Same evidence rule as the action itself, applied per entry.
-    CONSTRAINT engagement_progress_source_check CHECK (
-        source_type IS NULL
-     OR (source_type = 'external'
-           AND source_ref_external IS NOT NULL AND btrim(source_ref_external) <> '')
-     OR (source_type <> 'external' AND source_id IS NOT NULL)
-    ),
-    -- Closure must cite a source. Progress may be a plain note.
-    CONSTRAINT engagement_progress_closure_check CHECK (
-        kind <> 'closure' OR source_type IS NOT NULL
-    )
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Legacy names from earlier revisions of this file.
+ALTER TABLE engagement_action_progress
+  DROP CONSTRAINT IF EXISTS engagement_progress_kind_check;
+ALTER TABLE engagement_action_progress
+  DROP CONSTRAINT IF EXISTS engagement_progress_source_check;
+ALTER TABLE engagement_action_progress
+  DROP CONSTRAINT IF EXISTS engagement_progress_closure_check;
+
+ALTER TABLE engagement_action_progress
+  DROP CONSTRAINT IF EXISTS engagement_action_progress_kind_check;
+ALTER TABLE engagement_action_progress
+  ADD  CONSTRAINT engagement_action_progress_kind_check
+  CHECK (kind IN ('progress', 'closure', 'cancellation', 'supersession'));
+
+ALTER TABLE engagement_action_progress
+  DROP CONSTRAINT IF EXISTS engagement_action_progress_source_type_check;
+ALTER TABLE engagement_action_progress
+  ADD  CONSTRAINT engagement_action_progress_source_type_check
+  CHECK (source_type IS NULL
+      OR source_type IN ('meeting', 'communication', 'qdrs', 'external'));
+
+-- Same evidence rule as the action itself, applied per entry.
+ALTER TABLE engagement_action_progress
+  DROP CONSTRAINT IF EXISTS engagement_action_progress_source_check;
+ALTER TABLE engagement_action_progress
+  ADD  CONSTRAINT engagement_action_progress_source_check CHECK (
+      source_type IS NULL
+   OR (source_type = 'external'
+         AND source_ref_external IS NOT NULL AND btrim(source_ref_external) <> '')
+   OR (source_type <> 'external' AND source_id IS NOT NULL)
+  );
+
+-- Closure must cite a source. Progress may stand as a plain note.
+ALTER TABLE engagement_action_progress
+  DROP CONSTRAINT IF EXISTS engagement_action_progress_closure_check;
+ALTER TABLE engagement_action_progress
+  ADD  CONSTRAINT engagement_action_progress_closure_check CHECK (
+      kind <> 'closure' OR source_type IS NOT NULL
+  );
 CREATE INDEX IF NOT EXISTS idx_eng_progress_action
     ON engagement_action_progress(action_id, entry_date DESC, id DESC);
 
