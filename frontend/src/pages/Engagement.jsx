@@ -16,7 +16,8 @@ import { useStore } from '../lib/store.jsx';
 import { Loading, ErrorBanner, Empty, Pill, useToast, fmtDate } from '../components/ui.jsx';
 import ActionDetail from '../components/ActionDetail.jsx';
 import ActionForm from '../components/ActionForm.jsx';
-import EngagementRegister from '../components/EngagementRegister.jsx';
+import EngagementGuide from '../components/EngagementGuide.jsx';
+import EngagementRemoved from '../components/EngagementRemoved.jsx';
 
 // Critical Items leads: it is what the section is for, so it is what you land
 // on. The two reference views sit behind it.
@@ -24,6 +25,7 @@ const TABS = [
   { key: 'items', label: 'Critical Items' },
   { key: 'matrix', label: 'Stakeholder Matrix' },
   { key: 'assessment', label: 'Engagement Assessment' },
+  { key: 'removed', label: 'Removed' },
 ];
 
 const LADDER = ['Unaware', 'Resistant', 'Neutral', 'Supportive', 'Leading'];
@@ -85,7 +87,7 @@ export default function Engagement() {
         </div>
       </div>
 
-      <div className="page stack-lg eng-clay">
+      <div className="page stack-lg">
         <ErrorBanner message={error} />
         <SummaryStrip summary={summary} onJump={setTab} />
 
@@ -111,6 +113,9 @@ export default function Engagement() {
         )}
         {tab === 'items' && (
           <ItemsTab isEditor={isEditor} toast={toast} onChanged={loadSummary} />
+        )}
+        {tab === 'removed' && (
+          <EngagementRemoved isEditor={isEditor} onChanged={loadSummary} />
         )}
       </div>
     </>
@@ -312,6 +317,9 @@ function ItemsTab({ isEditor, toast, onChanged }) {
   const [openId, setOpenId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [progressFor, setProgressFor] = useState(null);
+  // the guide shows engagement position per stakeholder, so it needs the matrix
+  const [matrixRows, setMatrixRows] = useState([]);
+  useEffect(() => { api.engMatrix().then((d) => setMatrixRows(d.rows)).catch(() => {}); }, []);
   // Opens on what needs attention; every other item is one filter away.
   const [filters, setFilters] = useState({
     status: 'Pending,Open/Ongoing', critical: false, overdue: false,
@@ -378,12 +386,13 @@ function ItemsTab({ isEditor, toast, onChanged }) {
         )}
       </div>
 
-      <EngagementRegister
+      <EngagementGuide
         rows={rows}
+        matrix={matrixRows}
         isEditor={isEditor}
         onOpen={setOpenId}
         onAddProgress={setProgressFor}
-        searching={!!(filters.q.trim() || filters.critical || filters.overdue || filters.unreferenced)}
+        onChanged={() => { load(); onChanged(); }}
       />
 
       {progressFor && (

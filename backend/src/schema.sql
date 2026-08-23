@@ -692,8 +692,16 @@ ALTER TABLE engagement_action_progress
   ADD  CONSTRAINT engagement_action_progress_closure_check CHECK (
       kind <> 'closure' OR source_type IS NOT NULL
   );
+-- Removing a timeline entry has to be reversible: people delete the wrong
+-- thing, and an evidence trail you cannot get back is worse than a cluttered
+-- one. Soft-deleted here, same as everything else in the register.
+ALTER TABLE engagement_action_progress ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+ALTER TABLE engagement_action_progress ADD COLUMN IF NOT EXISTS deleted_by INTEGER;
+
 CREATE INDEX IF NOT EXISTS idx_eng_progress_action
     ON engagement_action_progress(action_id, entry_date DESC, id DESC);
+CREATE INDEX IF NOT EXISTS idx_eng_progress_live
+    ON engagement_action_progress(action_id) WHERE deleted_at IS NULL;
 
 -- ===========================================================================
 --  VIEWS  -  all derived values. The application reads these, never the
@@ -944,6 +952,7 @@ tally AS (
            count(*) FILTER (WHERE source_type = 'external') AS external_count,
            count(*)                                   AS entry_count
     FROM engagement_action_progress
+    WHERE deleted_at IS NULL
     GROUP BY action_id
 )
 SELECT

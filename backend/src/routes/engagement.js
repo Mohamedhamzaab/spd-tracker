@@ -252,7 +252,7 @@ router.get(
          LEFT JOIN meetings       m ON p.source_type = 'meeting'       AND m.id = p.source_id
          LEFT JOIN communications c ON p.source_type = 'communication' AND c.id = p.source_id
          LEFT JOIN qdrs_records   q ON p.source_type = 'qdrs'          AND q.id = p.source_id
-        WHERE p.action_id = $1
+        WHERE p.action_id = $1 AND p.deleted_at IS NULL
         ORDER BY p.entry_date DESC, p.id DESC`,
       [id]
     );
@@ -463,8 +463,13 @@ router.delete(
   requireEditor,
   wrap(async (req, res) => {
     const id = Number(req.params.id);
+    // Soft, so a mis-click can be undone. /progress/:id/restore brings it back.
     const { rows } = await query(
-      'DELETE FROM engagement_action_progress WHERE id = $1 RETURNING action_id, kind', [id]
+      `UPDATE engagement_action_progress
+          SET deleted_at = now(), deleted_by = $2
+        WHERE id = $1 AND deleted_at IS NULL
+      RETURNING action_id, kind`,
+      [id, req.user.id]
     );
     if (!rows[0]) throw httpError(404, 'Entry not found.');
     await logAudit({
@@ -476,6 +481,89 @@ router.delete(
       req,
     });
     res.json({ ok: true, action: await loadAction(rows[0].action_id) });
+  })
+);
+
+// Put a removed timeline entry back.
+router.post(
+  '/progress/:id/restore',
+  requireEditor,
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    const { rows } = await query(
+      `UPDATE engagement_action_progress
+          SET deleted_at = NULL, deleted_by = NULL
+        WHERE id = $1 AND deleted_at IS NOT NULL
+      RETURNING action_id`,
+      [id]
+    );
+    if (!rows[0]) throw httpError(404, 'That entry is not in the removed list.');
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.engagement.progress_restored',
+      target_type: 'engagement_action',
+      target_id: rows[0].action_id,
+      req,
+    });
+    res.json({ ok: true, action: await loadAction(rows[0].action_id) });
+  })
+);
+
+// Put a removed action back into the register.
+router.post(
+  '/actions/:id/restore',
+  requireEditor,
+  wrap(async (req, res) => {
+    const id = Number(req.params.id);
+    const { rows } = await query(
+      `UPDATE engagement_actions
+          SET deleted_at = NULL, deleted_by = NULL, deletion_group_id = NULL,
+              updated_at = now()
+        WHERE id = $1 AND deleted_at IS NOT NULL
+      RETURNING id`,
+      [id]
+    );
+    if (!rows[0]) throw httpError(404, 'That action is not in the removed list.');
+    const action = await loadAction(id);
+    await logAudit({
+      actor_id: req.user.id,
+      event: 'data.engagement.action_restored',
+      target_type: 'engagement_action',
+      target_id: id,
+      payload: { action_code: action.action_code },
+      req,
+    });
+    res.json(action);
+  })
+);
+
+// Everything removed, so it can be found and put back. Reads the base table,
+// since the view deliberately hides deleted rows.
+router.get(
+  '/removed',
+  wrap(async (_req, res) => {
+    const actions = await query(
+      `SELECT a.id, a.description, a.recorded_date, a.deleted_at,
+              sd.sub_reference, sd.name AS sub_division_name,
+              au.code AS authority_code, au.name AS authority_name,
+              u.name AS deleted_by_name
+         FROM engagement_actions a
+         JOIN sub_divisions sd ON sd.id = a.sub_division_id
+         JOIN authorities au ON au.id = sd.authority_id
+         LEFT JOIN users u ON u.id = a.deleted_by
+        WHERE a.deleted_at IS NOT NULL
+        ORDER BY a.deleted_at DESC`
+    );
+    const entries = await query(
+      `SELECT p.id, p.action_id, p.kind, p.entry_date, p.note, p.deleted_at,
+              u.name AS deleted_by_name, a.description AS action_description
+         FROM engagement_action_progress p
+         JOIN engagement_actions a ON a.id = p.action_id
+         LEFT JOIN users u ON u.id = p.deleted_by
+        WHERE p.deleted_at IS NOT NULL
+        ORDER BY p.deleted_at DESC`
+    );
+    res.json({ actions: actions.rows, entries: entries.rows });
   })
 );
 

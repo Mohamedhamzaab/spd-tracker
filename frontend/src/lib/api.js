@@ -237,6 +237,11 @@ export const api = {
   engAddProgress: (id, b) =>
     req('/engagement/actions/' + id + '/progress', { method: 'POST', body: b }),
   engDeleteProgress: (id) => req('/engagement/progress/' + id, { method: 'DELETE' }),
+  engRestoreProgress: (id) =>
+    req('/engagement/progress/' + id + '/restore', { method: 'POST' }),
+  engRestoreAction: (id) =>
+    req('/engagement/actions/' + id + '/restore', { method: 'POST' }),
+  engRemoved: () => req('/engagement/removed'),
   engResolve: (id, b) => req('/engagement/actions/' + id + '/resolve', { method: 'POST', body: b }),
   engSources: (params) => req('/engagement/sources' + qs(params)),
   engOrgs: () => req('/engagement/orgs'),
