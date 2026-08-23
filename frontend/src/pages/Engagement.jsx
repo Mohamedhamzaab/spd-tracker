@@ -16,11 +16,14 @@ import { useStore } from '../lib/store.jsx';
 import { Loading, ErrorBanner, Empty, Pill, useToast, fmtDate } from '../components/ui.jsx';
 import ActionDetail from '../components/ActionDetail.jsx';
 import ActionForm from '../components/ActionForm.jsx';
+import EngagementRegister from '../components/EngagementRegister.jsx';
 
+// Critical Items leads: it is what the section is for, so it is what you land
+// on. The two reference views sit behind it.
 const TABS = [
+  { key: 'items', label: 'Critical Items' },
   { key: 'matrix', label: 'Stakeholder Matrix' },
   { key: 'assessment', label: 'Engagement Assessment' },
-  { key: 'items', label: 'Critical Items' },
 ];
 
 const LADDER = ['Unaware', 'Resistant', 'Neutral', 'Supportive', 'Leading'];
@@ -47,7 +50,7 @@ export default function Engagement() {
   const { isEditor } = useStore();
   const toast = useToast();
   const [tab, setTab] = useState(() =>
-    new URLSearchParams(window.location.search).get('tab') || 'matrix');
+    new URLSearchParams(window.location.search).get('tab') || 'items');
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
 
@@ -82,7 +85,7 @@ export default function Engagement() {
         </div>
       </div>
 
-      <div className="page stack-lg">
+      <div className="page stack-lg eng-clay">
         <ErrorBanner message={error} />
         <SummaryStrip summary={summary} onJump={setTab} />
 
@@ -308,6 +311,7 @@ function ItemsTab({ isEditor, toast, onChanged }) {
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [progressFor, setProgressFor] = useState(null);
   // Opens on what needs attention; every other item is one filter away.
   const [filters, setFilters] = useState({
     status: 'Pending,Open/Ongoing', critical: false, overdue: false,
@@ -374,52 +378,23 @@ function ItemsTab({ isEditor, toast, onChanged }) {
         )}
       </div>
 
-      {!rows ? (
-        <Loading label="Loading the register" />
-      ) : rows.length === 0 ? (
-        <Empty title="Nothing matches these filters" />
-      ) : (
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>No.</th><th>Stakeholder</th><th>Action</th>
-                <th>Owner</th><th>Due</th><th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} className="clickable" onClick={() => setOpenId(r.id)}>
-                  <td className="mono">{r.action_code}</td>
-                  <td>
-                    <div className="cell-strong">{r.sub_division_name}</div>
-                    <div className="cell-sub mono">{r.authority_code}</div>
-                  </td>
-                  <td className="cell-wrap">
-                    {r.description}
-                    {r.has_external_evidence && (
-                      <span className="ext-flag" title="Evidence sits outside the system">
-                        no system link
-                      </span>
-                    )}
-                  </td>
-                  <td>
-                    {r.orgs.length
-                      ? r.orgs.map((o) => <Pill key={o.id} tone="grey">{o.name}</Pill>)
-                      : <span className="cell-sub">—</span>}
-                  </td>
-                  <td className="cell-sub">
-                    {r.due_date ? fmtDate(r.due_date) : r.due_milestone || '—'}
-                    {r.is_overdue && <Pill tone="red">Overdue</Pill>}
-                  </td>
-                  <td><StatusPill status={r.status} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <EngagementRegister
+        rows={rows}
+        isEditor={isEditor}
+        onOpen={setOpenId}
+        onAddProgress={setProgressFor}
+        searching={!!(filters.q.trim() || filters.critical || filters.overdue || filters.unreferenced)}
+      />
 
+      {progressFor && (
+        <ActionDetail
+          id={progressFor}
+          openProgress
+          isEditor={isEditor}
+          onClose={() => setProgressFor(null)}
+          onChanged={() => { load(); onChanged(); }}
+        />
+      )}
       {openId && (
         <ActionDetail
           id={openId}

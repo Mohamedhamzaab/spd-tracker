@@ -1940,3 +1940,254 @@ tr.group-row td {
 .tl-closure  { border-left-color: var(--green); }
 .tl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .tl-note { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; }
+
+/* ===========================================================================
+   Claymorphism — RESTRAINED preset, scoped to the Stakeholder Engagement
+   section only (.eng-clay). Per the claymorphism skill: clay is wrong for
+   dense data tables and admin consoles, so where the user wants it on a
+   serious product the restrained preset applies — halved depth (D=12),
+   desaturated tint — rather than full playful clay.
+
+   Every shadow derives from --clay-hue (244, the app's own indigo), never
+   from black, which is what keeps clay from going grey and muddy. Three
+   shadows per surface: one outer drop, one dark inset bottom-right, one
+   light inset from the top. Light direction is consistent section-wide.
+   =========================================================================== */
+.eng-clay {
+  --clay-hue: 244;
+  --clay-d: 12px;
+  --clay-radius: 20px;
+  --clay-page: hsl(var(--clay-hue) 30% 95%);
+  --clay-surface: hsl(var(--clay-hue) 30% 99%);
+  --clay-raised: hsl(var(--clay-hue) 26% 97%);
+  --clay-ink: hsl(var(--clay-hue) 25% 20%);
+  --clay-muted: hsl(var(--clay-hue) 12% 45%);
+  --clay-line: hsl(var(--clay-hue) 20% 88%);
+
+  --clay-shadow:
+    8px 10px 22px hsl(var(--clay-hue) 15% 55% / 0.28),
+    inset -3px -3px 7px hsl(var(--clay-hue) 12% 70% / 0.45),
+    inset 0 5px 10px hsl(var(--clay-hue) 15% 99%);
+  --clay-shadow-sm:
+    4px 5px 12px hsl(var(--clay-hue) 15% 55% / 0.22),
+    inset -2px -2px 5px hsl(var(--clay-hue) 12% 70% / 0.40),
+    inset 0 3px 6px hsl(var(--clay-hue) 15% 99%);
+  /* Pressed/open: the light inset moves to the bottom so the dome inverts. */
+  --clay-shadow-in:
+    inset 3px 4px 9px hsl(var(--clay-hue) 15% 60% / 0.30),
+    inset -2px -2px 6px hsl(var(--clay-hue) 15% 99%);
+
+  font-family: Nunito, var(--font);
+  background: var(--clay-page);
+  border-radius: 26px;
+  padding: 18px;
+  color: var(--clay-ink);
+}
+
+/* Dark mode: lift the surface well clear of black or the insets vanish and
+   every shape loses its edge. */
+html[data-theme="dark"] .eng-clay {
+  --clay-page: hsl(var(--clay-hue) 22% 13%);
+  --clay-surface: hsl(var(--clay-hue) 20% 21%);
+  --clay-raised: hsl(var(--clay-hue) 20% 24%);
+  --clay-ink: hsl(var(--clay-hue) 25% 93%);
+  --clay-muted: hsl(var(--clay-hue) 12% 68%);
+  --clay-line: hsl(var(--clay-hue) 18% 30%);
+  --clay-shadow:
+    8px 10px 22px hsl(var(--clay-hue) 30% 6% / 0.55),
+    inset -3px -3px 7px hsl(var(--clay-hue) 25% 12% / 0.55),
+    inset 0 5px 10px hsl(var(--clay-hue) 18% 32%);
+  --clay-shadow-sm:
+    4px 5px 12px hsl(var(--clay-hue) 30% 6% / 0.45),
+    inset -2px -2px 5px hsl(var(--clay-hue) 25% 12% / 0.50),
+    inset 0 3px 6px hsl(var(--clay-hue) 18% 30%);
+  --clay-shadow-in:
+    inset 3px 4px 9px hsl(var(--clay-hue) 30% 8% / 0.55),
+    inset -2px -2px 6px hsl(var(--clay-hue) 18% 30%);
+}
+
+/* --- clay surfaces -------------------------------------------------------- */
+.clay-card {
+  background: var(--clay-surface);
+  border-radius: var(--clay-radius);
+  box-shadow: var(--clay-shadow);
+}
+.clay-soft {
+  background: var(--clay-raised);
+  border-radius: 16px;
+  box-shadow: var(--clay-shadow-sm);
+}
+
+/* Summary tiles */
+.eng-clay .eng-strip { gap: 14px; }
+.eng-clay .eng-cell {
+  background: var(--clay-surface);
+  border: 0;
+  border-radius: var(--clay-radius);
+  box-shadow: var(--clay-shadow-sm);
+  padding: 14px 16px;
+  transition: transform 140ms ease;
+}
+.eng-clay .eng-cell:hover { transform: translateY(-2px); }
+.eng-clay .eng-cell:active { transform: translateY(0); box-shadow: var(--clay-shadow-in); }
+.eng-clay .eng-cell-label { color: var(--clay-muted); font-weight: 600; }
+.eng-clay .eng-cell-value { font-weight: 800; }
+
+/* Sub-tabs become clay pills */
+.eng-clay .subtabs { border: 0; gap: 10px; margin: 18px 0 4px; flex-wrap: wrap; }
+.eng-clay .subtab {
+  border-radius: 999px;
+  padding: 9px 20px;
+  background: var(--clay-surface);
+  box-shadow: var(--clay-shadow-sm);
+  color: var(--clay-muted);
+  font-family: Nunito, var(--font);
+  font-weight: 700;
+  margin-bottom: 0;
+  transition: transform 140ms ease;
+}
+.eng-clay .subtab:hover { transform: translateY(-2px); color: var(--clay-ink); }
+.eng-clay .subtab-on {
+  background: var(--navy);
+  color: #fff;
+  box-shadow:
+    8px 10px 22px hsl(var(--clay-hue) 60% 45% / 0.35),
+    inset -3px -3px 7px hsl(var(--clay-hue) 60% 38% / 0.55),
+    inset 0 5px 10px hsl(var(--clay-hue) 70% 72%);
+}
+
+/* Filter bar */
+.eng-clay .filter-bar { gap: 10px; }
+.eng-clay .search,
+.eng-clay .filter-select {
+  background: var(--clay-raised);
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 18px;
+  box-shadow: var(--clay-shadow-in);
+  font-family: Nunito, var(--font);
+  color: var(--clay-ink);
+}
+.eng-clay .chip {
+  border: 0;
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--clay-surface);
+  box-shadow: var(--clay-shadow-sm);
+  color: var(--clay-muted);
+  font-family: Nunito, var(--font);
+  font-weight: 700;
+  transition: transform 140ms ease;
+}
+.eng-clay .chip:hover { transform: translateY(-2px); }
+.eng-clay .chip-on { background: var(--navy); color: #fff; box-shadow: var(--clay-shadow-in); }
+.eng-clay .btn {
+  border: 0; border-radius: 999px; font-family: Nunito, var(--font); font-weight: 700;
+  background: var(--clay-surface); color: var(--clay-ink); box-shadow: var(--clay-shadow-sm);
+  transition: transform 140ms ease;
+}
+.eng-clay .btn:hover { transform: translateY(-2px); }
+.eng-clay .btn:active { transform: translateY(0); box-shadow: var(--clay-shadow-in); }
+.eng-clay .btn-primary { background: var(--navy); color: #fff; }
+
+/* --- the accordion register ---------------------------------------------- */
+.acc-group { margin-bottom: 14px; }
+.acc-auth {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  background: var(--clay-surface); border: 0;
+  border-radius: var(--clay-radius); box-shadow: var(--clay-shadow);
+  padding: 14px 18px; cursor: pointer;
+  font-family: Nunito, var(--font); color: var(--clay-ink);
+  transition: transform 140ms ease;
+}
+.acc-auth:hover { transform: translateY(-2px); }
+.acc-auth[aria-expanded="true"] { box-shadow: var(--clay-shadow-in); }
+.acc-caret {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 11px;
+  background: var(--clay-raised); box-shadow: var(--clay-shadow-sm);
+  transition: transform 180ms ease;
+}
+.acc-auth[aria-expanded="true"] .acc-caret,
+.acc-item[aria-expanded="true"] .acc-caret { transform: rotate(90deg); }
+.acc-auth-code {
+  font-weight: 800; font-size: 12px; letter-spacing: .04em;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--navy-soft); color: var(--navy);
+}
+html[data-theme="dark"] .eng-clay .acc-auth-code { background: hsl(244 30% 30%); color: #c7d2fe; }
+.acc-auth-name { font-weight: 700; font-size: 14.5px; flex: 1; min-width: 0; }
+.acc-counts { display: flex; gap: 7px; flex-wrap: wrap; }
+.acc-count {
+  font-size: 11px; font-weight: 800; padding: 3px 10px; border-radius: 999px;
+  background: var(--clay-raised); color: var(--clay-muted); box-shadow: var(--clay-shadow-sm);
+}
+.acc-count-pending { color: var(--amber); }
+.acc-count-ongoing { color: var(--navy); }
+.acc-count-critical { color: var(--red); }
+
+.acc-body { padding: 12px 0 2px 16px; }
+.acc-sub-label {
+  font-size: 11.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--clay-muted); margin: 12px 0 8px 6px;
+}
+
+.acc-item-wrap { margin-bottom: 10px; }
+.acc-item {
+  display: flex; align-items: flex-start; gap: 12px; width: 100%; text-align: left;
+  background: var(--clay-raised); border: 0;
+  border-radius: 16px; box-shadow: var(--clay-shadow-sm);
+  padding: 12px 15px; cursor: pointer;
+  font-family: Nunito, var(--font); color: var(--clay-ink);
+  transition: transform 140ms ease;
+}
+.acc-item:hover { transform: translateY(-2px); }
+.acc-item[aria-expanded="true"] { box-shadow: var(--clay-shadow-in); }
+.acc-code {
+  font-weight: 800; font-size: 12px; flex-shrink: 0; min-width: 52px;
+  color: var(--navy);
+}
+.acc-desc { flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.5; }
+.acc-meta { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 6px; }
+.acc-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+/* the expanded panel: progress under the issue itself */
+.acc-panel {
+  margin: 8px 0 4px 34px;
+  padding: 14px 16px;
+  background: var(--clay-surface);
+  border-radius: 16px;
+  box-shadow: var(--clay-shadow-in);
+}
+.acc-panel-empty { color: var(--clay-muted); font-size: 13px; }
+.acc-tl { display: flex; flex-direction: column; gap: 10px; }
+.acc-tl-entry {
+  background: var(--clay-raised); border-radius: 14px;
+  box-shadow: var(--clay-shadow-sm); padding: 10px 14px;
+}
+.acc-tl-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; }
+.acc-tl-note { font-size: 13px; line-height: 1.55; white-space: pre-wrap; }
+.acc-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+
+/* Clay pills: keep semantic colour, drop the border, add the dome. */
+.eng-clay .pill {
+  border: 0; border-radius: 999px; font-weight: 800; font-size: 11px;
+  padding: 3px 11px; box-shadow: var(--clay-shadow-sm);
+}
+.eng-clay .ext-flag {
+  border: 0; border-radius: 999px; box-shadow: var(--clay-shadow-sm);
+  font-weight: 800; padding: 3px 10px;
+}
+
+/* Focus must be a real outline — a shadow ring vanishes into clay. */
+.eng-clay :focus-visible {
+  outline: 3px solid var(--navy);
+  outline-offset: 3px;
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eng-clay *, .eng-clay *::before, .eng-clay *::after {
+    transition: none !important; animation: none !important;
+  }
+}

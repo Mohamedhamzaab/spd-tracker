@@ -41,11 +41,13 @@ function SourceLink({ e }) {
   return null;
 }
 
-export default function ActionDetail({ id, isEditor, onClose, onChanged }) {
+export default function ActionDetail({ id, isEditor, onClose, onChanged, openProgress }) {
   const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [mode, setMode] = useState(null);      // 'progress' | 'closure' | 'resolve'
+  // openProgress lands straight in the progress form, for the inline
+  // "Register progress" button on the register accordion.
+  const [mode, setMode] = useState(openProgress ? 'progress' : null);
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
 
