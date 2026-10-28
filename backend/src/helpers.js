@@ -46,4 +46,7 @@ function httpError(status, message) {
   return err;
 }
 
-module.exports = { suggestCode, ref, wrap, httpError };
+// Who carried a communication or held a meeting. Must match the CHECK in schema.sql.
+const ORIGINATORS = ['ECG', 'SPD', 'EGIS'];
+
+module.exports = { suggestCode, ref, wrap, httpError, ORIGINATORS };

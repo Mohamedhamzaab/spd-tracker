@@ -394,6 +394,19 @@ ALTER TABLE meetings ADD COLUMN IF NOT EXISTS mom_status TEXT NOT NULL DEFAULT '
 -- Attendees recorded as free text — company names only, e.g. "ECG, Egis, KM".
 ALTER TABLE meetings ADD COLUMN IF NOT EXISTS attendees TEXT;
 
+-- Who carried the correspondence or held the meeting. The Client (SPD) and its
+-- PMC (EGIS) deal with authorities directly and pass the letters to us for the
+-- record; those count as engagement but are not ours to chase, so the 7-day
+-- overdue rule applies to ECG only. Direction is read from the originator's side.
+ALTER TABLE communications ADD COLUMN IF NOT EXISTS originator TEXT NOT NULL DEFAULT 'ECG';
+ALTER TABLE meetings       ADD COLUMN IF NOT EXISTS originator TEXT NOT NULL DEFAULT 'ECG';
+ALTER TABLE communications DROP CONSTRAINT IF EXISTS communications_originator_check;
+ALTER TABLE communications ADD CONSTRAINT communications_originator_check
+  CHECK (originator IN ('ECG', 'SPD', 'EGIS'));
+ALTER TABLE meetings DROP CONSTRAINT IF EXISTS meetings_originator_check;
+ALTER TABLE meetings ADD CONSTRAINT meetings_originator_check
+  CHECK (originator IN ('ECG', 'SPD', 'EGIS'));
+
 -- Sub-divisions: split contact into a dedicated email + phone. The legacy
 -- free-text contact_details column is kept for historical values.
 ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS contact_email TEXT;
@@ -733,6 +746,7 @@ SELECT
     )              AS reply_received,
     (
         c.direction = 'Outbound'
+        AND c.originator = 'ECG'
         AND c.reply_needed = TRUE
         AND NOT EXISTS (
             SELECT 1 FROM communications r

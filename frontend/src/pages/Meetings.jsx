@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
-  Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
+  Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill, OriginatorPill,
   fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
@@ -37,6 +37,7 @@ const MEETING_COLS = {
     value: (r) => `${String(r.meeting_date || '').slice(0, 10)}T${r.meeting_time ? String(r.meeting_time).slice(0, 8) : '00:00:00'}`,
     type: 'date', defaultDir: 'desc',
   },
+  originator:     { value: (r) => r.originator || 'ECG' },
   authority_name: { value: (r) => r.authority_name || '' },
   primary_sub:    { value: (r) => r.primary_sub_reference || r.primary_sub_name || '' },
   purpose:        { value: (r) => r.purpose || '' },
@@ -56,6 +57,7 @@ export default function Meetings() {
   const [authorityId, setAuthorityId] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
+  const [originator, setOriginator] = useState(''); // ECG / SPD / EGIS
   // MoM-status filter — seeded from a ?mom=pending|draft|final deep-link.
   const [momFilter, setMomFilter] = useState(() => {
     const m = new URLSearchParams(window.location.search).get('mom');
@@ -80,8 +82,9 @@ export default function Meetings() {
     if (from) p.from = from;
     if (to) p.to = to;
     if (momFilter) p.mom_status = momFilter;
+    if (originator) p.originator = originator;
     return p;
-  }, [qDebounced, authorityId, from, to, momFilter]);
+  }, [qDebounced, authorityId, from, to, momFilter, originator]);
 
   function load(p) {
     api.meetings(p).then(setRows).catch((e) => setError(e.message));
@@ -101,9 +104,9 @@ export default function Meetings() {
   }, [rows]);
 
   function clearFilters() {
-    setQ(''); setAuthorityId(''); setFrom(''); setTo(''); setMomFilter('');
+    setQ(''); setAuthorityId(''); setFrom(''); setTo(''); setMomFilter(''); setOriginator('');
   }
-  const filtersActive = !!(q || authorityId || from || to || momFilter);
+  const filtersActive = !!(q || authorityId || from || to || momFilter || originator);
 
   const { sorted, sortKey, sortDir, onSort } = useTableSort(rows || [], MEETING_COLS, {
     defaultKey: 'meeting_date',
@@ -178,6 +181,7 @@ export default function Meetings() {
             setAuthorityId(p.authority_id ? String(p.authority_id) : '');
             setFrom(p.from || '');
             setTo(p.to || '');
+            setOriginator(p.originator || '');
           }}
         />
 
@@ -197,6 +201,17 @@ export default function Meetings() {
             {authorities.map((a) => (
               <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
             ))}
+          </select>
+          <select
+            className="filter-select"
+            value={originator}
+            onChange={(e) => setOriginator(e.target.value)}
+            aria-label="Filter by who held the meeting"
+          >
+            <option value="">Held by anyone</option>
+            <option value="ECG">Held by ECG</option>
+            <option value="SPD">Held by SPD</option>
+            <option value="EGIS">Held by EGIS</option>
           </select>
           <div className="filter-date-pair">
             <input className="filter-select" type="date" value={from}
@@ -265,6 +280,7 @@ export default function Meetings() {
                   )}
                   <SortableTH id="meeting_code"   sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Code</SortableTH>
                   <SortableTH id="meeting_date"   sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Date</SortableTH>
+                  <SortableTH id="originator"     sortKey={sortKey} sortDir={sortDir} onSort={onSort}>By</SortableTH>
                   <SortableTH id="authority_name" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Authority</SortableTH>
                   <SortableTH id="primary_sub"    sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Primary Sub-Division</SortableTH>
                   <SortableTH id="purpose"        sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Purpose</SortableTH>
@@ -298,6 +314,7 @@ export default function Meetings() {
                         <span className="cell-sub"> · {String(m.meeting_time).slice(0, 5)}</span>
                       )}
                     </td>
+                    <td><OriginatorPill originator={m.originator} /></td>
                     <td>
                       <div className="cell-strong">{m.authority_name}</div>
                     </td>
@@ -481,6 +498,7 @@ function MeetingDetail({ meeting, isEditor, onClose, onEdit }) {
                 ? `${data.primary_sub_name} (${data.primary_sub_reference})` : '—'} />
             <MItem label="Date"
               value={fmtDate(data.meeting_date) + (data.meeting_time ? ' · ' + String(data.meeting_time).slice(0, 5) : '')} />
+            <MItem label="Held by" value={<OriginatorPill originator={data.originator} />} />
             <MItem label="Purpose" value={data.purpose || '—'} />
             <MItem label="Mode" value={data.mode || '—'} />
             <MItem label="MoM Status"
@@ -529,6 +547,7 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
           mom_status: existing.mom_status || 'pending',
           mom_reference: existing.mom_reference || '',
           mom_link: existing.mom_link || '',
+          originator: existing.originator || 'ECG',
         }
       : {
           authority_id: '', primary_sub_id: '', other_sub_divisions: '',
@@ -537,6 +556,7 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
           meeting_time: '',
           purpose: '', mode: '', location: '',
           mom_status: 'pending', mom_reference: '', mom_link: '',
+          originator: 'ECG',
           // Pre-fill when opened from a sub-division (authority + primary sub).
           ...(defaults || {}),
         }
@@ -601,6 +621,9 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
       help: 'Company names only, comma-separated — no individual staff names.' },
     { name: 'meeting_date', label: 'Date', type: 'date', required: true },
     { name: 'meeting_time', label: 'Time', type: 'time' },
+    { name: 'originator', label: 'Held by', type: 'select', required: true,
+      options: lists.originator || ['ECG', 'SPD', 'EGIS'],
+      help: 'Meetings SPD or EGIS held with the authority still count as engagement.' },
     { name: 'purpose', label: 'Purpose', type: 'select',
       options: lists.meeting_purpose },
     { name: 'mode', label: 'Mode', type: 'select', options: lists.meeting_mode },

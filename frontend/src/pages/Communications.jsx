@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
-  Loading, Empty, ErrorBanner, DirectionPill, Pill, fmtDate, useToast,
+  Loading, Empty, ErrorBanner, DirectionPill, OriginatorPill, Pill, fmtDate, useToast,
   useTableSort, SortableTH, ConfirmDialog,
 } from '../components/ui.jsx';
 import { CommDetail, CommForm } from './SubDivisionDetail.jsx';
@@ -46,6 +46,7 @@ const COMM_COLS = {
   comm_code:        { value: (r) => r.comm_code },
   comm_date:        { value: (r) => r.comm_date, type: 'date', defaultDir: 'desc' },
   direction:        { value: (r) => r.direction },
+  originator:       { value: (r) => r.originator || 'ECG' },
   linked:           { value: (r) => r.in_response_to_code || r.reply_code || '' },
   sub_division_name:{ value: (r) => r.sub_division_name },
   purpose:          { value: (r) => r.purpose || '' },
@@ -71,6 +72,7 @@ export default function Communications() {
   // Filter state
   const [q, setQ] = useState('');
   const [direction, setDirection] = useState('');
+  const [originator, setOriginator] = useState(''); // ECG / SPD / EGIS
   const [statuses, setStatuses] = useState(() => {
     // Seed from a ?status=overdue,awaiting deep-link (e.g. from the dashboard).
     const s = new URLSearchParams(window.location.search).get('status');
@@ -116,6 +118,7 @@ export default function Communications() {
     const p = {};
     if (qDebounced) p.q = qDebounced;
     if (direction) p.direction = direction;
+    if (originator) p.originator = originator;
     if (statuses.length) p.status = statuses.join(',');
     if (from) p.from = from;
     if (to) p.to = to;
@@ -123,7 +126,7 @@ export default function Communications() {
     if (linked) p.linked = linked;
     if (thread) p.in_response_to = thread;
     return p;
-  }, [qDebounced, direction, statuses, from, to, authorityId, linked, thread]);
+  }, [qDebounced, direction, originator, statuses, from, to, authorityId, linked, thread]);
 
   useEffect(() => {
     let cancelled = false;
@@ -195,11 +198,11 @@ export default function Communications() {
   }
 
   function clearFilters() {
-    setQ(''); setDirection(''); setStatuses([]);
+    setQ(''); setDirection(''); setOriginator(''); setStatuses([]);
     setFrom(''); setTo(''); setAuthorityId(''); setLinked(''); setThread('');
   }
 
-  const filtersActive = !!(q || direction || statuses.length || from || to || authorityId || linked || thread);
+  const filtersActive = !!(q || direction || originator || statuses.length || from || to || authorityId || linked || thread);
 
   return (
     <>
@@ -231,6 +234,7 @@ export default function Communications() {
           onApply={(p) => {
             setQ(p.q || '');
             setDirection(p.direction || '');
+            setOriginator(p.originator || '');
             setStatuses(p.status ? String(p.status).split(',') : []);
             setFrom(p.from || '');
             setTo(p.to || '');
@@ -254,6 +258,17 @@ export default function Communications() {
             <option value="">All directions</option>
             <option value="Outbound">Outbound</option>
             <option value="Inbound">Inbound</option>
+          </select>
+          <select
+            className="filter-select"
+            value={originator}
+            onChange={(e) => setOriginator(e.target.value)}
+            aria-label="Filter by who carried it"
+          >
+            <option value="">By anyone</option>
+            <option value="ECG">By ECG</option>
+            <option value="SPD">By SPD</option>
+            <option value="EGIS">By EGIS</option>
           </select>
           <select
             className="filter-select"
@@ -370,6 +385,7 @@ export default function Communications() {
                   <SortableTH id="comm_code"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Code</SortableTH>
                   <SortableTH id="comm_date"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Date</SortableTH>
                   <SortableTH id="direction"         sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Direction</SortableTH>
+                  <SortableTH id="originator"        sortKey={sortKey} sortDir={sortDir} onSort={onSort}>By</SortableTH>
                   <SortableTH id="linked"            sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Linked</SortableTH>
                   <SortableTH id="sub_division_name" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Sub-Division</SortableTH>
                   <SortableTH id="purpose"           sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Purpose</SortableTH>
@@ -398,6 +414,9 @@ export default function Communications() {
                     <td>{fmtDate(c.comm_date)}</td>
                     <td>
                       <DirectionPill direction={c.direction} />
+                    </td>
+                    <td>
+                      <OriginatorPill originator={c.originator} />
                     </td>
                     <td>
                       {!c.in_response_to_code && !c.reply_code && !c.related_to_code ? (

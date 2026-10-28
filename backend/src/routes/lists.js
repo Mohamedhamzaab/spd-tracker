@@ -49,6 +49,7 @@ const LISTS = {
     'Stage 6 - Tendering Support',
   ],
   direction: ['Outbound', 'Inbound'],
+  originator: ['ECG', 'SPD', 'EGIS'],
   communication_mode: [
     'Letter', 'Email', 'Letter and Email', 'Authority Portal',
     'Phone Call', 'Other',

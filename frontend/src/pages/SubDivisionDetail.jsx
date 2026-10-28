@@ -8,7 +8,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Section, Modal, FormFields, ConfirmDialog,
-  EngagementPill, StatusPill, DirectionPill, Pill, fmtDate, fileSize, useToast, FileDrop, UploadProgress,
+  EngagementPill, StatusPill, DirectionPill, OriginatorPill, Pill, fmtDate, fileSize, useToast, FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
 import { SubForm } from './SubDivisions.jsx';
@@ -197,6 +197,9 @@ export default function SubDivisionDetail() {
                       {c.comm_code}
                     </span>
                     <DirectionPill direction={c.direction} />
+                    {c.originator && c.originator !== 'ECG' && (
+                      <OriginatorPill originator={c.originator} />
+                    )}
                     <span className="section-note">{fmtDate(c.comm_date)}</span>
                     {c.purpose && <Pill tone="grey">{c.purpose}</Pill>}
                     {c.is_overdue && <Pill tone="red">Overdue</Pill>}
@@ -434,6 +437,9 @@ function commFieldDefs(lists, subDivisions) {
     { name: 'comm_date', label: 'Date', type: 'date', required: true },
     { name: 'direction', label: 'Direction', type: 'select', required: true,
       options: lists.direction },
+    { name: 'originator', label: 'By', type: 'select', required: true,
+      options: lists.originator || ['ECG', 'SPD', 'EGIS'],
+      help: 'Who sent or received it. SPD and EGIS letters are shared with us for the record and never flagged overdue.' },
     { name: 'purpose', label: 'Purpose', type: 'select',
       options: lists.communication_purpose },
     { name: 'mode', label: 'Mode', type: 'select', options: lists.communication_mode },
@@ -450,7 +456,7 @@ function commFieldDefs(lists, subDivisions) {
       placeholder: 'Optional link to the document in ACC' },
     { name: 'reply_needed', label: 'A reply is needed for this communication',
       type: 'checkbox', span: 2,
-      help: 'Outbound items needing a reply are flagged overdue after 7 days.' },
+      help: 'ECG outbound items needing a reply are flagged overdue after 7 days.' },
   );
   return defs;
 }
@@ -459,6 +465,7 @@ function emptyCommValues() {
   return {
     comm_date: new Date().toISOString().slice(0, 10),
     direction: 'Outbound',
+    originator: 'ECG',
     purpose: '',
     mode: '',
     submission_reference: '',
@@ -474,6 +481,7 @@ function commValuesFromExisting(existing, parentCommCode) {
   return {
     comm_date: existing.comm_date ? String(existing.comm_date).slice(0, 10) : '',
     direction: existing.direction || 'Outbound',
+    originator: existing.originator || 'ECG',
     purpose: existing.purpose || '',
     mode: existing.mode || '',
     submission_reference: existing.submission_reference || '',
@@ -702,6 +710,7 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
         <>
           <div className="detail-grid">
             <DItem label="Direction" value={<DirectionPill direction={data.direction} />} />
+            <DItem label="By" value={<OriginatorPill originator={data.originator} />} />
             <DItem label="Date" value={fmtDate(data.comm_date)} />
             <DItem label="Purpose" value={data.purpose || '-'} />
             <DItem label="Mode" value={data.mode || '-'} />

@@ -9,7 +9,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:4000',
+      // API_PORT lets the API move off 4000 when something else holds it.
+      '/api': `http://localhost:${process.env.API_PORT || 4000}`,
     },
   },
   build: {

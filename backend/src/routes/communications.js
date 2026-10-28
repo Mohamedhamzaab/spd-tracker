@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 const express = require('express');
 const { query, withTransaction } = require('../db');
-const { wrap, httpError, ref } = require('../helpers');
+const { wrap, httpError, ref, ORIGINATORS } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteCommunication, newGroupId } = require('../softDelete');
@@ -16,6 +16,7 @@ const router = express.Router();
 //   ?sub_division_id=
 //   ?authority_id=
 //   ?direction=Outbound|Inbound
+//   ?originator=ECG|SPD|EGIS
 //   ?overdue=true
 //   ?from=YYYY-MM-DD  ?to=YYYY-MM-DD
 //   ?status=overdue,awaiting,replied,logged  (subset, comma-separated)
@@ -41,6 +42,7 @@ router.get(
     if (req.query.sub_division_id) add('sub_division_id = ?', Number(req.query.sub_division_id));
     if (req.query.authority_id) add('authority_id = ?', Number(req.query.authority_id));
     if (req.query.direction) add('direction = ?', req.query.direction);
+    if (req.query.originator) add('originator = ?', req.query.originator);
     if (req.query.overdue === 'true') where.push('is_overdue = TRUE');
     if (req.query.from) add('comm_date >= ?::date', req.query.from);
     if (req.query.to) add('comm_date <= ?::date', req.query.to);
@@ -149,6 +151,10 @@ router.post(
     if (!['Outbound', 'Inbound'].includes(b.direction)) {
       throw httpError(400, 'Direction must be Outbound or Inbound.');
     }
+    const originator = b.originator || 'ECG';
+    if (!ORIGINATORS.includes(originator)) {
+      throw httpError(400, 'Originator must be ECG, SPD or EGIS.');
+    }
 
     const created = await withTransaction(async (client) => {
       const sub = await client.query('SELECT id FROM sub_divisions WHERE id = $1', [
@@ -192,8 +198,8 @@ router.post(
         `INSERT INTO communications
            (comm_code, sub_division_id, comm_date, direction, purpose, mode,
             submission_reference, in_response_to, related_to, summary, reply_needed,
-            acc_link, logged_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+            acc_link, logged_by, originator)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
          RETURNING id`,
         [
           code,
@@ -209,6 +215,7 @@ router.post(
           b.reply_needed === true,
           b.acc_link || null,
           (req.user && req.user.name) || b.logged_by || null,
+          originator,
         ]
       );
       const newId = ins.rows[0].id;
@@ -227,6 +234,7 @@ router.post(
       payload: {
         comm_code: row.rows[0].comm_code,
         direction: row.rows[0].direction,
+        originator: row.rows[0].originator,
         sub_division: row.rows[0].sub_reference,
       },
       req,
@@ -286,6 +294,9 @@ router.put(
     const b = req.body || {};
     const exists = await query('SELECT id FROM communications WHERE id = $1', [id]);
     if (!exists.rows[0]) throw httpError(404, 'Communication not found.');
+    if (b.originator && !ORIGINATORS.includes(b.originator)) {
+      throw httpError(400, 'Originator must be ECG, SPD or EGIS.');
+    }
 
     let inResponseTo;
     if (b.in_response_to !== undefined) {
@@ -337,6 +348,7 @@ router.put(
          reply_needed = COALESCE($10, reply_needed),
          acc_link = $11,
          related_to = CASE WHEN $12::boolean THEN $13 ELSE related_to END,
+         originator = COALESCE($14, originator),
          updated_at = now()
        WHERE id = $1`,
       [
@@ -353,6 +365,7 @@ router.put(
         b.acc_link || null,
         b.related_to !== undefined,
         relatedTo === undefined ? null : relatedTo,
+        b.originator || null,
       ]
     );
     const row = await query('SELECT * FROM v_communication WHERE id = $1', [id]);

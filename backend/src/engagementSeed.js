@@ -70,6 +70,14 @@ async function addSubDivision(client, authorityId, authorityCode, name, discipli
 async function ensureEngagementStakeholders(client) {
   const created = { authorities: [], subDivisions: [] };
 
+  // A one-time bridge so the workbook import had somewhere to land. Once the
+  // register holds any action the app is the master, and authorities and
+  // sub-divisions are added, renamed and removed by people only. Running on
+  // after that re-created whatever had since been trashed or renamed (it is how
+  // MM-S10 and QNBN-S04 came back), so stand down for good.
+  const imported = await client.query('SELECT 1 FROM engagement_actions LIMIT 1');
+  if (imported.rows[0]) return { ...created, skipped: true };
+
   for (const [code, name, category, discipline] of AUTHORITIES) {
     const found = await client.query(
       'SELECT id FROM authorities WHERE code = $1 AND deleted_at IS NULL',

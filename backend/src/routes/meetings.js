@@ -4,7 +4,7 @@
 // ---------------------------------------------------------------------------
 const express = require('express');
 const { query, withTransaction } = require('../db');
-const { wrap, httpError, ref } = require('../helpers');
+const { wrap, httpError, ref, ORIGINATORS } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteMeeting, newGroupId } = require('../softDelete');
@@ -36,6 +36,10 @@ router.get(
     if (['pending', 'draft', 'final'].includes(req.query.mom_status)) {
       params.push(req.query.mom_status);
       where.push(`m.mom_status = $${params.length}`);
+    }
+    if (ORIGINATORS.includes(req.query.originator)) {
+      params.push(req.query.originator);
+      where.push(`m.originator = $${params.length}`);
     }
     if (req.query.q) {
       const q = String(req.query.q).trim();
@@ -108,6 +112,10 @@ router.post(
     const authorityId = Number(b.authority_id);
     if (!authorityId) throw httpError(400, 'An authority is required.');
     if (!b.meeting_date) throw httpError(400, 'A date is required.');
+    const originator = b.originator || 'ECG';
+    if (!ORIGINATORS.includes(originator)) {
+      throw httpError(400, 'Originator must be ECG, SPD or EGIS.');
+    }
 
     const created = await withTransaction(async (client) => {
       const auth = await client.query('SELECT id FROM authorities WHERE id = $1', [
@@ -139,8 +147,8 @@ router.post(
         `INSERT INTO meetings
            (meeting_code, authority_id, primary_sub_id, other_sub_divisions,
             meeting_date, meeting_time, purpose, mode, location, mom_reference,
-            mom_link, mom_status, attendees)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+            mom_link, mom_status, attendees, originator)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
          RETURNING id`,
         [
           code,
@@ -156,6 +164,7 @@ router.post(
           b.mom_link || null,
           momStatus,
           b.attendees || null,
+          originator,
         ]
       );
       const newId = ins.rows[0].id;
@@ -239,6 +248,9 @@ router.put(
     const b = req.body || {};
     const exists = await query('SELECT authority_id FROM meetings WHERE id = $1', [id]);
     if (!exists.rows[0]) throw httpError(404, 'Meeting not found.');
+    if (b.originator && !ORIGINATORS.includes(b.originator)) {
+      throw httpError(400, 'Originator must be ECG, SPD or EGIS.');
+    }
 
     let primarySubId;
     if (b.primary_sub_id !== undefined) {
@@ -272,6 +284,7 @@ router.put(
          meeting_time = $12,
          mom_status = COALESCE($13, mom_status),
          attendees = $14,
+         originator = COALESCE($15, originator),
          updated_at = now()
        WHERE id = $1`,
       [
@@ -289,6 +302,7 @@ router.put(
         b.meeting_time || null,
         momStatus,
         b.attendees || null,
+        b.originator || null,
       ]
     );
     const { rows } = await query(

@@ -375,6 +375,12 @@ export function StatusPill({ status }) {
 export function DirectionPill({ direction }) {
   return <Pill tone={direction === 'Inbound' ? 'green' : 'navy'}>{direction}</Pill>;
 }
+// Who carried it. ECG is the default and stays quiet; the Client and its PMC stand out.
+const ORIGINATOR_TONE = { ECG: 'grey', SPD: 'amber', EGIS: 'sky' };
+export function OriginatorPill({ originator }) {
+  const o = originator || 'ECG';
+  return <Pill tone={ORIGINATOR_TONE[o] || 'grey'}>{o}</Pill>;
+}
 
 /* ---- modal -------------------------------------------------------------- */
 export function Modal({ title, sub, onClose, children, footer, wide }) {

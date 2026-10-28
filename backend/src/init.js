@@ -119,11 +119,13 @@ async function main() {
   await ensureSuperAdmin();
   await repairFilenames();
   // Close the gap between the register and the Stakeholder Engagement Matrix:
-  // a stakeholder can only be rated once it exists here. Inserts only what is
-  // missing, so re-running on every boot is a no-op.
+  // a stakeholder can only be rated once it exists here. Runs only until the
+  // engagement register has been imported; after that the app is the master.
   try {
     const added = await withTransaction((client) => ensureEngagementStakeholders(client));
-    if (added.authorities.length || added.subDivisions.length) {
+    if (added.skipped) {
+      console.log('[init] Engagement reconciliation: register already imported - skipped.');
+    } else if (added.authorities.length || added.subDivisions.length) {
       console.log(
         `[init] Engagement reconciliation: added ${added.authorities.length} authority(ies)` +
         `${added.authorities.length ? ' [' + added.authorities.join(', ') + ']' : ''}` +
