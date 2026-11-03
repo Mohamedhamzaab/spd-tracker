@@ -274,23 +274,14 @@ export default function Communications() {
             <option value="EGIS">By EGIS</option>
           </select>
           <select
-            className="filter-select"
+            className="filter-select filter-select-narrow"
             value={authorityId}
             onChange={(e) => setAuthorityId(e.target.value)}
+            aria-label="Filter by authority"
           >
             <option value="">All authorities</option>
             {authorities.map((a) => (
               <option key={a.id} value={a.id}>{a.code} — {a.name}</option>
-            ))}
-          </select>
-          <select
-            className="filter-select"
-            value={linked}
-            onChange={(e) => setLinked(e.target.value)}
-            title="Filter by reply linkage"
-          >
-            {LINKED_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
             ))}
           </select>
           <div className="filter-date-pair">
@@ -310,6 +301,16 @@ export default function Communications() {
               aria-label="To date"
             />
           </div>
+          <select
+            className="filter-select filter-select-narrow"
+            value={linked}
+            onChange={(e) => setLinked(e.target.value)}
+            title="Filter by reply linkage"
+          >
+            {LINKED_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
         </div>
 
         <div className="filter-bar" style={{ marginTop: 10 }}>

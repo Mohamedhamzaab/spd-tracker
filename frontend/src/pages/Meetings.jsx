@@ -193,9 +193,10 @@ export default function Meetings() {
             onChange={(e) => setQ(e.target.value)}
           />
           <select
-            className="filter-select"
+            className="filter-select filter-select-narrow"
             value={authorityId}
             onChange={(e) => setAuthorityId(e.target.value)}
+            aria-label="Filter by authority"
           >
             <option value="">All authorities</option>
             {authorities.map((a) => (

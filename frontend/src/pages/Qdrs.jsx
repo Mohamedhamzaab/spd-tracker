@@ -338,7 +338,12 @@ export default function Qdrs() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <select className="filter-select" value={authorityId} onChange={(e) => setAuthorityId(e.target.value)}>
+          <select
+            className="filter-select filter-select-narrow"
+            value={authorityId}
+            onChange={(e) => setAuthorityId(e.target.value)}
+            aria-label="Filter by authority"
+          >
             <option value="">All authorities</option>
             {authorities.map((a) => (
               <option key={a.id} value={a.id}>{a.code} — {a.name}</option>

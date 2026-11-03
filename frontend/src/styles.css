@@ -1403,9 +1403,13 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
 }
 .filter-bar .search { flex: 1 1 280px; }
 .filter-bar .filter-select { min-width: 0; }
+/* Selects whose options are long names: cap the closed width so one bar fits
+   on a row; the open list still shows the full names. */
+.filter-bar .filter-select-narrow { width: 170px; text-overflow: ellipsis; }
 .filter-date-pair {
   display: flex; align-items: center; gap: 6px;
 }
+.filter-date-pair .filter-select { width: 136px; }
 .filter-date-sep { color: var(--faint); font-size: 13px; }
 
 /* Status chip toggles. */
