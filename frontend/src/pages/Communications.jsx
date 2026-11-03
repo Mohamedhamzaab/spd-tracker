@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
-  Loading, Empty, ErrorBanner, DirectionPill, OriginatorPill, Pill, fmtDate, useToast,
+  Loading, Empty, ErrorBanner, DirectionPill, OriginatorPill, ReplyStatusPill, fmtDate, useToast,
   useTableSort, SortableTH, ConfirmDialog,
 } from '../components/ui.jsx';
 import { CommDetail, CommForm } from './SubDivisionDetail.jsx';
@@ -20,26 +20,27 @@ const COMM_LIVE_EVENTS = [
   'data.communication.deleted',
 ];
 
+// Keys match the server's ?status= filter; labels match v_communication.reply_status.
 const STATUS_CHIPS = [
-  { key: 'overdue',  label: 'Overdue',  tone: 'red' },
-  { key: 'awaiting', label: 'Awaiting', tone: 'amber' },
-  { key: 'replied',  label: 'Replied',  tone: 'green' },
-  { key: 'logged',   label: 'Logged',   tone: 'grey' },
+  { key: 'overdue',   label: 'Overdue',         tone: 'red' },
+  { key: 'due',       label: 'Our reply due',   tone: 'red' },
+  { key: 'awaiting',  label: 'Awaiting reply',  tone: 'amber' },
+  { key: 'replied',   label: 'Reply received',  tone: 'green' },
+  { key: 'responded', label: 'We replied',      tone: 'green' },
+  { key: 'none',      label: 'No reply needed', tone: 'grey' },
 ];
+const STATUS_RANK = Object.fromEntries(STATUS_CHIPS.map((c, i) => [c.label, i]));
 
 function commStatusRank(c) {
-  if (c.is_overdue) return 0;
-  if (c.direction === 'Outbound' && c.reply_needed && !c.reply_received) return 1;
-  if (c.direction === 'Outbound' && c.reply_received) return 2;
-  return 3;
+  return STATUS_RANK[c.reply_status] ?? STATUS_CHIPS.length;
 }
 
 const LINKED_OPTIONS = [
   { value: '',           label: 'All communications' },
   { value: 'replies',    label: 'Replies only (responses)' },
   { value: 'originals',  label: 'Originals only (not a reply)' },
-  { value: 'answered',   label: 'Answered (got a reply)' },
-  { value: 'unanswered', label: 'Unanswered (awaiting reply)' },
+  { value: 'answered',   label: 'Answered (a reply is linked)' },
+  { value: 'unanswered', label: 'Unanswered (either side waiting)' },
 ];
 
 const COMM_COLS = {
@@ -51,6 +52,8 @@ const COMM_COLS = {
   sub_division_name:{ value: (r) => r.sub_division_name },
   purpose:          { value: (r) => r.purpose || '' },
   summary:          { value: (r) => r.summary || '' },
+  reply_needed:     { value: (r) => (r.reply_needed ? 1 : 0), type: 'number', defaultDir: 'desc' },
+  answered:         { value: (r) => (r.reply_received ? 2 : r.reply_needed ? 0 : 1), type: 'number' },
   status:           { value: (r) => commStatusRank(r), type: 'number' },
 };
 
@@ -82,7 +85,7 @@ export default function Communications() {
   const [to, setTo] = useState('');
   const [authorityId, setAuthorityId] = useState('');
   const [linked, setLinked] = useState('');
-  const [thread, setThread] = useState(''); // a comm_code — shows that whole thread
+  const [thread, setThread] = useState(''); // a comm_code — shows its whole conversation
 
   // Data state
   const [rows, setRows] = useState(null);
@@ -124,7 +127,7 @@ export default function Communications() {
     if (to) p.to = to;
     if (authorityId) p.authority_id = authorityId;
     if (linked) p.linked = linked;
-    if (thread) p.in_response_to = thread;
+    if (thread) p.thread = thread;
     return p;
   }, [qDebounced, direction, originator, statuses, from, to, authorityId, linked, thread]);
 
@@ -356,7 +359,7 @@ export default function Communications() {
 
         {thread && (
           <div className="thread-banner">
-            Showing the thread for <span className="mono">{thread}</span> (the original and its replies).
+            Showing the whole thread around <span className="mono">{thread}</span>: every reply and related letter, oldest first.
             <button type="button" className="link-btn" onClick={() => setThread('')}>
               Clear
             </button>
@@ -390,6 +393,8 @@ export default function Communications() {
                   <SortableTH id="sub_division_name" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Sub-Division</SortableTH>
                   <SortableTH id="purpose"           sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Purpose</SortableTH>
                   <SortableTH id="summary"           sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Summary</SortableTH>
+                  <SortableTH id="reply_needed" className="th-wrap" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Reply needed</SortableTH>
+                  <SortableTH id="answered"     className="th-wrap" sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Answered</SortableTH>
                   <SortableTH id="status"            sortKey={sortKey} sortDir={sortDir} onSort={onSort}>Status</SortableTH>
                 </tr>
               </thead>
@@ -427,8 +432,8 @@ export default function Communications() {
                             <button
                               type="button"
                               className="link-chip"
-                              title={`Reply to ${c.in_response_to_code} — click to see the thread`}
-                              onClick={(e) => { e.stopPropagation(); setThread(c.in_response_to_code); }}
+                              title={`Reply to ${c.in_response_to_code} — click to see the whole thread`}
+                              onClick={(e) => { e.stopPropagation(); setThread(c.comm_code); }}
                             >
                               ↩ {c.in_response_to_code}
                             </button>
@@ -437,7 +442,7 @@ export default function Communications() {
                             <button
                               type="button"
                               className="link-chip link-chip-fwd"
-                              title={`Answered by ${c.reply_code} — click to see the thread`}
+                              title={`Answered by ${c.reply_code} — click to see the whole thread`}
                               onClick={(e) => { e.stopPropagation(); setThread(c.comm_code); }}
                             >
                               → {c.reply_code}
@@ -447,8 +452,8 @@ export default function Communications() {
                             <button
                               type="button"
                               className="link-chip"
-                              title={`Related to ${c.related_to_code} — click to find it`}
-                              onClick={(e) => { e.stopPropagation(); setQ(c.related_to_code); }}
+                              title={`Related to ${c.related_to_code} — click to see the whole thread`}
+                              onClick={(e) => { e.stopPropagation(); setThread(c.comm_code); }}
                             >
                               ≈ {c.related_to_code}
                             </button>
@@ -461,7 +466,7 @@ export default function Communications() {
                       <div className="cell-sub">{c.authority_code}</div>
                     </td>
                     <td>{c.purpose || '-'}</td>
-                    <td style={{ maxWidth: 320 }}>
+                    <td style={{ maxWidth: 240 }}>
                       <div
                         style={{
                           overflow: 'hidden',
@@ -471,17 +476,41 @@ export default function Communications() {
                       >
                         {c.summary || '-'}
                       </div>
+                      {c.latest_update && (
+                        <div
+                          className="cell-sub"
+                          title={c.latest_update}
+                          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        >
+                          Latest: {c.latest_update}
+                        </div>
+                      )}
                     </td>
                     <td>
-                      {c.is_overdue ? (
-                        <Pill tone="red">Overdue</Pill>
-                      ) : c.direction === 'Outbound' && c.reply_received ? (
-                        <Pill tone="green">Replied</Pill>
-                      ) : c.direction === 'Outbound' && c.reply_needed ? (
-                        <Pill tone="amber">Awaiting</Pill>
+                      {c.reply_needed ? (
+                        <span className="cell-strong">Yes</span>
                       ) : (
-                        <Pill tone="grey">Logged</Pill>
+                        <span className="cell-sub">No</span>
                       )}
+                    </td>
+                    <td>
+                      {c.reply_received ? (
+                        <button
+                          type="button"
+                          className="link-chip link-chip-fwd"
+                          title={`Answered by ${c.reply_code} — click to see the whole thread`}
+                          onClick={(e) => { e.stopPropagation(); setThread(c.comm_code); }}
+                        >
+                          ✓ {c.reply_code}
+                        </button>
+                      ) : c.reply_needed ? (
+                        <span className="cell-strong" style={{ color: 'var(--red)' }}>Not yet</span>
+                      ) : (
+                        <span className="cell-sub">—</span>
+                      )}
+                    </td>
+                    <td>
+                      <ReplyStatusPill status={c.reply_status} />
                     </td>
                   </tr>
                 ))}

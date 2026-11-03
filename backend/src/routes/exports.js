@@ -199,12 +199,21 @@ function buildSubDivisionsSheet(book, rows) {
   return sheet;
 }
 
+// Computed once in v_communication so every screen and export agrees.
 function commStatus(c) {
-  if (c.is_overdue) return 'Overdue';
-  if (c.direction === 'Outbound' && c.reply_received) return 'Replied';
-  if (c.direction === 'Outbound' && c.reply_needed) return 'Awaiting reply';
-  return 'Logged';
+  return c.reply_status || 'No reply needed';
 }
+
+// Header notes on the Communications sheet, so a reader never has to ask
+// what a column means.
+const COMM_HEADER_NOTES = {
+  direction: 'Read from our side. ECG, SPD and EGIS are one side: whatever leaves us is Outbound, whatever reaches us is Inbound.',
+  originator: 'Which of us carries the letter: ECG, SPD or EGIS. SPD + Outbound = sent by SPD; SPD + Inbound = received by SPD. The authority is in the Authority column.',
+  reply_needed_str: 'Outbound: we expect the authority to answer. Inbound: the authority expects an answer from us.',
+  reply_received_str: 'Outbound: the authority has replied. Inbound: we have replied. Set by linking the reply with "In Response To".',
+  status: 'Follows from Reply Needed and Answered. Overdue = an ECG letter with no reply after 7 days.',
+  latest_update: 'The latest action on this letter, e.g. "met them on 3 Nov, waiting for their comments".',
+};
 
 function momLabel(s) {
   return { pending: 'Pending', draft: 'Draft', final: 'Final' }[s] || (s || '');
@@ -228,8 +237,9 @@ function buildCommunicationsSheet(book, rows) {
     { header: 'Related To',       key: 'related_to_code',      width: 12 },
     { header: 'Summary',          key: 'summary',              width: 60 },
     { header: 'Reply Needed',     key: 'reply_needed_str',     width: 12 },
-    { header: 'Reply Received',   key: 'reply_received_str',   width: 14 },
+    { header: 'Answered',         key: 'reply_received_str',   width: 11 },
     { header: 'Status',           key: 'status',               width: 16 },
+    { header: 'Latest Update',    key: 'latest_update',        width: 48 },
     { header: 'ACC Link',         key: 'acc_link',             width: 28 },
     { header: 'Documents',        key: 'document_count',       width: 10 },
   ];
@@ -240,14 +250,18 @@ function buildCommunicationsSheet(book, rows) {
     status: commStatus(r),
   }));
   setHeaderStyle(sheet);
+  for (const [key, note] of Object.entries(COMM_HEADER_NOTES)) {
+    sheet.getRow(1).getCell(sheet.getColumn(key).number).note = note;
+  }
   const statusCol = sheet.getColumn('status');
   statusCol.eachCell({ includeEmpty: false }, (cell, rowIdx) => {
     if (rowIdx === 1) return;
     if (cell.value === 'Overdue') cell.font = { bold: true, color: { argb: RED } };
-    else if (cell.value === 'Replied') cell.font = { color: { argb: GREEN } };
+    else if (cell.value === 'Our reply due') cell.font = { bold: true, color: { argb: AMBER } };
+    else if (cell.value === 'Reply received' || cell.value === 'We replied') cell.font = { color: { argb: GREEN } };
     else if (cell.value === 'Awaiting reply') cell.font = { color: { argb: AMBER } };
   });
-  applyAutoFilter(sheet, 'R', rows.length + 1);
+  applyAutoFilter(sheet, 'T', rows.length + 1);
   return sheet;
 }
 

@@ -12,6 +12,37 @@ const { renumberCommunications } = require('../renumberComms');
 
 const router = express.Router();
 
+// Every live communication connected to one row through "in response to" or
+// "related to" links, in either direction: the whole conversation, however
+// it branches. Ordered oldest first.
+const THREAD_SQL = `
+  WITH RECURSIVE edges AS (
+    SELECT id AS a, in_response_to AS b FROM communications
+     WHERE in_response_to IS NOT NULL AND deleted_at IS NULL
+    UNION ALL
+    SELECT id, related_to FROM communications
+     WHERE related_to IS NOT NULL AND deleted_at IS NULL
+  ), links AS (
+    SELECT a, b FROM edges UNION SELECT b, a FROM edges
+  ), thread(id) AS (
+    SELECT $1::int
+    UNION
+    SELECT l.b FROM links l JOIN thread t ON l.a = t.id
+  )
+  SELECT v.* FROM v_communication v JOIN thread t ON t.id = v.id
+  ORDER BY v.comm_date, v.comm_code`;
+
+// Status keys used by the list filter → the computed reply_status.
+const STATUS_KEYS = {
+  overdue: 'Overdue',
+  awaiting: 'Awaiting reply',
+  replied: 'Reply received',
+  due: 'Our reply due',
+  responded: 'We replied',
+  none: 'No reply needed',
+  logged: 'No reply needed', // older saved views
+};
+
 // GET /api/communications  -  whole log, optionally filtered.
 //   ?sub_division_id=
 //   ?authority_id=
@@ -19,14 +50,11 @@ const router = express.Router();
 //   ?originator=ECG|SPD|EGIS
 //   ?overdue=true
 //   ?from=YYYY-MM-DD  ?to=YYYY-MM-DD
-//   ?status=overdue,awaiting,replied,logged  (subset, comma-separated)
+//   ?status=overdue,awaiting,replied,due,responded,none  (subset, comma-separated)
+//   ?thread=C-0041  the whole conversation that letter belongs to
 //   ?q=natural language search (Postgres websearch_to_tsquery)
 //
-// Status semantics — match the computed column on v_communication:
-//   overdue   is_overdue = TRUE
-//   awaiting  direction='Outbound' AND reply_needed AND NOT reply_received AND NOT overdue
-//   replied   direction='Outbound' AND reply_received
-//   logged    everything else
+// Status keys map onto v_communication.reply_status (see STATUS_KEYS).
 router.get(
   '/',
   wrap(async (req, res) => {
@@ -51,14 +79,14 @@ router.get(
     //   linked=replies   → rows that ARE a reply to something (in_response_to set)
     //   linked=originals → rows that are NOT a reply (a standalone / outbound)
     //   linked=answered  → rows that HAVE received a reply
-    //   linked=unanswered→ outbound rows still awaiting a reply
+    //   linked=unanswered→ rows still waiting on a reply, either side
     if (req.query.linked) {
       const v = String(req.query.linked);
       if (v === 'replies') where.push('in_response_to IS NOT NULL');
       else if (v === 'originals') where.push('in_response_to IS NULL');
       else if (v === 'answered') where.push('reply_received = TRUE');
       else if (v === 'unanswered')
-        where.push("direction = 'Outbound' AND reply_needed = TRUE AND reply_received = FALSE");
+        where.push("reply_status IN ('Overdue', 'Awaiting reply', 'Our reply due')");
     }
 
     // Find everything in one thread: ?in_response_to=C-0002 returns the parent
@@ -71,17 +99,19 @@ router.get(
       );
     }
 
+    // The whole conversation a letter belongs to (replies and related letters).
+    if (req.query.thread) {
+      const code = String(req.query.thread).trim().toUpperCase();
+      const start = await query('SELECT id FROM communications WHERE comm_code = $1 AND deleted_at IS NULL', [code]);
+      if (!start.rows[0]) return res.json([]);
+      const { rows } = await query(THREAD_SQL, [start.rows[0].id]);
+      add('id = ANY(?::int[])', rows.map((r) => r.id));
+    }
+
     if (req.query.status) {
-      const set = String(req.query.status).split(',').map((s) => s.trim()).filter(Boolean);
-      const groups = [];
-      if (set.includes('overdue')) groups.push('is_overdue = TRUE');
-      if (set.includes('awaiting'))
-        groups.push("(direction = 'Outbound' AND reply_needed = TRUE AND reply_received = FALSE AND is_overdue = FALSE)");
-      if (set.includes('replied'))
-        groups.push("(direction = 'Outbound' AND reply_received = TRUE)");
-      if (set.includes('logged'))
-        groups.push("(direction = 'Inbound' OR (direction = 'Outbound' AND reply_needed = FALSE AND reply_received = FALSE))");
-      if (groups.length) where.push('(' + groups.join(' OR ') + ')');
+      const labels = [...new Set(String(req.query.status).split(',')
+        .map((s) => STATUS_KEYS[s.trim()]).filter(Boolean))];
+      if (labels.length) add('reply_status = ANY(?::text[])', labels);
     }
 
     // FTS over the base `communications` table; we still SELECT from the
@@ -120,7 +150,8 @@ router.get(
   })
 );
 
-// GET /api/communications/:id  -  one event with its attached documents.
+// GET /api/communications/:id  -  one event with its attached documents and
+// the whole conversation it belongs to (itself included).
 router.get(
   '/:id',
   wrap(async (req, res) => {
@@ -135,7 +166,8 @@ router.get(
         ORDER BY uploaded_at`,
       [id]
     );
-    res.json({ ...row.rows[0], documents: docs.rows });
+    const thread = await query(THREAD_SQL, [id]);
+    res.json({ ...row.rows[0], documents: docs.rows, thread: thread.rows });
   })
 );
 
@@ -198,8 +230,8 @@ router.post(
         `INSERT INTO communications
            (comm_code, sub_division_id, comm_date, direction, purpose, mode,
             submission_reference, in_response_to, related_to, summary, reply_needed,
-            acc_link, logged_by, originator)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            acc_link, logged_by, originator, latest_update)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
          RETURNING id`,
         [
           code,
@@ -216,6 +248,7 @@ router.post(
           b.acc_link || null,
           (req.user && req.user.name) || b.logged_by || null,
           originator,
+          b.latest_update || null,
         ]
       );
       const newId = ins.rows[0].id;
@@ -349,6 +382,7 @@ router.put(
          acc_link = $11,
          related_to = CASE WHEN $12::boolean THEN $13 ELSE related_to END,
          originator = COALESCE($14, originator),
+         latest_update = CASE WHEN $15::boolean THEN $16 ELSE latest_update END,
          updated_at = now()
        WHERE id = $1`,
       [
@@ -366,6 +400,8 @@ router.put(
         b.related_to !== undefined,
         relatedTo === undefined ? null : relatedTo,
         b.originator || null,
+        b.latest_update !== undefined,
+        b.latest_update || null,
       ]
     );
     const row = await query('SELECT * FROM v_communication WHERE id = $1', [id]);

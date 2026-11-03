@@ -382,6 +382,20 @@ export function OriginatorPill({ originator }) {
   return <Pill tone={ORIGINATOR_TONE[o] || 'grey'}>{o}</Pill>;
 }
 
+// v_communication.reply_status. Red is anything waiting on us or late.
+export const REPLY_STATUS_TONE = {
+  'Overdue': 'red',
+  'Our reply due': 'red',
+  'Awaiting reply': 'amber',
+  'Reply received': 'green',
+  'We replied': 'green',
+  'No reply needed': 'grey',
+};
+export function ReplyStatusPill({ status }) {
+  const s = status || 'No reply needed';
+  return <Pill tone={REPLY_STATUS_TONE[s] || 'grey'}>{s}</Pill>;
+}
+
 /* ---- modal -------------------------------------------------------------- */
 export function Modal({ title, sub, onClose, children, footer, wide }) {
   useEffect(() => {

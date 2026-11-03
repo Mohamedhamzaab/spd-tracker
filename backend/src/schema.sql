@@ -407,6 +407,10 @@ ALTER TABLE meetings DROP CONSTRAINT IF EXISTS meetings_originator_check;
 ALTER TABLE meetings ADD CONSTRAINT meetings_originator_check
   CHECK (originator IN ('ECG', 'SPD', 'EGIS'));
 
+-- The latest action on a letter, in a line: "met them on 3 Nov, waiting for
+-- their comments". Shown in the log and the Excel export.
+ALTER TABLE communications ADD COLUMN IF NOT EXISTS latest_update TEXT;
+
 -- Sub-divisions: split contact into a dedicated email + phone. The legacy
 -- free-text contact_details column is kept for historical values.
 ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS contact_email TEXT;
@@ -731,7 +735,9 @@ CREATE INDEX IF NOT EXISTS idx_eng_progress_live
 -- idempotent and cheap: views are pure derivations.
 DROP VIEW IF EXISTS v_communication CASCADE;
 
--- Communication with computed reply_received and overdue flags.
+-- Communication with computed reply_received, overdue and reply_status.
+-- reply_received means "answered": for an Outbound letter the authority
+-- replied; for an Inbound letter we replied.
 CREATE OR REPLACE VIEW v_communication AS
 SELECT
     c.*,
@@ -740,20 +746,25 @@ SELECT
     a.id           AS authority_id,
     a.code         AS authority_code,
     a.name         AS authority_name,
-    EXISTS (
-        SELECT 1 FROM communications r
-        WHERE r.in_response_to = c.id AND r.deleted_at IS NULL
-    )              AS reply_received,
+    ans.answered   AS reply_received,
     (
         c.direction = 'Outbound'
         AND c.originator = 'ECG'
         AND c.reply_needed = TRUE
-        AND NOT EXISTS (
-            SELECT 1 FROM communications r
-            WHERE r.in_response_to = c.id AND r.deleted_at IS NULL
-        )
+        AND NOT ans.answered
         AND (CURRENT_DATE - c.comm_date) > 7
     )              AS is_overdue,
+    -- One status for every screen and export. Outbound: are we waiting on the
+    -- authority? Inbound: does the authority wait on us?
+    CASE
+      WHEN c.direction = 'Outbound' AND c.originator = 'ECG' AND c.reply_needed
+           AND NOT ans.answered AND (CURRENT_DATE - c.comm_date) > 7 THEN 'Overdue'
+      WHEN c.direction = 'Outbound' AND ans.answered                 THEN 'Reply received'
+      WHEN c.direction = 'Outbound' AND c.reply_needed               THEN 'Awaiting reply'
+      WHEN c.direction = 'Inbound'  AND ans.answered                 THEN 'We replied'
+      WHEN c.direction = 'Inbound'  AND c.reply_needed               THEN 'Our reply due'
+      ELSE 'No reply needed'
+    END            AS reply_status,
     (SELECT count(*) FROM documents d
        WHERE d.parent_type = 'communication'
          AND d.parent_id = c.id
@@ -770,6 +781,12 @@ SELECT
 FROM communications c
 JOIN sub_divisions sd ON sd.id = c.sub_division_id AND sd.deleted_at IS NULL
 JOIN authorities  a  ON a.id  = sd.authority_id   AND a.deleted_at  IS NULL
+CROSS JOIN LATERAL (
+    SELECT EXISTS (
+        SELECT 1 FROM communications r
+        WHERE r.in_response_to = c.id AND r.deleted_at IS NULL
+    ) AS answered
+) ans
 LEFT JOIN communications parent
        ON parent.id = c.in_response_to AND parent.deleted_at IS NULL
 LEFT JOIN communications relparent

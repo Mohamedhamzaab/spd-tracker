@@ -1618,6 +1618,15 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
 }
 .thread-banner .link-btn { margin-left: auto; }
 
+/* The whole conversation inside a communication: replies and related letters. */
+.convo { display: flex; flex-direction: column; gap: 8px; }
+.convo .thread-item { margin-bottom: 0; cursor: pointer; }
+.convo .thread-item:hover:not(.is-current) { box-shadow: 0 0 0 1px var(--navy); }
+.convo .thread-item:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.convo .thread-item.is-current { background: var(--navy-soft); cursor: default; }
+.convo .thread-summary { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.convo-status { margin-left: auto; }
+
 /* Sortable table headers — clickable label + small arrow indicator. */
 .th-sort {
   cursor: pointer;
@@ -1635,6 +1644,9 @@ html[dir="rtl"] .landing-scroll-hint { direction: ltr; }
   transition: color 120ms ease;
 }
 .th-sort-active .th-sort-arrow { color: var(--navy); }
+/* Short yes/no columns: let a two-word header wrap instead of widening the table. */
+.th-sort.th-wrap { white-space: normal; width: 1%; }
+.th-sort.th-wrap .th-sort-inner { min-width: 64px; }
 .th-sort:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -2px;

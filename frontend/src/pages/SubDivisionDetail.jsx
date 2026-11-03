@@ -8,7 +8,8 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Section, Modal, FormFields, ConfirmDialog,
-  EngagementPill, StatusPill, DirectionPill, OriginatorPill, Pill, fmtDate, fileSize, useToast, FileDrop, UploadProgress,
+  EngagementPill, StatusPill, DirectionPill, OriginatorPill, ReplyStatusPill, Pill, fmtDate, fileSize, useToast,
+  FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
 import { SubForm } from './SubDivisions.jsx';
@@ -202,9 +203,8 @@ export default function SubDivisionDetail() {
                     )}
                     <span className="section-note">{fmtDate(c.comm_date)}</span>
                     {c.purpose && <Pill tone="grey">{c.purpose}</Pill>}
-                    {c.is_overdue && <Pill tone="red">Overdue</Pill>}
-                    {c.direction === 'Outbound' && c.reply_received && (
-                      <Pill tone="green">Reply received</Pill>
+                    {c.reply_status && c.reply_status !== 'No reply needed' && (
+                      <ReplyStatusPill status={c.reply_status} />
                     )}
                     {Number(c.document_count) > 0 && (
                       <span className="section-note">
@@ -436,27 +436,31 @@ function commFieldDefs(lists, subDivisions) {
   defs.push(
     { name: 'comm_date', label: 'Date', type: 'date', required: true },
     { name: 'direction', label: 'Direction', type: 'select', required: true,
-      options: lists.direction },
+      options: lists.direction,
+      help: 'ECG, SPD and EGIS are one side: whatever leaves us is Outbound, whatever reaches us is Inbound.' },
     { name: 'originator', label: 'By', type: 'select', required: true,
       options: lists.originator || ['ECG', 'SPD', 'EGIS'],
-      help: 'Who sent or received it. SPD and EGIS letters are shared with us for the record and never flagged overdue.' },
+      help: 'Which of us carries it. SPD + Inbound = received by SPD. SPD and EGIS letters are never flagged overdue.' },
     { name: 'purpose', label: 'Purpose', type: 'select',
       options: lists.communication_purpose },
     { name: 'mode', label: 'Mode', type: 'select', options: lists.communication_mode },
     { name: 'submission_reference', label: 'Submission Reference', span: 2,
       placeholder: 'e.g. 3659-LET-ECG-KMW-26-0001' },
     { name: 'in_response_to', label: 'In Response To', span: 2,
-      placeholder: 'Comm code of the original, e.g. C-0003',
-      help: 'For an Inbound reply, enter the Outbound code it answers.' },
+      placeholder: 'Comm code of the letter this answers, e.g. C-0003',
+      help: 'The letter this one answers, in either direction. Linking it marks that letter as answered.' },
     { name: 'related_to', label: 'Related To', span: 2,
       placeholder: 'Comm code of a related item, e.g. C-0001',
-      help: 'Link a related communication/thread that this is NOT a direct reply to.' },
+      help: 'Same subject but not a direct reply. Related letters open together as one thread.' },
     { name: 'summary', label: 'Summary / Key Content', type: 'textarea', span: 2 },
+    { name: 'latest_update', label: 'Latest update', span: 2,
+      placeholder: 'e.g. Met them on 3 Nov; waiting for their comments',
+      help: 'The latest action on this letter and what we are waiting for. Shown in the log and the Excel export.' },
     { name: 'acc_link', label: 'Document Link (ACC)', span: 2,
       placeholder: 'Optional link to the document in ACC' },
     { name: 'reply_needed', label: 'A reply is needed for this communication',
       type: 'checkbox', span: 2,
-      help: 'ECG outbound items needing a reply are flagged overdue after 7 days.' },
+      help: 'Outbound: we expect the authority to answer. Inbound: the authority expects an answer from us. ECG letters with no reply are flagged overdue after 7 days.' },
   );
   return defs;
 }
@@ -472,6 +476,7 @@ function emptyCommValues() {
     in_response_to: '',
     related_to: '',
     summary: '',
+    latest_update: '',
     reply_needed: false,
     acc_link: '',
   };
@@ -488,6 +493,7 @@ function commValuesFromExisting(existing, parentCommCode) {
     in_response_to: parentCommCode || '',
     related_to: existing.related_to_code || '',
     summary: existing.summary || '',
+    latest_update: existing.latest_update || '',
     reply_needed: !!existing.reply_needed,
     acc_link: existing.acc_link || '',
   };
@@ -618,10 +624,23 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState('');
 
+  // The letter on show. Starts at commId; following a link in the thread
+  // moves it along the conversation without closing the window.
+  const [currentId, setCurrentId] = useState(commId);
+  useEffect(() => setCurrentId(commId), [commId]);
+
   function load() {
-    api.communication(commId).then(setData).catch((e) => setError(e.message));
+    api.communication(currentId).then(setData).catch((e) => setError(e.message));
   }
-  useEffect(load, [commId]);
+  useEffect(() => {
+    setData(null);
+    setEditing(false);
+    setError('');
+    load();
+  }, [currentId]);
+
+  const open = (id) => { if (id && id !== currentId) setCurrentId(id); };
+  const idOf = (code) => (data?.thread || []).find((t) => t.comm_code === code)?.id;
 
   // Whenever the user clicks Edit, prefill the form from the current data,
   // including the parent comm_code (looked up once) so the in-response-to
@@ -651,7 +670,7 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
     if (!values.comm_date) { setEditError('A date is required.'); return; }
     setSavingEdit(true);
     try {
-      await api.updateComm(commId, values);
+      await api.updateComm(currentId, values);
       setEditing(false);
       toast('Communication updated');
       load();
@@ -718,34 +737,23 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
               label="Reply Needed"
               value={data.reply_needed ? 'Yes' : 'No'}
             />
-            <DItem
-              label="Status"
-              value={
-                data.is_overdue ? (
-                  <Pill tone="red">Overdue</Pill>
-                ) : data.direction === 'Outbound' && data.reply_received ? (
-                  <Pill tone="green">Reply received</Pill>
-                ) : (
-                  <Pill tone="grey">Open</Pill>
-                )
-              }
-            />
+            <DItem label="Status" value={<ReplyStatusPill status={data.reply_status} />} />
             {data.in_response_to_code && (
               <DItem
                 label="In response to"
-                value={<span className="mono">↩ {data.in_response_to_code}</span>}
+                value={<CodeLink sym="↩" code={data.in_response_to_code} onOpen={() => open(data.in_response_to)} />}
               />
             )}
             {data.reply_code && (
               <DItem
                 label="Answered by"
-                value={<span className="mono">→ {data.reply_code}</span>}
+                value={<CodeLink fwd sym="→" code={data.reply_code} onOpen={() => open(idOf(data.reply_code))} />}
               />
             )}
             {data.related_to_code && (
               <DItem
                 label="Related to"
-                value={<span className="mono">≈ {data.related_to_code}</span>}
+                value={<CodeLink sym="≈" code={data.related_to_code} onOpen={() => open(data.related_to)} />}
               />
             )}
           </div>
@@ -753,6 +761,16 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
             <DRow label="Submission Reference" value={data.submission_reference} />
           )}
           <DRow label="Summary" value={data.summary || '-'} />
+          {data.latest_update && <DRow label="Latest update" value={data.latest_update} />}
+
+          {data.thread && data.thread.length > 1 && (
+            <div style={{ marginTop: 18 }}>
+              <div className="section-title" style={{ marginBottom: 10 }}>
+                Thread · {data.thread.length} letters
+              </div>
+              <ThreadList thread={data.thread} currentId={data.id} onOpen={open} />
+            </div>
+          )}
           {data.acc_link && (
             <DRow
               label="ACC Link"
@@ -768,7 +786,7 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
             <div className="section-title" style={{ marginBottom: 10 }}>Documents</div>
             <DocumentsPanel
               parentType="communication"
-              parentId={commId}
+              parentId={currentId}
               code={data.comm_code}
               onChange={() => { load(); onChanged && onChanged(); }}
             />
@@ -778,19 +796,80 @@ export function CommDetail({ commId, isEditor, onClose, onChanged }) {
             <div className="section-title" style={{ marginBottom: 10 }}>
               Tasks
             </div>
-            <TasksPanel parentType="communication" parentId={commId} />
+            <TasksPanel parentType="communication" parentId={currentId} />
           </div>
 
           <div style={{ marginTop: 22 }}>
             <div className="section-title" style={{ marginBottom: 10 }}>
               Discussion
             </div>
-            <CommentsThread parentType="communication" parentId={commId} />
+            <CommentsThread parentType="communication" parentId={currentId} />
           </div>
         </>
       )}
     </Modal>
     </>
+  );
+}
+
+// A linked letter's code; clicking opens it in the same window, thread and all.
+function CodeLink({ code, sym, fwd, onOpen }) {
+  return (
+    <button
+      type="button"
+      className={'link-chip' + (fwd ? ' link-chip-fwd' : '')}
+      title={`Open ${code}`}
+      onClick={onOpen}
+    >
+      {sym} {code}
+    </button>
+  );
+}
+
+// The whole conversation a letter belongs to, oldest first. The letter on show
+// is highlighted; any other one opens on click.
+function ThreadList({ thread, currentId, onOpen }) {
+  return (
+    <div className="convo">
+      {thread.map((t) => {
+        const current = t.id === currentId;
+        const go = () => onOpen(t.id);
+        return (
+          <div
+            key={t.id}
+            className={
+              'thread-item ' + (t.direction === 'Inbound' ? 'inbound' : 'outbound') +
+              (current ? ' is-current' : '')
+            }
+            aria-current={current ? 'true' : undefined}
+            role={current ? undefined : 'button'}
+            tabIndex={current ? undefined : 0}
+            onClick={current ? undefined : go}
+            onKeyDown={current ? undefined : (e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); }
+            }}
+          >
+            <div className="thread-head">
+              <span className="mono" style={{ fontSize: 12 }}>{t.comm_code}</span>
+              <DirectionPill direction={t.direction} />
+              {t.originator && t.originator !== 'ECG' && <OriginatorPill originator={t.originator} />}
+              <span className="section-note">
+                {fmtDate(t.comm_date)} · {t.authority_code} · {t.sub_division_name}
+              </span>
+              <span className="convo-status"><ReplyStatusPill status={t.reply_status} /></span>
+            </div>
+            <div className="thread-summary">{t.summary || '-'}</div>
+            {(t.in_response_to_code || t.related_to_code) && (
+              <div className="thread-meta">
+                {t.in_response_to_code && <>↩ reply to {t.in_response_to_code}</>}
+                {t.in_response_to_code && t.related_to_code && ' · '}
+                {t.related_to_code && <>≈ related to {t.related_to_code}</>}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 

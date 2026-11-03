@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pill, fmtDate } from './ui.jsx';
+import { Pill, ReplyStatusPill, fmtDate } from './ui.jsx';
 
 const RED = '#dc2626';        // sent / outbound
 const MAROON = '#7f1d1d';     // received / inbound
@@ -225,8 +225,7 @@ function TeamList({ rows }) {
 
 /* ---- recent activity: stacked communications + meetings briefs ---------- */
 function StatusPill({ status }) {
-  const map = { Overdue: 'red', Awaiting: 'amber', Replied: 'green', Logged: 'grey' };
-  return <Pill tone={map[status] || 'grey'}>{status}</Pill>;
+  return <ReplyStatusPill status={status} />;
 }
 const MOM_VIEW = {
   pending: { label: 'MoM pending', tone: 'red' },
