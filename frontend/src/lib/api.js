@@ -21,6 +21,26 @@ function qs(params) {
   return parts.length ? '?' + parts.join('&') : '';
 }
 
+// Our API always answers errors in JSON. A body that isn't JSON came from in
+// front of it: Render's own "502" page while the server restarts (a deploy or
+// a crash), or a Cloudflare error page. Never show that page's markup.
+const GATEWAY_STATUSES = [502, 503, 504, 520, 521, 522, 523, 524];
+function nonJsonMessage(status, fallback) {
+  if (GATEWAY_STATUSES.includes(status)) {
+    return 'The server is restarting. Please try again in a few seconds.';
+  }
+  return fallback || `Request failed (error ${status}).`;
+}
+
+// Error message for a failed raw fetch(): the API's JSON error if there is one.
+async function errorMessage(res, fallback) {
+  try {
+    const j = await res.json();
+    if (j && j.error) return j.error;
+  } catch { /* not JSON */ }
+  return nonJsonMessage(res.status, fallback);
+}
+
 async function req(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
   const token = getToken();
@@ -41,13 +61,17 @@ async function req(path, opts = {}) {
   if (res.status === 204) return null;
   const text = await res.text();
   let data = null;
+  let isJson = true;
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
+    isJson = false;
     data = { error: text };
   }
   if (!res.ok) {
-    const err = new Error((data && data.error) || 'Request failed.');
+    const err = new Error(
+      isJson ? (data && data.error) || 'Request failed.' : nonJsonMessage(res.status)
+    );
     err.status = res.status;
     throw err;
   }
@@ -122,7 +146,7 @@ function uploadBatchXHR(parentType, parentId, list, onBytes) {
       if (xhr.status >= 200 && xhr.status < 300) {
         resolve(data);
       } else {
-        const err = new Error((data && data.error) || 'Upload failed.');
+        const err = new Error((data && data.error) || nonJsonMessage(xhr.status, 'Upload failed.'));
         err.status = xhr.status;
         reject(err);
       }
@@ -292,15 +316,7 @@ export const api = {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) {
-      // Try to surface the server's JSON error message.
-      let msg = 'Export failed.';
-      try {
-        const j = await res.json();
-        msg = j.error || msg;
-      } catch {
-        // not JSON — fall through with the generic message
-      }
-      const err = new Error(msg);
+      const err = new Error(await errorMessage(res, 'Export failed.'));
       err.status = res.status;
       throw err;
     }
@@ -394,7 +410,7 @@ export const api = {
     const res = await fetch('/api/documents/' + id + '/download', {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
-    if (!res.ok) throw new Error('Download failed.');
+    if (!res.ok) throw new Error(await errorMessage(res, 'Download failed.'));
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -413,11 +429,7 @@ export const api = {
       `/api/documents/${parentType}/${parentId}/zip` + qs(folder ? { folder } : null),
       { headers: { Authorization: `Bearer ${getToken()}` } }
     );
-    if (!res.ok) {
-      let msg = 'Download failed.';
-      try { const j = await res.json(); msg = j.error || msg; } catch { /* not JSON */ }
-      throw new Error(msg);
-    }
+    if (!res.ok) throw new Error(await errorMessage(res, 'Download failed.'));
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -435,7 +447,7 @@ export const api = {
     const res = await fetch('/api/documents/' + id + '/download', {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
-    if (!res.ok) throw new Error('Could not load the document.');
+    if (!res.ok) throw new Error(await errorMessage(res, 'Could not load the document.'));
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   },
@@ -446,7 +458,7 @@ export const api = {
     const res = await fetch('/api/documents/' + id + '/download', {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
-    if (!res.ok) throw new Error('Could not load the document.');
+    if (!res.ok) throw new Error(await errorMessage(res, 'Could not load the document.'));
     return res.arrayBuffer();
   },
 
@@ -455,11 +467,7 @@ export const api = {
     const res = await fetch('/api/documents/' + id + '/dxf', {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
-    if (!res.ok) {
-      let msg = 'Could not load the drawing.';
-      try { const j = await res.json(); msg = j.error || msg; } catch { /* not JSON */ }
-      throw new Error(msg);
-    }
+    if (!res.ok) throw new Error(await errorMessage(res, 'Could not load the drawing.'));
     const blob = await res.blob();
     return URL.createObjectURL(blob);
   },
@@ -469,11 +477,7 @@ export const api = {
     const res = await fetch('/api/documents/' + id + '/svg', {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
-    if (!res.ok) {
-      let msg = 'Could not render the drawing.';
-      try { const j = await res.json(); msg = j.error || msg; } catch { /* not JSON */ }
-      throw new Error(msg);
-    }
+    if (!res.ok) throw new Error(await errorMessage(res, 'Could not render the drawing.'));
     return res.text();
   },
 };
