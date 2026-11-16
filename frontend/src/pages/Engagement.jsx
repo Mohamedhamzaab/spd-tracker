@@ -56,32 +56,59 @@ export default function Engagement() {
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
   // The figures matter when you arrive and get in the way once you are
-  // reading, so they fold away as soon as you scroll into the register.
+  // reading, so they fold away as soon as you scroll into the register -
+  // the page itself, or the register's own panel (readDepth below).
+  // Hysteresis keeps the header from flickering: it folds past 24px and
+  // unfolds only back near the top.
   const [condensed, setCondensed] = useState(false);
-  const topSentinel = useRef(null);
+  const topbarRef = useRef(null);
+  const tabsRef = useRef(null);
+  const stripRef = useRef(null);
+  // How far down the register's own panel is. Folding shortens the page, so
+  // the browser snaps the page back towards the top by itself; that must not
+  // unfold the header while you are still deep in the register.
+  const panelDepth = useRef(0);
+  useEffect(() => { panelDepth.current = 0; }, [tab]);
 
-  // Two triggers on purpose. The sentinel is the accurate one - it fires
-  // whichever element actually scrolls - but observers get throttled in
-  // background tabs, so a plain scroll check backs it up. Hysteresis keeps
-  // the header from flickering: it folds past 24px, unfolds only near the top.
   useEffect(() => {
+    const html = document.documentElement;
+    // Folding changes the height above what you are reading, and the
+    // browser's scroll anchoring would move the page to make up for it -
+    // which then unfolds or folds the header again. Off on this page.
+    const prevAnchor = html.style.overflowAnchor;
+    html.style.overflowAnchor = 'none';
+
+    const foldHeight = () =>
+      [topbarRef, stripRef, tabsRef].reduce((h, r) => h + (r.current ? r.current.offsetHeight : 0), 0);
     const fold = () => {
-      const y = window.scrollY || document.documentElement.scrollTop || 0;
-      setCondensed((was) => (was ? y > 4 : y > 24));
+      const y = window.scrollY || html.scrollTop || 0;
+      setCondensed((was) => {
+        if (was) return y > 4 || panelDepth.current > 4;
+        if (y <= 24) return false;
+        // Only fold if the page can still scroll once the header is gone.
+        // A short page would snap back to the top with the header folded and
+        // nothing left to scroll; there the register's own panel folds it.
+        return html.scrollHeight - foldHeight() - window.innerHeight > 24;
+      });
     };
     window.addEventListener('scroll', fold, { passive: true });
-
-    const el = topSentinel.current;
-    let io;
-    if (el && typeof IntersectionObserver !== 'undefined') {
-      io = new IntersectionObserver(([e]) => setCondensed(!e.isIntersecting), { threshold: 0 });
-      io.observe(el);
-    }
     return () => {
       window.removeEventListener('scroll', fold);
-      if (io) io.disconnect();
+      html.style.overflowAnchor = prevAnchor;
     };
   }, []);
+
+  // The register scrolls inside its own panel, often with the page not
+  // scrolling at all, so the panel folds the header and unfolds it again.
+  function readDepth(px) {
+    panelDepth.current = px;
+    const y = window.scrollY || document.documentElement.scrollTop || 0;
+    if (px > 24) setCondensed(true);
+    else if (px <= 4 && y <= 24) {
+      setCondensed(false);
+      if (y > 0) window.scrollTo({ top: 0 });
+    }
+  }
 
   function loadSummary() {
     api.engSummary().then(setSummary).catch((e) => setError(e.message));
@@ -90,8 +117,7 @@ export default function Engagement() {
 
   return (
     <>
-      <div ref={topSentinel} className="eng-sentinel" aria-hidden="true" />
-      <div className={'topbar eng-topbar' + (condensed ? ' is-condensed' : '')}>
+      <div ref={topbarRef} className={'topbar eng-topbar' + (condensed ? ' is-condensed' : '')}>
         <div>
           <div className="page-crumb">Tracker</div>
           <div className="page-title">Stakeholder Engagement</div>
@@ -117,9 +143,9 @@ export default function Engagement() {
 
       <div className={'page eng-page' + (condensed ? ' is-condensed' : '')}>
         <ErrorBanner message={error} />
-        <SummaryStrip summary={summary} onJump={setTab} condensed={condensed} />
+        <SummaryStrip summary={summary} onJump={setTab} condensed={condensed} boxRef={stripRef} />
 
-        <div className={'subtabs' + (condensed ? ' is-hidden' : '')} role="tablist">
+        <div ref={tabsRef} className={'subtabs' + (condensed ? ' is-hidden' : '')} role="tablist">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -144,7 +170,7 @@ export default function Engagement() {
             isEditor={isEditor}
             toast={toast}
             onChanged={loadSummary}
-            onReadDepth={(px) => { if (px > 24) setCondensed(true); }}
+            onReadDepth={readDepth}
           />
         )}
         {tab === 'removed' && (
@@ -158,8 +184,8 @@ export default function Engagement() {
 /* ---- summary strip ------------------------------------------------------ */
 // A band of figures rather than a row of cards, so it belongs to the same
 // design as the register below it: one rule, tabular numerals, quiet labels.
-function SummaryStrip({ summary, onJump, condensed }) {
-  if (!summary) return <div className="eng-strip eng-strip-loading" />;
+function SummaryStrip({ summary, onJump, condensed, boxRef }) {
+  if (!summary) return <div ref={boxRef} className="eng-strip eng-strip-loading" />;
   const a = summary.actions;
   const m = summary.matrix;
   const cells = [
@@ -172,7 +198,7 @@ function SummaryStrip({ summary, onJump, condensed }) {
     { label: 'Stakeholders w/ gap', value: m.with_gap, tone: 'pending', hint: 'Not yet where we need them' },
   ];
   return (
-    <div className={'eng-strip' + (condensed ? ' is-hidden' : '')} aria-hidden={condensed}>
+    <div ref={boxRef} className={'eng-strip' + (condensed ? ' is-hidden' : '')} aria-hidden={condensed}>
       {cells.map((c) => (
         <button
           key={c.label}

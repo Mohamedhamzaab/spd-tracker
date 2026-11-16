@@ -2423,11 +2423,6 @@ html[data-theme="dark"] .eng-page {
 
 /* Reading mode: everything above the search row folds away, so the register
    gets the window. Scrolling back to the top brings it all back. */
-.eng-sentinel {
-  /* needs real area — a zero-width target never fires the observer */
-  width: 100%; height: 1px; flex: none; margin-bottom: -1px;
-}
-
 .eng-topbar {
   max-height: 96px; overflow: hidden;
   transition: max-height 260ms cubic-bezier(.22,1,.36,1),
