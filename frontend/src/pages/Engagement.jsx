@@ -10,7 +10,7 @@
 //  Status is never chosen here. It follows the timeline: an action is Pending
 //  until someone registers what they did, so the register cannot be talked up.
 // ---------------------------------------------------------------------------
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import { Loading, ErrorBanner, Empty, Pill, useToast, fmtDate } from '../components/ui.jsx';
@@ -55,6 +55,33 @@ export default function Engagement() {
     new URLSearchParams(window.location.search).get('tab') || 'items');
   const [summary, setSummary] = useState(null);
   const [error, setError] = useState('');
+  // The figures matter when you arrive and get in the way once you are
+  // reading, so they fold away as soon as you scroll into the register.
+  const [condensed, setCondensed] = useState(false);
+  const topSentinel = useRef(null);
+
+  // Two triggers on purpose. The sentinel is the accurate one - it fires
+  // whichever element actually scrolls - but observers get throttled in
+  // background tabs, so a plain scroll check backs it up. Hysteresis keeps
+  // the header from flickering: it folds past 24px, unfolds only near the top.
+  useEffect(() => {
+    const fold = () => {
+      const y = window.scrollY || document.documentElement.scrollTop || 0;
+      setCondensed((was) => (was ? y > 4 : y > 24));
+    };
+    window.addEventListener('scroll', fold, { passive: true });
+
+    const el = topSentinel.current;
+    let io;
+    if (el && typeof IntersectionObserver !== 'undefined') {
+      io = new IntersectionObserver(([e]) => setCondensed(!e.isIntersecting), { threshold: 0 });
+      io.observe(el);
+    }
+    return () => {
+      window.removeEventListener('scroll', fold);
+      if (io) io.disconnect();
+    };
+  }, []);
 
   function loadSummary() {
     api.engSummary().then(setSummary).catch((e) => setError(e.message));
@@ -63,7 +90,8 @@ export default function Engagement() {
 
   return (
     <>
-      <div className="topbar">
+      <div ref={topSentinel} className="eng-sentinel" aria-hidden="true" />
+      <div className={'topbar eng-topbar' + (condensed ? ' is-condensed' : '')}>
         <div>
           <div className="page-crumb">Tracker</div>
           <div className="page-title">Stakeholder Engagement</div>
@@ -87,11 +115,11 @@ export default function Engagement() {
         </div>
       </div>
 
-      <div className="page stack-lg">
+      <div className={'page eng-page' + (condensed ? ' is-condensed' : '')}>
         <ErrorBanner message={error} />
-        <SummaryStrip summary={summary} onJump={setTab} />
+        <SummaryStrip summary={summary} onJump={setTab} condensed={condensed} />
 
-        <div className="subtabs" role="tablist">
+        <div className={'subtabs' + (condensed ? ' is-hidden' : '')} role="tablist">
           {TABS.map((t) => (
             <button
               key={t.key}
@@ -112,7 +140,12 @@ export default function Engagement() {
           <MatrixTab isEditor={isEditor} toast={toast} onChanged={loadSummary} mode="ladder" />
         )}
         {tab === 'items' && (
-          <ItemsTab isEditor={isEditor} toast={toast} onChanged={loadSummary} />
+          <ItemsTab
+            isEditor={isEditor}
+            toast={toast}
+            onChanged={loadSummary}
+            onReadDepth={(px) => { if (px > 24) setCondensed(true); }}
+          />
         )}
         {tab === 'removed' && (
           <EngagementRemoved isEditor={isEditor} onChanged={loadSummary} />
@@ -123,30 +156,33 @@ export default function Engagement() {
 }
 
 /* ---- summary strip ------------------------------------------------------ */
-function SummaryStrip({ summary, onJump }) {
+// A band of figures rather than a row of cards, so it belongs to the same
+// design as the register below it: one rule, tabular numerals, quiet labels.
+function SummaryStrip({ summary, onJump, condensed }) {
   if (!summary) return <div className="eng-strip eng-strip-loading" />;
   const a = summary.actions;
   const m = summary.matrix;
   const cells = [
-    { label: 'Pending', value: a.pending, tone: 'amber', hint: 'Nothing registered against these yet' },
-    { label: 'Ongoing', value: a.ongoing, tone: 'navy', hint: 'Progress registered' },
-    { label: 'Closed', value: a.closed, tone: 'green', hint: 'Closed with evidence' },
-    { label: 'Critical open', value: a.critical_open, tone: 'red', hint: 'Open items on critical stakeholders' },
-    { label: 'Overdue', value: a.overdue, tone: a.overdue > 0 ? 'red' : 'grey', hint: 'Past their date and still open' },
-    { label: 'No system link', value: a.unreferenced, tone: 'amber', hint: 'Open items whose evidence sits outside the system' },
-    { label: 'Stakeholders w/ gap', value: m.with_gap, tone: 'amber', hint: 'Not yet where we need them' },
+    { label: 'Pending', value: a.pending, tone: 'pending', hint: 'Nothing registered against these yet' },
+    { label: 'Ongoing', value: a.ongoing, tone: 'ongoing', hint: 'Progress registered' },
+    { label: 'Closed', value: a.closed, tone: 'closed', hint: 'Closed with evidence' },
+    { label: 'Critical open', value: a.critical_open, tone: 'crit', hint: 'Open items on critical stakeholders' },
+    { label: 'Overdue', value: a.overdue, tone: a.overdue > 0 ? 'crit' : 'idle', hint: 'Past their date and still open' },
+    { label: 'No system link', value: a.unreferenced, tone: 'pending', hint: 'Open items whose evidence sits outside the system' },
+    { label: 'Stakeholders w/ gap', value: m.with_gap, tone: 'pending', hint: 'Not yet where we need them' },
   ];
   return (
-    <div className="eng-strip">
+    <div className={'eng-strip' + (condensed ? ' is-hidden' : '')} aria-hidden={condensed}>
       {cells.map((c) => (
         <button
           key={c.label}
           className="eng-cell"
           title={c.hint}
+          tabIndex={condensed ? -1 : 0}
           onClick={() => onJump(c.label.startsWith('Stakeholders') ? 'assessment' : 'items')}
         >
-          <div className={'eng-cell-value tone-' + c.tone}>{c.value}</div>
-          <div className="eng-cell-label">{c.label}</div>
+          <span className={'eng-cell-value tone-' + c.tone}>{c.value}</span>
+          <span className="eng-cell-label">{c.label}</span>
         </button>
       ))}
     </div>
@@ -311,7 +347,7 @@ function Ladder({ row, field, isEditor, saving, onSet }) {
 }
 
 /* ---- the action register ------------------------------------------------ */
-function ItemsTab({ isEditor, toast, onChanged }) {
+function ItemsTab({ isEditor, toast, onChanged, onReadDepth }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [openId, setOpenId] = useState(null);
@@ -393,6 +429,7 @@ function ItemsTab({ isEditor, toast, onChanged }) {
         onOpen={setOpenId}
         onAddProgress={setProgressFor}
         onChanged={() => { load(); onChanged(); }}
+        onReadDepth={onReadDepth}
       />
 
       {progressFor && (

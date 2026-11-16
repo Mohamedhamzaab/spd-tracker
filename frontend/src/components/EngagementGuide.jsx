@@ -63,7 +63,7 @@ const RAIL_MIN = 220;
 const RAIL_MAX = 620;
 const RAIL_DEFAULT = 336;
 
-export default function EngagementGuide({ rows, matrix, isEditor, onOpen, onAddProgress, onChanged }) {
+export default function EngagementGuide({ rows, matrix, isEditor, onOpen, onAddProgress, onChanged, onReadDepth }) {
   const reduce = useReducedMotion();
 
   // The rail's width is a matter of screen and taste, so it is draggable and
@@ -316,7 +316,11 @@ export default function EngagementGuide({ rows, matrix, isEditor, onOpen, onAddP
       </div>
 
       {/* ---------- canvas ---------- */}
-      <div className="guide-canvas" ref={canvasRef}>
+      <div
+        className="guide-canvas"
+        ref={canvasRef}
+        onScroll={(e) => onReadDepth && onReadDepth(e.currentTarget.scrollTop)}
+      >
         <AnimatePresence mode="wait">
           <motion.div
             key={sel?.kind + ':' + sel?.key}
