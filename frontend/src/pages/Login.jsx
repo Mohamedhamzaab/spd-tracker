@@ -4,7 +4,7 @@
 //  straight to /app/mfa-setup by the AppShell gate.
 // ---------------------------------------------------------------------------
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useStore } from '../lib/store.jsx';
 import { ErrorBanner } from '../components/ui.jsx';
@@ -12,7 +12,6 @@ import { ErrorBanner } from '../components/ui.jsx';
 export default function Login() {
   const { t } = useTranslation();
   const { signInPasswordStep, signInMfaStep } = useStore();
-  const navigate = useNavigate();
 
   // Phase: 'password' | 'mfa'
   const [phase, setPhase] = useState('password');
@@ -40,9 +39,7 @@ export default function Login() {
         setCode('');
         setUseBackup(false);
         setPhase('mfa');
-      } else {
-        navigate('/app', { replace: true });
-      }
+      } // else signed in: LoginRoute sends them on
     } catch (err) {
       setError(err.message || 'Sign in failed.');
     } finally {
@@ -56,7 +53,7 @@ export default function Login() {
     setBusy(true);
     try {
       await signInMfaStep(challengeToken, code.trim(), useBackup, trustDevice);
-      navigate('/app', { replace: true });
+      // signed in: LoginRoute sends them on
     } catch (err) {
       setError(err.message || 'Verification failed.');
     } finally {

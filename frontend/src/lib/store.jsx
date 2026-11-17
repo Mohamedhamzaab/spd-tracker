@@ -4,7 +4,7 @@
 //  "must-change-password" + "must-enrol-MFA" gates.
 // ---------------------------------------------------------------------------
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { api, getToken, setToken } from './api.js';
+import { api, getToken, setToken, onSessionEnded } from './api.js';
 
 const StoreContext = createContext(null);
 
@@ -17,11 +17,15 @@ export function StoreProvider({ children }) {
   // Exempt accounts (internal SPD staff) clear the MFA gate without enrolling.
   const [mfaExempt, setMfaExempt] = useState(false);
   const [backupRemaining, setBackupRemaining] = useState(0);
+  // The server's reason when it ends the session mid-use; AppShell shows it.
+  const [sessionEnded, setSessionEnded] = useState('');
+  useEffect(() => onSessionEnded(setSessionEnded), []);
 
   // Adopt a fresh session payload (user + flags) and load reference lists
   // when the session is fully usable.
   const adoptSession = useCallback(async ({ token, user: u, password_must_change, mfa_enrolled, mfa_exempt, backup_codes_remaining }) => {
     if (token) setToken(token);
+    setSessionEnded('');
     setUser(u);
     setMustChangePassword(!!password_must_change);
     setMfaEnrolled(!!mfa_enrolled);
@@ -39,27 +43,37 @@ export function StoreProvider({ children }) {
     }
   }, []);
 
-  // On cold load, if a token is held, validate it via /me.
+  // On cold load, if a token is held, validate it via /me. Only a 401 means
+  // the session is over (req() then drops the token). Anything else - the
+  // server restarting after a deploy, no network yet - is retried, so nobody
+  // has to sign in again with a password and code because of it.
   useEffect(() => {
     let cancelled = false;
     async function boot() {
-      if (getToken()) {
+      while (getToken() && !cancelled) {
+        let me;
         try {
-          const me = await api.me();
-          if (!cancelled) {
-            setUser(me.user);
-            setMustChangePassword(!!me.password_must_change);
-            setMfaEnrolled(!!me.mfa_enrolled);
-            setMfaExempt(!!me.mfa_exempt);
-            setBackupRemaining(me.backup_codes_remaining || 0);
-          }
-          if (!me.password_must_change && (me.mfa_enrolled || me.mfa_exempt)) {
+          me = await api.me();
+        } catch (e) {
+          if (e.status === 401) break;
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
+        if (cancelled) return;
+        setUser(me.user);
+        setMustChangePassword(!!me.password_must_change);
+        setMfaEnrolled(!!me.mfa_enrolled);
+        setMfaExempt(!!me.mfa_exempt);
+        setBackupRemaining(me.backup_codes_remaining || 0);
+        if (!me.password_must_change && (me.mfa_enrolled || me.mfa_exempt)) {
+          try {
             const ls = await api.lists();
             if (!cancelled) setLists(ls);
+          } catch {
+            // swallow - the app still opens; dropdowns fill on the next reload
           }
-        } catch {
-          setToken(null);
         }
+        break;
       }
       if (!cancelled) setReady(true);
     }
@@ -100,6 +114,7 @@ export function StoreProvider({ children }) {
     setMfaExempt(false);
     setBackupRemaining(0);
     setLists({});
+    setSessionEnded('');
   }, []);
 
   // Called after self-service password change. Adopts the fresh token, then
@@ -151,6 +166,7 @@ export function StoreProvider({ children }) {
     signInPasswordStep,
     signInMfaStep,
     signOut,
+    sessionEnded,
     mustChangePassword,
     mfaEnrolled,
     mfaExempt,

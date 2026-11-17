@@ -778,6 +778,15 @@ tr.row-selected > td { background: var(--primary-weak, rgba(79,70,229,0.08)); }
 }
 .toast.err { background: var(--red); }
 
+/* The session ended mid-use: above every window, open forms included. */
+.session-ended {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1100;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  flex-wrap: wrap; padding: 10px 16px;
+  background: var(--red); color: #fff;
+  font-size: 13px; font-weight: 500;
+}
+
 .banner-err {
   background: var(--red-bg); color: var(--red);
   border: 1px solid #f3cfcb;

@@ -166,7 +166,7 @@ function RequireSuperAdmin({ children }) {
 }
 
 function AppShell() {
-  const { mustChangePassword, mfaEnrolled, mfaExempt } = useStore();
+  const { mustChangePassword, mfaEnrolled, mfaExempt, sessionEnded, signOut } = useStore();
   const location = useLocation();
   const path = location.pathname;
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -183,6 +183,12 @@ function AppShell() {
   }
   return (
     <ToastProvider>
+      {sessionEnded && (
+        <div className="session-ended" role="alert">
+          <span>{sessionEnded} Anything you have typed stays here until you click Sign in again.</span>
+          <button className="btn btn-sm" onClick={signOut}>Sign in again</button>
+        </div>
+      )}
       <div className={'shell' + (drawerOpen ? ' shell-drawer-open' : '')}>
         {/* Mobile-only top bar with hamburger. The CSS hides it >720px. */}
         <header className="mobile-topbar">
@@ -260,7 +266,10 @@ function RequireAuth({ children }) {
 
 function LoginRoute() {
   const { user } = useStore();
-  if (user) return <Navigate to="/app" replace />;
+  const location = useLocation();
+  // Back to the page that sent the person here (a shared link, or where their
+  // session ended), else the dashboard.
+  if (user) return <Navigate to={location.state?.from || '/app'} replace />;
   return <Login />;
 }
 

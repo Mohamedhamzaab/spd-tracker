@@ -41,6 +41,12 @@ async function errorMessage(res, fallback) {
   return nonJsonMessage(res.status, fallback);
 }
 
+// Set by the store: told when the server has ended this session.
+let sessionEnded = () => {};
+export function onSessionEnded(fn) {
+  sessionEnded = fn;
+}
+
 async function req(path, opts = {}) {
   const headers = { ...(opts.headers || {}) };
   const token = getToken();
@@ -73,6 +79,13 @@ async function req(path, opts = {}) {
       isJson ? (data && data.error) || 'Request failed.' : nonJsonMessage(res.status)
     );
     err.status = res.status;
+    // The session is over (expired, reset by an admin, account disabled).
+    // Nothing closes on its own: the store shows a "Sign in again" bar, so an
+    // open form keeps its typed text until the person chooses to leave.
+    if (res.status === 401 && token) {
+      if (getToken() === token) setToken(null); // not a newer sign-in from another tab
+      sessionEnded(err.message);
+    }
     throw err;
   }
   return data;
