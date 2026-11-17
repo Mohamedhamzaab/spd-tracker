@@ -554,6 +554,30 @@ export function FormFields({ fields, values, onChange, disabled }) {
   );
 }
 
+/* ---- download button ---------------------------------------------------- */
+// Runs a download (an export or a document). It says "Preparing…" while the
+// server builds the file, so a slow PDF is not clicked twice, and a failure
+// (a file missing from storage, the server restarting) shows as a red toast.
+export function DownloadButton({ download, className = 'btn btn-ghost', title, children }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    setBusy(true);
+    try {
+      await download();
+    } catch (e) {
+      toast(e.message || 'The download failed.', 'err');
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button className={className} title={title} onClick={run} disabled={busy}>
+      {busy ? 'Preparing…' : children}
+    </button>
+  );
+}
+
 /* ---- toast -------------------------------------------------------------- */
 const ToastContext = createContext(null);
 export function ToastProvider({ children }) {

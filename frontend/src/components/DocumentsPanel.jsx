@@ -230,7 +230,7 @@ export default function DocumentsPanel({ parentType, parentId, code, canEdit, on
   const fileProps = {
     canEdit: editable,
     onView: setViewerDoc,
-    onDownload: (d) => api.downloadDoc(d.id, d.original_name),
+    onDownload: (d) => api.downloadDoc(d.id, d.original_name).catch((e) => setError(e.message)),
     onRemove: removeDoc,
   };
 

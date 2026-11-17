@@ -8,7 +8,7 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../lib/api.js';
-import { Loading, ErrorBanner, useEscapeToClose } from './ui.jsx';
+import { Loading, ErrorBanner, useEscapeToClose, DownloadButton } from './ui.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 
 // CAD viewers are heavy, so load them only when a drawing is opened — and load
@@ -134,9 +134,9 @@ export default function DocViewer({ doc, onClose }) {
                 <button className="btn btn-sm btn-ghost" onClick={zoomIn} disabled={zoom >= ZOOM_MAX} aria-label="Zoom in">+</button>
               </div>
             )}
-            <button className="btn btn-sm" onClick={() => api.downloadDoc(doc.id, doc.original_name)}>
+            <DownloadButton className="btn btn-sm" download={() => api.downloadDoc(doc.id, doc.original_name)}>
               Download
-            </button>
+            </DownloadButton>
             <button className="btn btn-sm btn-ghost" onClick={onClose} aria-label="Close">✕</button>
           </div>
         </div>
@@ -146,13 +146,11 @@ export default function DocViewer({ doc, onClose }) {
             fallback={
               <div className="docviewer-fallback">
                 <ErrorBanner message="This file couldn’t be previewed in the browser." />
-                <button
-                  className="btn btn-primary"
-                  style={{ marginTop: 12 }}
-                  onClick={() => api.downloadDoc(doc.id, doc.original_name)}
-                >
-                  Download instead
-                </button>
+                <div style={{ marginTop: 12 }}>
+                  <DownloadButton className="btn btn-primary" download={() => api.downloadDoc(doc.id, doc.original_name)}>
+                    Download instead
+                  </DownloadButton>
+                </div>
               </div>
             }
           >

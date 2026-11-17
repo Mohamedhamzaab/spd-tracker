@@ -8,7 +8,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, useToast,
-  useTableSort, SortableTH,
+  useTableSort, SortableTH, DownloadButton,
 } from '../components/ui.jsx';
 
 const AUTH_COLS = {
@@ -91,13 +91,12 @@ export default function Authorities() {
           <span className="section-note">
             {filtered.length} of {(rows || []).length}
           </span>
-          <button
-            className="btn btn-ghost"
-            onClick={() => api.downloadExport('/exports/authorities.xlsx', 'authorities.xlsx')}
+          <DownloadButton
+            download={() => api.downloadExport('/exports/authorities.xlsx', 'authorities.xlsx')}
             title="Download all authorities as .xlsx"
           >
             Export
-          </button>
+          </DownloadButton>
         </div>
 
         {!rows ? (

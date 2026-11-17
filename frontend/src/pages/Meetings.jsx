@@ -7,7 +7,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill, OriginatorPill,
-  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress,
+  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress, DownloadButton,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
@@ -143,7 +143,7 @@ export default function Meetings() {
       const r = await api.bulkDeleteMeetings([...selected]);
       setConfirmBulk(false);
       setSelected(new Set());
-      toast(`Deleted ${r.deleted} meeting${r.deleted === 1 ? '' : 's'} — codes re-ordered by date.`);
+      toast(`${r.deleted} meeting${r.deleted === 1 ? '' : 's'} moved to Trash.`);
       load(params);
     } catch (e) {
       setConfirmBulk(false);
@@ -229,13 +229,12 @@ export default function Meetings() {
           <span className="section-note">
             {rows ? rows.length : '…'} {rows && rows.length === 1 ? 'result' : 'results'}
           </span>
-          <button
-            className="btn btn-ghost"
-            onClick={() => api.downloadExport('/exports/meetings.xlsx', 'meetings.xlsx')}
+          <DownloadButton
+            download={() => api.downloadExport('/exports/meetings.xlsx', 'meetings.xlsx')}
             title="Download all meetings as .xlsx"
           >
             Export
-          </button>
+          </DownloadButton>
         </div>
 
         {isEditor && selected.size > 0 && (
@@ -407,13 +406,13 @@ export default function Meetings() {
       {delRow && (
         <ConfirmDialog
           title="Delete meeting"
-          message={`Move meeting ${delRow.meeting_code} to Trash? Remaining codes re-order by date automatically. You can restore it from Trash later.`}
+          message={`Move meeting ${delRow.meeting_code} to Trash? You can restore it from Trash later.`}
           onClose={() => setDelRow(null)}
           onConfirm={async () => {
             try {
               await api.deleteMeeting(delRow.id);
               setDelRow(null);
-              toast('Meeting moved to Trash — codes re-ordered by date.');
+              toast('Meeting moved to Trash.');
               load(params);
             } catch (e) {
               setDelRow(null);
@@ -426,7 +425,7 @@ export default function Meetings() {
       {confirmBulk && (
         <ConfirmDialog
           title="Delete selected meetings"
-          message={`Move ${selected.size} meeting${selected.size === 1 ? '' : 's'} to Trash? Remaining codes re-order by date automatically. You can restore from Trash later.`}
+          message={`Move ${selected.size} meeting${selected.size === 1 ? '' : 's'} to Trash? You can restore from Trash later.`}
           confirmLabel={bulkBusy ? 'Deleting…' : `Delete ${selected.size}`}
           onConfirm={doBulkDelete}
           onClose={() => setConfirmBulk(false)}

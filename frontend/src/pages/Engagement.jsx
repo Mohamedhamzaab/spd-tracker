@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
-import { Loading, ErrorBanner, useToast } from '../components/ui.jsx';
+import { Loading, ErrorBanner, useToast, DownloadButton } from '../components/ui.jsx';
 import ActionDetail from '../components/ActionDetail.jsx';
 import ActionForm from '../components/ActionForm.jsx';
 import { buildModel } from '../components/engagement/model.js';
@@ -87,19 +87,19 @@ export default function Engagement() {
           <div className="page-title">Stakeholder Engagement</div>
         </div>
         <div className="eg-top-actions">
-          <button
+          <DownloadButton
             className="btn"
             title="The matrix, assessment and register in the weekly workbook layout"
-            onClick={() => api.downloadExport('/exports/stakeholder-engagement.xlsx', 'stakeholder-engagement-matrix.xlsx')}
+            download={() => api.downloadExport('/exports/stakeholder-engagement.xlsx', 'stakeholder-engagement-matrix.xlsx')}
           >
             Export Excel
-          </button>
-          <button
+          </DownloadButton>
+          <DownloadButton
             className="btn"
-            onClick={() => api.downloadExport('/exports/stakeholder-engagement.pdf', 'stakeholder-engagement-matrix.pdf')}
+            download={() => api.downloadExport('/exports/stakeholder-engagement.pdf', 'stakeholder-engagement-matrix.pdf')}
           >
             Export PDF
-          </button>
+          </DownloadButton>
           {isEditor && <button className="btn btn-primary" onClick={() => raise()}>Raise action</button>}
         </div>
       </div>

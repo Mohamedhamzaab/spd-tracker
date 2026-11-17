@@ -441,7 +441,7 @@ export default function Qdrs() {
       {delRow && (
         <ConfirmDialog
           title="Delete QDRS record"
-          message={`Move ${delRow.qdrs_code} to Trash? Remaining codes re-order by date automatically. You can restore from Trash later.`}
+          message={`Move ${delRow.qdrs_code} to Trash? You can restore from Trash later.`}
           confirmLabel="Delete"
           onConfirm={remove}
           onClose={() => setDelRow(null)}

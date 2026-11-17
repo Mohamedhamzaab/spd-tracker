@@ -8,7 +8,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, DirectionPill, OriginatorPill, ReplyStatusPill, fmtDate, useToast,
-  useTableSort, SortableTH, ConfirmDialog,
+  useTableSort, SortableTH, ConfirmDialog, DownloadButton,
 } from '../components/ui.jsx';
 import { CommDetail, CommForm } from './SubDivisionDetail.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
@@ -183,7 +183,7 @@ export default function Communications() {
       const r = await api.bulkDeleteComms(ids);
       setConfirmBulk(false);
       setSelected(new Set());
-      toast(`Deleted ${r.deleted} communication${r.deleted === 1 ? '' : 's'} — codes re-ordered by date.`);
+      toast(`${r.deleted} communication${r.deleted === 1 ? '' : 's'} moved to Trash.`);
       setRows(null);
       api.communications(params).then(setRows).catch((e) => setError(e.message));
     } catch (e) {
@@ -333,13 +333,12 @@ export default function Communications() {
           <span className="section-note">
             {rows ? rows.length : '…'} {rows && rows.length === 1 ? 'result' : 'results'}
           </span>
-          <button
-            className="btn btn-ghost"
-            onClick={() => api.downloadExport('/exports/communications.xlsx', 'communications.xlsx')}
+          <DownloadButton
+            download={() => api.downloadExport('/exports/communications.xlsx', 'communications.xlsx')}
             title="Download all communications as .xlsx"
           >
             Export
-          </button>
+          </DownloadButton>
         </div>
 
         {isEditor && selected.size > 0 && (
@@ -551,7 +550,7 @@ export default function Communications() {
       {confirmBulk && (
         <ConfirmDialog
           title="Delete selected communications"
-          message={`Move ${selected.size} communication${selected.size === 1 ? '' : 's'} to Trash? Remaining codes re-order by date automatically. You can restore from Trash later.`}
+          message={`Move ${selected.size} communication${selected.size === 1 ? '' : 's'} to Trash? You can restore from Trash later.`}
           confirmLabel={bulkBusy ? 'Deleting…' : `Delete ${selected.size}`}
           onConfirm={doBulkDelete}
           onClose={() => setConfirmBulk(false)}

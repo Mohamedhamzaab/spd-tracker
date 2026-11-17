@@ -8,7 +8,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog,
-  EngagementPill, useToast, useTableSort, SortableTH,
+  EngagementPill, useToast, useTableSort, SortableTH, DownloadButton,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import { useLive } from '../lib/liveStream.js';
@@ -193,13 +193,12 @@ export default function SubDivisions() {
           <span className="section-note">
             {rows ? rows.length : '…'} {rows && rows.length === 1 ? 'result' : 'results'}
           </span>
-          <button
-            className="btn btn-ghost"
-            onClick={() => api.downloadExport('/exports/sub-divisions.xlsx', 'sub-divisions.xlsx')}
+          <DownloadButton
+            download={() => api.downloadExport('/exports/sub-divisions.xlsx', 'sub-divisions.xlsx')}
             title="Download all sub-divisions as .xlsx"
           >
             Export
-          </button>
+          </DownloadButton>
         </div>
 
         {!rows ? (
