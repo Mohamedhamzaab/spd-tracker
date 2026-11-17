@@ -117,7 +117,7 @@ router.post(
     }
 
     const created = await withTransaction(async (client) => {
-      const auth = await client.query('SELECT id FROM authorities WHERE id = $1', [
+      const auth = await client.query('SELECT id FROM authorities WHERE id = $1 AND deleted_at IS NULL', [
         authorityId,
       ]);
       if (!auth.rows[0]) throw httpError(404, 'Authority not found.');
@@ -126,7 +126,7 @@ router.post(
       let primarySubId = null;
       if (b.primary_sub_id) {
         const sub = await client.query(
-          'SELECT id FROM sub_divisions WHERE id = $1 AND authority_id = $2',
+          'SELECT id FROM sub_divisions WHERE id = $1 AND authority_id = $2 AND deleted_at IS NULL',
           [Number(b.primary_sub_id), authorityId]
         );
         if (!sub.rows[0]) {
@@ -248,7 +248,7 @@ router.put(
       } else {
         const authId = b.authority_id || exists.rows[0].authority_id;
         const sub = await query(
-          'SELECT id FROM sub_divisions WHERE id = $1 AND authority_id = $2',
+          'SELECT id FROM sub_divisions WHERE id = $1 AND authority_id = $2 AND deleted_at IS NULL',
           [Number(b.primary_sub_id), Number(authId)]
         );
         if (!sub.rows[0]) {

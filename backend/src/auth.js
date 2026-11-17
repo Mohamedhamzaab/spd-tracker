@@ -590,6 +590,11 @@ router.post(
       [req.user.id]
     );
     const u = userRow.rows[0];
+    // Once set up, starting again would swap the second factor with nothing
+    // but a session. A new phone goes through a super-admin's Clear MFA.
+    if (u.mfa_enrolled_at) {
+      throw httpError(409, 'Two-factor login is already set up. To move it to a new phone, ask a super-admin to clear it first.');
+    }
 
     const secret = mfa.generateSecret();
     const backupCodes = mfa.generateBackupCodes();
@@ -711,17 +716,27 @@ router.post(
     if (isBackup) {
       const result = mfa.consumeBackupCode(user.mfa_backup_codes, code);
       if (result.ok) {
-        ok = true;
-        usedBackup = true;
-        backupArrAfter = result.next;
-        await query(
-          'UPDATE users SET mfa_backup_codes = $1::jsonb WHERE id = $2',
-          [JSON.stringify(result.next), user.id]
+        // Write only if the codes are as we read them: two requests racing
+        // with the same backup code must not both get in.
+        const saved = await query(
+          'UPDATE users SET mfa_backup_codes = $1::jsonb WHERE id = $2 AND mfa_backup_codes = $3::jsonb',
+          [JSON.stringify(result.next), user.id, JSON.stringify(user.mfa_backup_codes)]
         );
+        ok = saved.rowCount === 1;
+        usedBackup = ok;
+        if (ok) backupArrAfter = result.next;
       }
     } else {
-      const secret = decrypt(user.mfa_secret_enc);
-      ok = mfa.verifyCode(secret, code);
+      const step = mfa.codeStep(decrypt(user.mfa_secret_enc), code);
+      if (step !== null) {
+        // A code stays valid for its whole window; take each one only once.
+        const taken = await query(
+          `UPDATE users SET mfa_last_step = $2
+            WHERE id = $1 AND (mfa_last_step IS NULL OR mfa_last_step < $2)`,
+          [user.id, step]
+        );
+        ok = taken.rowCount === 1;
+      }
     }
 
     if (!ok) {

@@ -93,7 +93,7 @@ router.post(
     if (!b.qdrs_date) throw httpError(400, 'A date is required.');
 
     const created = await withTransaction(async (client) => {
-      const sub = await client.query('SELECT id FROM sub_divisions WHERE id = $1', [subId]);
+      const sub = await client.query('SELECT id FROM sub_divisions WHERE id = $1 AND deleted_at IS NULL', [subId]);
       if (!sub.rows[0]) throw httpError(404, 'Sub-division not found.');
 
       const code = await nextCode(client, 'qdrs_records', 'qdrs_code', 'Q', 4);
@@ -179,7 +179,7 @@ router.put(
 
     // The sub-authority may be corrected; validate it if supplied.
     if (b.sub_division_id) {
-      const sub = await query('SELECT id FROM sub_divisions WHERE id = $1', [Number(b.sub_division_id)]);
+      const sub = await query('SELECT id FROM sub_divisions WHERE id = $1 AND deleted_at IS NULL', [Number(b.sub_division_id)]);
       if (!sub.rows[0]) throw httpError(404, 'Sub-division not found.');
     }
 

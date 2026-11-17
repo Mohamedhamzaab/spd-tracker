@@ -68,6 +68,8 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until         TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_secret_enc       TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enrolled_at      TIMESTAMPTZ;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_backup_codes     JSONB;
+-- The 30-second step of the last sign-in code used, so it can't be used twice.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_last_step        BIGINT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS is_disabled          BOOLEAN     NOT NULL DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_by           INTEGER;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS invited_at           TIMESTAMPTZ;

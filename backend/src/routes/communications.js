@@ -188,7 +188,7 @@ router.post(
     }
 
     const created = await withTransaction(async (client) => {
-      const sub = await client.query('SELECT id FROM sub_divisions WHERE id = $1', [
+      const sub = await client.query('SELECT id FROM sub_divisions WHERE id = $1 AND deleted_at IS NULL', [
         subId,
       ]);
       if (!sub.rows[0]) throw httpError(404, 'Sub-division not found.');
@@ -197,7 +197,7 @@ router.post(
       let inResponseTo = null;
       if (b.in_response_to) {
         const parent = await client.query(
-          'SELECT id FROM communications WHERE comm_code = $1',
+          'SELECT id FROM communications WHERE comm_code = $1 AND deleted_at IS NULL',
           [String(b.in_response_to).trim().toUpperCase()]
         );
         if (!parent.rows[0]) {
@@ -210,7 +210,7 @@ router.post(
       let relatedTo = null;
       if (b.related_to) {
         const rel = await client.query(
-          'SELECT id FROM communications WHERE comm_code = $1',
+          'SELECT id FROM communications WHERE comm_code = $1 AND deleted_at IS NULL',
           [String(b.related_to).trim().toUpperCase()]
         );
         if (!rel.rows[0]) {
@@ -326,7 +326,7 @@ router.put(
         inResponseTo = null;
       } else {
         const parent = await query(
-          'SELECT id FROM communications WHERE comm_code = $1',
+          'SELECT id FROM communications WHERE comm_code = $1 AND deleted_at IS NULL',
           [String(b.in_response_to).trim().toUpperCase()]
         );
         if (!parent.rows[0]) {
@@ -345,7 +345,7 @@ router.put(
         relatedTo = null;
       } else {
         const rel = await query(
-          'SELECT id FROM communications WHERE comm_code = $1',
+          'SELECT id FROM communications WHERE comm_code = $1 AND deleted_at IS NULL',
           [String(b.related_to).trim().toUpperCase()]
         );
         if (!rel.rows[0]) {

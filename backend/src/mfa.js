@@ -37,15 +37,23 @@ async function qrDataUri(secret, accountLabel) {
   return QRCode.toDataURL(uri, { errorCorrectionLevel: 'M', margin: 1, width: 220 });
 }
 
-function verifyCode(secret, code) {
-  if (!secret || !code) return false;
+// The 30-second step a valid code belongs to (otplib's default step), or null.
+// A code stays valid for its whole window, so sign-in records the step it used
+// and refuses the same code a second time.
+function codeStep(secret, code) {
+  if (!secret || !code) return null;
   const trimmed = String(code).replace(/\s+/g, '');
-  if (!/^\d{6}$/.test(trimmed)) return false;
+  if (!/^\d{6}$/.test(trimmed)) return null;
   try {
-    return authenticator.verify({ token: trimmed, secret });
+    const delta = authenticator.checkDelta(trimmed, secret);
+    return delta === null ? null : Math.floor(Date.now() / 30000) + delta;
   } catch {
-    return false;
+    return null;
   }
+}
+
+function verifyCode(secret, code) {
+  return codeStep(secret, code) !== null;
 }
 
 function hashBackupCode(plain) {
@@ -95,6 +103,7 @@ module.exports = {
   generateSecret,
   otpauthUri,
   qrDataUri,
+  codeStep,
   verifyCode,
   generateBackupCodes,
   hashAll,

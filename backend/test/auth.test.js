@@ -59,3 +59,36 @@ test('after a lockout runs out, one wrong password does not lock the account aga
     await pool.query('DELETE FROM users WHERE id = $1', [u.id]);
   }
 });
+
+// Both sign-in-code holes: a code reused inside its 30-second window, and one
+// backup code sent twice at the same moment. (The login routes share a limit
+// of 5 tries per run across this file; this test uses 4.)
+test('a sign-in code and a backup code each work only once', { skip: !local && 'DATABASE_URL is not local' }, async () => {
+  const express = require('express');
+  const mfa = require('../src/mfa');
+  const { encrypt } = require('../src/crypto');
+  const { authenticator } = require('otplib');
+  const { router, signMfaChallengeJwt } = require('../src/auth');
+  const srv = express().use(express.json()).use('/api/auth', router).listen(0);
+  const secret = mfa.generateSecret();
+  const [backup] = mfa.generateBackupCodes();
+  const u = (await pool.query(
+    `INSERT INTO users (name, email, role, mfa_secret_enc, mfa_enrolled_at, mfa_backup_codes)
+     VALUES ('Code test', 'code-test@example.test', 'reviewer', $1, now(), $2::jsonb) RETURNING *`,
+    [encrypt(secret), JSON.stringify(mfa.hashAll([backup]))])).rows[0];
+  const verify = (code, is_backup = false) => fetch(`http://localhost:${srv.address().port}/api/auth/mfa/verify`, {
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ challenge_token: signMfaChallengeJwt(u), code, is_backup }),
+  }).then((r) => r.status);
+  try {
+    const code = authenticator.generate(secret);
+    assert.strictEqual(await verify(code), 200);
+    assert.strictEqual(await verify(code), 401, 'the same code a second time');
+    const both = await Promise.all([verify(backup, true), verify(backup, true)]);
+    assert.deepStrictEqual(both.sort(), [200, 401], 'one backup code, two requests at once');
+  } finally {
+    srv.close();
+    await pool.query('DELETE FROM audit_events WHERE target_type = $1 AND target_id = $2', ['user', u.id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [u.id]);
+  }
+});
