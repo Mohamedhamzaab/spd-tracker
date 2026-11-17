@@ -337,6 +337,12 @@ export default function EngagementGuide({ rows, matrix, isEditor, onOpen, onAddP
                 onOpen={onOpen}
                 onAddProgress={onAddProgress}
                 onChanged={onChanged}
+                onPick={(id) => {
+                  // Opening an action from the overview keeps its authority
+                  // expanded in the rail, so the marker has somewhere to land.
+                  setOpenAuth((s) => (s.has(group.code) ? s : new Set(s).add(group.code)));
+                  setSel({ kind: 'action', key: id });
+                }}
               />
             )}
             {sel?.kind === 'action' && (
@@ -364,7 +370,7 @@ export default function EngagementGuide({ rows, matrix, isEditor, onOpen, onAddP
    and actions into separate sections made you hold two lists in your head
    and named every department twice.
    ------------------------------------------------------------------------ */
-function AuthorityView({ group, matrix, isEditor, onOpen, onAddProgress, onChanged }) {
+function AuthorityView({ group, matrix, isEditor, onOpen, onAddProgress, onChanged, onPick }) {
   const overdue = group.actions.filter((a) => a.is_overdue).length;
   const unref = group.actions.filter((a) => a.has_external_evidence).length;
 
