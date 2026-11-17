@@ -14,7 +14,7 @@ const express = require('express');
 const { query, withTransaction } = require('../db');
 const { wrap, httpError } = require('../helpers');
 const { requireSuperAdmin } = require('../auth');
-const { restoreGroup } = require('../softDelete');
+const { restoreGroup, trashedParent } = require('../softDelete');
 const { logAudit } = require('../audit');
 const storage = require('../storage');
 
@@ -139,6 +139,11 @@ router.post(
       if (!r.rows[0]) throw httpError(404, 'That record is not in Trash.');
       snapshot = r.rows[0];
       group = r.rows[0].deletion_group_id;
+
+      const blocker = await trashedParent(client, type, id, group);
+      if (blocker) {
+        throw httpError(409, `Restore ${blocker} first. It is still in Trash, so this would come back hidden.`);
+      }
 
       // A restored record comes back with the code it always had.
       if (group) {

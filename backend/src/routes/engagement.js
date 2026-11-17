@@ -25,7 +25,7 @@ const { query, withTransaction } = require('../db');
 const { wrap, httpError } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
-const { newGroupId } = require('../softDelete');
+const { newGroupId, trashedParent } = require('../softDelete');
 
 const router = express.Router();
 
@@ -545,6 +545,10 @@ router.post(
   requireEditor,
   wrap(async (req, res) => {
     const id = Number(req.params.id);
+    const blocker = await trashedParent({ query }, 'engagement_action', id, null);
+    if (blocker) {
+      throw httpError(409, `Restore ${blocker} first. It is still in Trash, so this action would come back hidden.`);
+    }
     const { rows } = await query(
       `UPDATE engagement_actions
           SET deleted_at = NULL, deleted_by = NULL, deletion_group_id = NULL,

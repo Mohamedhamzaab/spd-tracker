@@ -13,6 +13,7 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { pool, withTransaction } = require('./db');
+const { logAudit } = require('./audit');
 const { ensureEngagementStakeholders } = require('./engagementSeed');
 const { importEngagementWorkbook } = require('./engagementImport');
 
@@ -28,17 +29,17 @@ async function isAuthoritiesEmpty() {
   return rows[0].n === 0;
 }
 
-// Bootstrap the designated owner as super-admin on every boot. Idempotent:
-// it only writes when the account exists and is NOT already super_admin, so
-// it never bumps token_version (no surprise sign-outs) on a normal restart.
-// The seed only runs on an empty DB, so this is what keeps the owner's role
-// correct on an existing deployment. Override the email with SUPERADMIN_EMAIL.
-const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || 'mohamedhamza.ab@gmail.com')
-  .trim()
-  .toLowerCase();
+// Emergency way back in: when NO active super-admin is left, promote the
+// account named in SUPERADMIN_EMAIL (unset = off). It never overrides a role a
+// super-admin set on the Users page, and every promotion is audited.
+const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || '').trim().toLowerCase();
 
 async function ensureSuperAdmin() {
   if (!SUPERADMIN_EMAIL) return;
+  const active = await pool.query(
+    `SELECT 1 FROM users WHERE role = 'super_admin' AND is_disabled = FALSE LIMIT 1`
+  );
+  if (active.rows[0]) return;
   const { rows } = await pool.query(
     'SELECT id, role FROM users WHERE lower(email) = $1',
     [SUPERADMIN_EMAIL]
@@ -46,10 +47,6 @@ async function ensureSuperAdmin() {
   const u = rows[0];
   if (!u) {
     console.log(`[init] Owner ${SUPERADMIN_EMAIL} not found yet — skipping super-admin bootstrap.`);
-    return;
-  }
-  if (u.role === 'super_admin') {
-    console.log(`[init] Owner ${SUPERADMIN_EMAIL} is already super-admin.`);
     return;
   }
   // Promote + ensure the account can actually sign in. token_version is bumped
@@ -62,7 +59,13 @@ async function ensureSuperAdmin() {
      WHERE id = $1`,
     [u.id]
   );
-  console.log(`[init] Promoted ${SUPERADMIN_EMAIL} (was ${u.role}) to super-admin.`);
+  await logAudit({
+    event: 'user.role_changed',
+    target_type: 'user',
+    target_id: u.id,
+    payload: { from: u.role, to: 'super_admin', reason: 'No active super-admin at startup (SUPERADMIN_EMAIL).' },
+  });
+  console.log(`[init] No active super-admin: promoted ${SUPERADMIN_EMAIL} (was ${u.role}).`);
 }
 
 async function runSeed() {

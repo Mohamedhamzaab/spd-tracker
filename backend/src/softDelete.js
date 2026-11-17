@@ -117,7 +117,39 @@ async function restoreGroup(client, groupId) {
   return totalRestored;
 }
 
+// The record each kind sits under, and how a parent is named and checked.
+const PARENT_OF = {
+  sub_division:      `SELECT 'authority' AS type, authority_id AS id FROM sub_divisions WHERE id = $1`,
+  communication:     `SELECT 'sub_division' AS type, sub_division_id AS id FROM communications WHERE id = $1`,
+  qdrs:              `SELECT 'sub_division' AS type, sub_division_id AS id FROM qdrs_records WHERE id = $1`,
+  meeting:           `SELECT 'authority' AS type, authority_id AS id FROM meetings WHERE id = $1`,
+  document:          `SELECT parent_type AS type, parent_id AS id FROM documents WHERE id = $1`,
+  engagement_action: `SELECT 'sub_division' AS type, sub_division_id AS id FROM engagement_actions WHERE id = $1`,
+};
+const PARENT_STATE = {
+  authority:     `SELECT 'authority ' || code AS label, deleted_at, deletion_group_id FROM authorities WHERE id = $1`,
+  sub_division:  `SELECT 'sub-division ' || sub_reference AS label, deleted_at, deletion_group_id FROM sub_divisions WHERE id = $1`,
+  communication: `SELECT 'communication ' || comm_code AS label, deleted_at, deletion_group_id FROM communications WHERE id = $1`,
+  meeting:       `SELECT 'meeting ' || meeting_code AS label, deleted_at, deletion_group_id FROM meetings WHERE id = $1`,
+  qdrs:          `SELECT 'QDRS record ' || qdrs_code AS label, deleted_at, deletion_group_id FROM qdrs_records WHERE id = $1`,
+};
+
+// A record restored under a parent that is still in Trash comes back hidden:
+// every list leaves out what sits under a trashed record. Returns the nearest
+// such parent ("sub-division KM-S02") or null. A parent deleted in the same
+// batch (same group) comes back with it, so it doesn't count.
+async function trashedParent(client, type, id, group) {
+  for (;;) {
+    const up = PARENT_OF[type] && (await client.query(PARENT_OF[type], [id])).rows[0];
+    if (!up) return null;
+    ({ type, id } = up);
+    const p = (await client.query(PARENT_STATE[type], [id])).rows[0];
+    if (p && p.deleted_at && (!group || p.deletion_group_id !== group)) return p.label;
+  }
+}
+
 module.exports = {
+  trashedParent,
   newGroupId,
   softDeleteAuthority,
   softDeleteSubDivision,
