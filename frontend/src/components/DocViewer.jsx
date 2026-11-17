@@ -82,8 +82,10 @@ export default function DocViewer({ doc, onClose }) {
     setZoom(1);
     if (isCad(doc) || isOffice(doc)) { setLoading(false); return; }
     setLoading(true);
+    // Images go into an <img>, which never runs scripts; everything else goes
+    // into the frame, and only as a PDF.
     api
-      .fetchDocBlobUrl(doc.id)
+      .fetchDocBlobUrl(doc.id, isImage(doc) ? null : 'application/pdf')
       .then((u) => {
         if (cancelled) { URL.revokeObjectURL(u); return; }
         objUrl = u;

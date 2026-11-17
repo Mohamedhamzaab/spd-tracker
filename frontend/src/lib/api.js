@@ -456,13 +456,16 @@ export const api = {
 
   // Fetch a document (authenticated) and return an in-memory blob: URL so it
   // can be previewed inline (e.g. a PDF in an iframe). Caller must revoke it.
-  fetchDocBlobUrl: async (id) => {
+  // `type` overrides the type the uploader's browser declared, which the
+  // server sends back as-is: a "letter.pdf" declared as a web page must not
+  // open as one inside the app.
+  fetchDocBlobUrl: async (id, type) => {
     const res = await fetch('/api/documents/' + id + '/download', {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     if (!res.ok) throw new Error(await errorMessage(res, 'Could not load the document.'));
     const blob = await res.blob();
-    return URL.createObjectURL(blob);
+    return URL.createObjectURL(type ? new Blob([blob], { type }) : blob);
   },
 
   // Fetch a document (authenticated) as an ArrayBuffer, for client-side

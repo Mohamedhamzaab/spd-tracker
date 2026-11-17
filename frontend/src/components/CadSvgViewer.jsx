@@ -7,6 +7,28 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api.js';
 import { Loading, ErrorBanner } from './ui.jsx';
 
+// LibreDWG writes the drawing's own text into the SVG, and that text comes
+// from whoever uploaded the file. Parse it as SVG and drop everything that can
+// run code: scripts, embedded HTML, animations that can rewrite links, on*
+// handlers and javascript: links.
+export function cleanSvg(svgText) {
+  const doc = new DOMParser().parseFromString(svgText, 'image/svg+xml');
+  const svg = doc.documentElement;
+  if (svg.nodeName !== 'svg' || doc.querySelector('parsererror')) return null;
+  svg.querySelectorAll('script, foreignObject, animate, set, animateMotion, animateTransform')
+    .forEach((n) => n.remove());
+  for (const el of [svg, ...svg.querySelectorAll('*')]) {
+    for (const a of [...el.attributes]) {
+      // Browsers skip spaces, tabs and newlines inside a URL, so do the same here.
+      const url = a.value.replace(/[\s\u0000-\u001f]/g, '');
+      if (/^on/i.test(a.name) || (/href$/i.test(a.name) && /^javascript:/i.test(url))) {
+        el.removeAttribute(a.name);
+      }
+    }
+  }
+  return document.importNode(svg, true);
+}
+
 export default function CadSvgViewer({ docId }) {
   const hostRef = useRef(null);
   const svgRef = useRef(null);
@@ -37,10 +59,9 @@ export default function CadSvgViewer({ docId }) {
       try {
         const svgText = await api.fetchCadSvg(docId);
         if (cancelled || !host) return;
-        // Our own LibreDWG output, but strip scripts defensively before inject.
-        host.innerHTML = svgText.replace(/<script[\s\S]*?<\/script>/gi, '');
-        const svg = host.querySelector('svg');
+        const svg = cleanSvg(svgText);
         if (!svg) throw new Error('The drawing had no displayable content.');
+        host.replaceChildren(svg);
         svg.removeAttribute('width');
         svg.removeAttribute('height');
         svg.style.width = '100%';

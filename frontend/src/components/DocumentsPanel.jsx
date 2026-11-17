@@ -181,11 +181,13 @@ export default function DocumentsPanel({ parentType, parentId, code, canEdit, on
       let msg = saved.length === 1 ? '1 document uploaded' : `${saved.length} documents uploaded`;
       if (skipped.length) msg += ` · ${skipped.length} skipped`;
       toast(msg);
-      load();
-      if (onChange) onChange();
     } catch (e) {
       setError(e.message);
     } finally {
+      // Also after a failure: earlier batches may have saved files, and they
+      // must show, or the folder gets dropped again and stored twice.
+      load();
+      if (onChange) onChange();
       setUploading(false);
       setProgress(null);
     }
