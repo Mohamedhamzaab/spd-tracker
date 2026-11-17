@@ -9,9 +9,15 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { Modal, ErrorBanner, Loading, Pill, ConfirmDialog, fmtDate, useToast } from './ui.jsx';
-import { StatusPill } from '../pages/Engagement.jsx';
 import SourcePicker from './SourcePicker.jsx';
 import ActionForm from './ActionForm.jsx';
+
+const STATUS_TONE = {
+  Pending: 'amber', 'Open/Ongoing': 'navy', Closed: 'green', Cancelled: 'grey', Superseded: 'grey',
+};
+function StatusPill({ status }) {
+  return <Pill tone={STATUS_TONE[status] || 'grey'}>{status}</Pill>;
+}
 
 const KIND_LABEL = {
   progress: 'Progress',
@@ -45,9 +51,11 @@ export default function ActionDetail({ id, isEditor, onClose, onChanged, openPro
   const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  // openProgress lands straight in the progress form, for the inline
-  // "Register progress" button on the register accordion.
-  const [mode, setMode] = useState(openProgress ? 'progress' : null);
+  // openProgress lands straight in a form: true (or 'progress') for "Register
+  // progress", 'closure' for "Close action" - e.g. a card dropped on a column.
+  const [mode, setMode] = useState(
+    openProgress === 'closure' ? 'closure' : openProgress ? 'progress' : null
+  );
   const [editing, setEditing] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
 

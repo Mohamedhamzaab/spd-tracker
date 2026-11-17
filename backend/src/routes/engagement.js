@@ -92,6 +92,20 @@ async function orgsByAction(ids) {
   return map;
 }
 
+// The latest timeline entry per action, so a list can say where each one
+// stands without opening it.
+async function latestEntryByAction(ids) {
+  if (!ids.length) return {};
+  const { rows } = await query(
+    `SELECT DISTINCT ON (action_id) action_id, kind, entry_date, note
+       FROM engagement_action_progress
+      WHERE deleted_at IS NULL AND action_id = ANY($1::int[])
+      ORDER BY action_id, entry_date DESC, id DESC`,
+    [ids]
+  );
+  return Object.fromEntries(rows.map((r) => [r.action_id, r]));
+}
+
 // --- summary strip ----------------------------------------------------------
 router.get(
   '/summary',
@@ -232,8 +246,15 @@ router.get(
       (where.length ? ' WHERE ' + where.join(' AND ') : '') +
       ' ORDER BY authority_no, sub_reference, action_no';
     const { rows } = await query(sql, params);
-    const orgs = await orgsByAction(rows.map((r) => r.id));
-    res.json(rows.map((r) => ({ ...r, orgs: orgs[r.id] || [] })));
+    const ids = rows.map((r) => r.id);
+    const [orgs, latest] = await Promise.all([orgsByAction(ids), latestEntryByAction(ids)]);
+    res.json(rows.map((r) => ({
+      ...r,
+      orgs: orgs[r.id] || [],
+      latest_entry: latest[r.id]
+        ? { kind: latest[r.id].kind, date: latest[r.id].entry_date, note: latest[r.id].note }
+        : null,
+    })));
   })
 );
 

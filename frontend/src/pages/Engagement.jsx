@@ -1,491 +1,182 @@
 // ---------------------------------------------------------------------------
-//  Stakeholder Engagement — criticality, alignment and what is outstanding.
+//  Stakeholder Engagement — three ways to read one register.
 //
-//  Three sub-tabs over one dataset:
-//    Stakeholder Matrix    influence x involvement, and who is critical
-//    Engagement Assessment where each stakeholder sits against where we need
-//                          them, and the gap between
-//    Critical Items        the action register, opening on what needs attention
+//    Weekly picture         for the Client: one sentence on how things stand,
+//                           then every stakeholder grouped by what to do next
+//    Where everyone stands  the whole register on one board: stance across,
+//                           power and interest down; flip to where we need them
+//    Work board             for the stakeholder manager: the actions as
+//                           Pending / Ongoing / Closed
 //
 //  Status is never chosen here. It follows the timeline: an action is Pending
-//  until someone registers what they did, so the register cannot be talked up.
+//  until someone logs what they did, and closes only with evidence behind it.
 // ---------------------------------------------------------------------------
-import { useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
-import { Loading, ErrorBanner, Empty, Pill, useToast, fmtDate } from '../components/ui.jsx';
+import { Loading, ErrorBanner, useToast } from '../components/ui.jsx';
 import ActionDetail from '../components/ActionDetail.jsx';
 import ActionForm from '../components/ActionForm.jsx';
-import EngagementGuide from '../components/EngagementGuide.jsx';
-import EngagementRemoved from '../components/EngagementRemoved.jsx';
+import { buildModel } from '../components/engagement/model.js';
+import WeeklyPicture from '../components/engagement/WeeklyPicture.jsx';
+import Standings from '../components/engagement/Standings.jsx';
+import WorkBoard from '../components/engagement/WorkBoard.jsx';
+import StakeholderPanel from '../components/engagement/StakeholderPanel.jsx';
+import '../components/engagement/engagement.css';
 
-// Critical Items leads: it is what the section is for, so it is what you land
-// on. The two reference views sit behind it.
 const TABS = [
-  { key: 'items', label: 'Critical Items' },
-  { key: 'matrix', label: 'Stakeholder Matrix' },
-  { key: 'assessment', label: 'Engagement Assessment' },
-  { key: 'removed', label: 'Removed' },
+  { key: 'picture', label: 'Weekly picture' },
+  { key: 'standings', label: 'Where everyone stands' },
+  { key: 'board', label: 'Work board' },
 ];
+// Links made before the redesign still land somewhere sensible.
+const OLD_TABS = { items: 'board', removed: 'board', matrix: 'standings', assessment: 'standings' };
 
-const LADDER = ['Unaware', 'Resistant', 'Neutral', 'Supportive', 'Leading'];
-
-const STATUS_TONE = {
-  Pending: 'amber',
-  'Open/Ongoing': 'navy',
-  Closed: 'green',
-  Cancelled: 'grey',
-  Superseded: 'grey',
-};
-const PRIORITY_TONE = {
-  'Manage Closely': 'red',
-  'Keep Satisfied': 'amber',
-  'Keep Informed': 'navy',
-  Monitor: 'grey',
-};
-
-export function StatusPill({ status }) {
-  return <Pill tone={STATUS_TONE[status] || 'grey'}>{status}</Pill>;
+function tabFromUrl() {
+  const t = new URLSearchParams(window.location.search).get('tab');
+  return TABS.some((x) => x.key === t) ? t : OLD_TABS[t] || 'picture';
 }
 
 export default function Engagement() {
   const { isEditor } = useStore();
   const toast = useToast();
-  const [tab, setTab] = useState(() =>
-    new URLSearchParams(window.location.search).get('tab') || 'items');
-  const [summary, setSummary] = useState(null);
+  const [tab, setTab] = useState(tabFromUrl);
+  const [matrix, setMatrix] = useState(null);
+  const [actions, setActions] = useState(null);
   const [error, setError] = useState('');
-  // The figures matter when you arrive and get in the way once you are
-  // reading, so they fold away as soon as you scroll into the register -
-  // the page itself, or the register's own panel (readDepth below).
-  // Hysteresis keeps the header from flickering: it folds past 24px and
-  // unfolds only back near the top.
-  const [condensed, setCondensed] = useState(false);
-  const topbarRef = useRef(null);
-  const tabsRef = useRef(null);
-  const stripRef = useRef(null);
-  // How far down the register's own panel is. Folding shortens the page, so
-  // the browser snaps the page back towards the top by itself; that must not
-  // unfold the header while you are still deep in the register.
-  const panelDepth = useRef(0);
-  useEffect(() => { panelDepth.current = 0; }, [tab]);
+  const [lineId, setLineId] = useState(null);
+  const [detail, setDetail] = useState(null);   // { id, mode }
+  const [raising, setRaising] = useState(null); // { sub_division_id } | {}
 
-  useEffect(() => {
-    const html = document.documentElement;
-    // Folding changes the height above what you are reading, and the
-    // browser's scroll anchoring would move the page to make up for it -
-    // which then unfolds or folds the header again. Off on this page.
-    const prevAnchor = html.style.overflowAnchor;
-    html.style.overflowAnchor = 'none';
-
-    const foldHeight = () =>
-      [topbarRef, stripRef, tabsRef].reduce((h, r) => h + (r.current ? r.current.offsetHeight : 0), 0);
-    const fold = () => {
-      const y = window.scrollY || html.scrollTop || 0;
-      setCondensed((was) => {
-        if (was) return y > 4 || panelDepth.current > 4;
-        if (y <= 24) return false;
-        // Only fold if the page can still scroll once the header is gone.
-        // A short page would snap back to the top with the header folded and
-        // nothing left to scroll; there the register's own panel folds it.
-        return html.scrollHeight - foldHeight() - window.innerHeight > 24;
-      });
-    };
-    window.addEventListener('scroll', fold, { passive: true });
-    return () => {
-      window.removeEventListener('scroll', fold);
-      html.style.overflowAnchor = prevAnchor;
-    };
+  const load = useCallback(() => {
+    Promise.all([api.engMatrix(), api.engActions({})])
+      .then(([m, a]) => { setMatrix(m.rows); setActions(a); setError(''); })
+      .catch((e) => setError(e.message));
   }, []);
+  useEffect(load, [load]);
 
-  // The register scrolls inside its own panel, often with the page not
-  // scrolling at all, so the panel folds the header and unfolds it again.
-  function readDepth(px) {
-    panelDepth.current = px;
-    const y = window.scrollY || document.documentElement.scrollTop || 0;
-    if (px > 24) setCondensed(true);
-    else if (px <= 4 && y <= 24) {
-      setCondensed(false);
-      if (y > 0) window.scrollTo({ top: 0 });
+  const model = useMemo(
+    () => (matrix && actions ? buildModel(matrix, actions) : null), [matrix, actions]);
+  const line = model && lineId ? model.byId.get(lineId) : null;
+
+  function pickTab(k) {
+    setTab(k);
+    const u = new URL(window.location.href);
+    u.searchParams.set('tab', k);
+    window.history.replaceState(null, '', u);
+  }
+
+  function moveCard(a, status) {
+    if (status === 'Pending') {
+      toast('An action goes back to Pending only when its entries are removed. Open it to do that.');
+      return;
     }
+    setDetail({ id: a.id, mode: status === 'Closed' ? 'closure' : 'progress' });
   }
 
-  function loadSummary() {
-    api.engSummary().then(setSummary).catch((e) => setError(e.message));
-  }
-  useEffect(loadSummary, []);
+  const openAction = (id) => setDetail({ id, mode: null });
+  const openLine = (l) => setLineId(l.id);
+  const raise = (subId) => setRaising(subId ? { sub_division_id: subId } : {});
 
   return (
-    <>
-      <div ref={topbarRef} className={'topbar eng-topbar' + (condensed ? ' is-condensed' : '')}>
+    <MotionConfig reducedMotion="user">
+      <div className="topbar">
         <div>
           <div className="page-crumb">Tracker</div>
           <div className="page-title">Stakeholder Engagement</div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div className="eg-top-actions">
           <button
             className="btn"
-            title="The matrix, assessment and register in the original workbook layout"
-            onClick={() => api.downloadExport(
-              '/exports/stakeholder-engagement.xlsx', 'stakeholder-engagement-matrix.xlsx')}
+            title="The matrix, assessment and register in the weekly workbook layout"
+            onClick={() => api.downloadExport('/exports/stakeholder-engagement.xlsx', 'stakeholder-engagement-matrix.xlsx')}
           >
             Export Excel
           </button>
           <button
             className="btn"
-            onClick={() => api.downloadExport(
-              '/exports/stakeholder-engagement.pdf', 'stakeholder-engagement-matrix.pdf')}
+            onClick={() => api.downloadExport('/exports/stakeholder-engagement.pdf', 'stakeholder-engagement-matrix.pdf')}
           >
             Export PDF
           </button>
+          {isEditor && <button className="btn btn-primary" onClick={() => raise()}>Raise action</button>}
         </div>
       </div>
 
-      <div className={'page eng-page' + (condensed ? ' is-condensed' : '')}>
-        <ErrorBanner message={error} />
-        <SummaryStrip summary={summary} onJump={setTab} condensed={condensed} boxRef={stripRef} />
-
-        <div ref={tabsRef} className={'subtabs' + (condensed ? ' is-hidden' : '')} role="tablist">
+      <div className="page eg">
+        <div className="eg-tabs" role="tablist" aria-label="Views">
           {TABS.map((t) => (
             <button
               key={t.key}
+              type="button"
               role="tab"
               aria-selected={tab === t.key}
-              className={'subtab' + (tab === t.key ? ' subtab-on' : '')}
-              onClick={() => setTab(t.key)}
+              className={'eg-tab' + (tab === t.key ? ' is-on' : '')}
+              onClick={() => pickTab(t.key)}
             >
-              {t.label}
+              {tab === t.key && <motion.span layoutId="eg-tab-pill" className="eg-tab-pill" transition={{ type: 'spring', stiffness: 420, damping: 36 }} />}
+              <span className="eg-tab-label">{t.label}</span>
             </button>
           ))}
         </div>
 
-        {tab === 'matrix' && (
-          <MatrixTab isEditor={isEditor} toast={toast} onChanged={loadSummary} mode="power" />
+        <ErrorBanner message={error} />
+        {!model ? (!error && <Loading label="Loading the register" />) : (
+          // Enter only. An exit waiting on the board's moving names could
+          // stall and leave the next tab unmounted, so the old view just goes.
+          <motion.div
+              key={tab}
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+            >
+              {tab === 'picture' && (
+                <WeeklyPicture model={model} isEditor={isEditor}
+                  onOpenAction={openAction} onOpenLine={openLine} onRaise={raise} />
+              )}
+              {tab === 'standings' && (
+                <Standings model={model} onOpenLine={openLine} selectedId={lineId} />
+              )}
+              {tab === 'board' && (
+                <WorkBoard model={model} isEditor={isEditor}
+                  onOpenAction={openAction} onMove={moveCard} onChanged={load} />
+              )}
+          </motion.div>
         )}
-        {tab === 'assessment' && (
-          <MatrixTab isEditor={isEditor} toast={toast} onChanged={loadSummary} mode="ladder" />
-        )}
-        {tab === 'items' && (
-          <ItemsTab
+      </div>
+
+      <AnimatePresence>
+        {line && (
+          <StakeholderPanel
+            key="panel"
+            line={line}
             isEditor={isEditor}
-            toast={toast}
-            onChanged={loadSummary}
-            onReadDepth={readDepth}
+            onClose={() => setLineId(null)}
+            onOpenAction={openAction}
+            onRaise={raise}
+            onSaved={() => { toast('Position saved'); load(); }}
           />
         )}
-        {tab === 'removed' && (
-          <EngagementRemoved isEditor={isEditor} onChanged={loadSummary} />
-        )}
-      </div>
-    </>
-  );
-}
+      </AnimatePresence>
 
-/* ---- summary strip ------------------------------------------------------ */
-// A band of figures rather than a row of cards, so it belongs to the same
-// design as the register below it: one rule, tabular numerals, quiet labels.
-function SummaryStrip({ summary, onJump, condensed, boxRef }) {
-  if (!summary) return <div ref={boxRef} className="eng-strip eng-strip-loading" />;
-  const a = summary.actions;
-  const m = summary.matrix;
-  const cells = [
-    { label: 'Pending', value: a.pending, tone: 'pending', hint: 'Nothing registered against these yet' },
-    { label: 'Ongoing', value: a.ongoing, tone: 'ongoing', hint: 'Progress registered' },
-    { label: 'Closed', value: a.closed, tone: 'closed', hint: 'Closed with evidence' },
-    { label: 'Critical open', value: a.critical_open, tone: 'crit', hint: 'Open items on critical stakeholders' },
-    { label: 'Overdue', value: a.overdue, tone: a.overdue > 0 ? 'crit' : 'idle', hint: 'Past their date and still open' },
-    { label: 'No system link', value: a.unreferenced, tone: 'pending', hint: 'Open items whose evidence sits outside the system' },
-    { label: 'Stakeholders w/ gap', value: m.with_gap, tone: 'pending', hint: 'Not yet where we need them' },
-  ];
-  return (
-    <div ref={boxRef} className={'eng-strip' + (condensed ? ' is-hidden' : '')} aria-hidden={condensed}>
-      {cells.map((c) => (
-        <button
-          key={c.label}
-          className="eng-cell"
-          title={c.hint}
-          tabIndex={condensed ? -1 : 0}
-          onClick={() => onJump(c.label.startsWith('Stakeholders') ? 'assessment' : 'items')}
-        >
-          <span className={'eng-cell-value tone-' + c.tone}>{c.value}</span>
-          <span className="eng-cell-label">{c.label}</span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-/* ---- matrix + assessment ------------------------------------------------ */
-// Both tabs are the same rows seen through different columns, so they share a
-// component: "power" shows influence/involvement, "ladder" shows the gap.
-function MatrixTab({ isEditor, toast, onChanged, mode }) {
-  const [data, setData] = useState(null);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(null);
-
-  function load() {
-    api.engMatrix().then(setData).catch((e) => setError(e.message));
-  }
-  useEffect(load, []);
-
-  async function setField(row, field, value) {
-    setSaving(row.sub_division_id + field);
-    setError('');
-    try {
-      await api.engSetRating(row.sub_division_id, { [field]: value || null });
-      load();
-      onChanged();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSaving(null);
-    }
-  }
-
-  if (error && !data) return <ErrorBanner message={error} />;
-  if (!data) return <Loading label="Loading stakeholders" />;
-
-  const grouped = [];
-  let lastAuthority = null;
-  for (const r of data.rows) {
-    if (r.authority_name !== lastAuthority) {
-      grouped.push({ header: r.authority_name, code: r.authority_code });
-      lastAuthority = r.authority_name;
-    }
-    grouped.push({ row: r });
-  }
-
-  return (
-    <div className="stack-lg">
-      <ErrorBanner message={error} />
-
-      {mode === 'power' && (
-        <div className="quadrant-grid">
-          {['Manage Closely', 'Keep Satisfied', 'Keep Informed', 'Monitor'].map((k) => (
-            <div key={k} className="quadrant-card">
-              <div className="quadrant-n">{data.quadrant[k] || 0}</div>
-              <div className="quadrant-k">{k}</div>
-              <div className="quadrant-d">
-                {k === 'Manage Closely' && 'High influence + high involvement — critical'}
-                {k === 'Keep Satisfied' && 'High influence, lower involvement'}
-                {k === 'Keep Informed' && 'Lower influence, high involvement'}
-                {k === 'Monitor' && 'Lower influence and involvement'}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      <div className="table-wrap">
-        <table>
-          <thead>
-            {mode === 'power' ? (
-              <tr>
-                <th>Stakeholder</th><th>Influence</th><th>Involvement</th>
-                <th>Priority</th><th>Critical</th>
-              </tr>
-            ) : (
-              <tr>
-                <th>Stakeholder</th><th>Current</th><th>Desired</th>
-                <th>Gap</th><th>Owner</th><th>Remarks</th>
-              </tr>
-            )}
-          </thead>
-          <tbody>
-            {grouped.map((g, i) =>
-              g.header ? (
-                <tr key={'h' + i} className="group-row">
-                  <td colSpan={mode === 'power' ? 5 : 6}>
-                    <span className="mono">{g.code}</span> &nbsp;{g.header}
-                  </td>
-                </tr>
-              ) : mode === 'power' ? (
-                <tr key={g.row.sub_division_id}>
-                  <td>
-                    <div className="cell-strong">{g.row.sub_division_name}</div>
-                    <div className="cell-sub mono">{g.row.sub_reference}</div>
-                  </td>
-                  <td><HL row={g.row} field="influence" isEditor={isEditor} saving={saving} onSet={setField} /></td>
-                  <td><HL row={g.row} field="involvement" isEditor={isEditor} saving={saving} onSet={setField} /></td>
-                  <td>
-                    {g.row.action_priority
-                      ? <Pill tone={PRIORITY_TONE[g.row.action_priority]}>{g.row.action_priority}</Pill>
-                      : <span className="cell-sub">Not rated</span>}
-                  </td>
-                  <td>{g.row.is_critical ? <Pill tone="red">CRITICAL</Pill> : <span className="cell-sub">—</span>}</td>
-                </tr>
-              ) : (
-                <tr key={g.row.sub_division_id}>
-                  <td>
-                    <div className="cell-strong">{g.row.sub_division_name}</div>
-                    <div className="cell-sub mono">{g.row.sub_reference}</div>
-                  </td>
-                  <td><Ladder row={g.row} field="engagement_current" isEditor={isEditor} saving={saving} onSet={setField} /></td>
-                  <td><Ladder row={g.row} field="engagement_desired" isEditor={isEditor} saving={saving} onSet={setField} /></td>
-                  <td>
-                    {g.row.gap_status
-                      ? <Pill tone={g.row.gap_status.startsWith('✓') ? 'green' : 'amber'}>{g.row.gap_status}</Pill>
-                      : <span className="cell-sub">—</span>}
-                  </td>
-                  <td>{g.row.gap_action_by || <span className="cell-sub">—</span>}</td>
-                  <td className="cell-wrap">{g.row.gap_remarks || <span className="cell-sub">—</span>}</td>
-                </tr>
-              )
-            )}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function HL({ row, field, isEditor, saving, onSet }) {
-  const val = row[field] || '';
-  if (!isEditor) return val ? <Pill tone={val === 'H' ? 'red' : 'grey'}>{val}</Pill> : <span className="cell-sub">—</span>;
-  return (
-    <select
-      className="select select-inline"
-      value={val}
-      disabled={saving === row.sub_division_id + field}
-      onChange={(e) => onSet(row, field, e.target.value)}
-    >
-      <option value="">—</option>
-      <option value="H">H</option>
-      <option value="L">L</option>
-    </select>
-  );
-}
-
-function Ladder({ row, field, isEditor, saving, onSet }) {
-  const val = row[field] || '';
-  if (!isEditor) return val ? <span>{val}</span> : <span className="cell-sub">—</span>;
-  return (
-    <select
-      className="select select-inline"
-      value={val}
-      disabled={saving === row.sub_division_id + field}
-      onChange={(e) => onSet(row, field, e.target.value)}
-    >
-      <option value="">—</option>
-      {LADDER.map((l) => <option key={l} value={l}>{l}</option>)}
-    </select>
-  );
-}
-
-/* ---- the action register ------------------------------------------------ */
-function ItemsTab({ isEditor, toast, onChanged, onReadDepth }) {
-  const [rows, setRows] = useState(null);
-  const [error, setError] = useState('');
-  const [openId, setOpenId] = useState(null);
-  const [adding, setAdding] = useState(false);
-  const [progressFor, setProgressFor] = useState(null);
-  // the guide shows engagement position per stakeholder, so it needs the matrix
-  const [matrixRows, setMatrixRows] = useState([]);
-  useEffect(() => { api.engMatrix().then((d) => setMatrixRows(d.rows)).catch(() => {}); }, []);
-  // Opens on what needs attention; every other item is one filter away.
-  const [filters, setFilters] = useState({
-    status: 'Pending,Open/Ongoing', critical: false, overdue: false,
-    unreferenced: false, q: '',
-  });
-
-  const params = useMemo(() => {
-    const p = {};
-    if (filters.status) p.status = filters.status;
-    if (filters.critical) p.critical = 'true';
-    if (filters.overdue) p.overdue = 'true';
-    if (filters.unreferenced) p.unreferenced = 'true';
-    if (filters.q.trim()) p.q = filters.q.trim();
-    return p;
-  }, [filters]);
-
-  function load() {
-    api.engActions(params).then(setRows).catch((e) => setError(e.message));
-  }
-  useEffect(() => { setError(''); load(); }, [params]);
-
-  const set = (k, v) => setFilters((f) => ({ ...f, [k]: v }));
-
-  return (
-    <div className="stack-lg">
-      <ErrorBanner message={error} />
-
-      <div className="filter-bar">
-        <input
-          className="search"
-          placeholder="Search the register"
-          value={filters.q}
-          onChange={(e) => set('q', e.target.value)}
-        />
-        <select className="filter-select" value={filters.status} onChange={(e) => set('status', e.target.value)}>
-          <option value="Pending,Open/Ongoing">Open items</option>
-          <option value="Pending">Pending only</option>
-          <option value="Open/Ongoing">Ongoing only</option>
-          <option value="Closed">Closed</option>
-          <option value="Cancelled,Superseded">Cancelled / superseded</option>
-          <option value="">Everything</option>
-        </select>
-        {[
-          ['critical', 'Critical only'],
-          ['overdue', 'Overdue'],
-          ['unreferenced', 'No system link'],
-        ].map(([k, label]) => (
-          <button
-            key={k}
-            type="button"
-            className={'chip ' + (filters[k] ? 'chip-on' : '')}
-            onClick={() => set(k, !filters[k])}
-          >
-            {label}
-          </button>
-        ))}
-        <span className="section-note" style={{ marginLeft: 'auto' }}>
-          {rows ? rows.length : '…'} {rows && rows.length === 1 ? 'item' : 'items'}
-        </span>
-        {isEditor && (
-          <button className="btn btn-primary btn-sm" onClick={() => setAdding(true)}>
-            + Raise action
-          </button>
-        )}
-      </div>
-
-      <EngagementGuide
-        rows={rows}
-        matrix={matrixRows}
-        isEditor={isEditor}
-        onOpen={setOpenId}
-        onAddProgress={setProgressFor}
-        onChanged={() => { load(); onChanged(); }}
-        onReadDepth={onReadDepth}
-      />
-
-      {progressFor && (
+      {detail && (
         <ActionDetail
-          id={progressFor}
-          openProgress
+          key={detail.id + ':' + detail.mode}
+          id={detail.id}
+          openProgress={detail.mode || undefined}
           isEditor={isEditor}
-          onClose={() => setProgressFor(null)}
-          onChanged={() => { load(); onChanged(); }}
+          onClose={() => setDetail(null)}
+          onChanged={load}
         />
       )}
-      {openId && (
-        <ActionDetail
-          id={openId}
-          isEditor={isEditor}
-          onClose={() => setOpenId(null)}
-          onChanged={() => { load(); onChanged(); }}
-        />
-      )}
-      {adding && (
+      {raising && (
         <ActionForm
-          onClose={() => setAdding(false)}
-          onSaved={(code) => {
-            setAdding(false);
-            toast('Action raised: ' + code);
-            load();
-            onChanged();
-          }}
+          defaults={raising}
+          onClose={() => setRaising(null)}
+          onSaved={(code) => { setRaising(null); toast('Action raised: ' + code); load(); }}
         />
       )}
-    </div>
+    </MotionConfig>
   );
 }
