@@ -96,7 +96,7 @@ function Row({ line: l, open, onToggle, travel, delay, isEditor, onOpenAction, o
     <div className={'wp-row' + (open ? ' is-open' : '')}>
       <button type="button" className="wp-row-head" aria-expanded={open} onClick={onToggle}>
         <span className="wp-name">
-          <b>{l.short}</b>
+          <b>{l.no && <span className="wp-no">{l.no}</span>}{l.short}</b>
           <span>{l.authority}{l.critical ? ', critical' : ''}</span>
         </span>
         <StanceTrack line={l} travel={travel} delay={delay} />
@@ -121,6 +121,7 @@ function Row({ line: l, open, onToggle, travel, delay, isEditor, onOpenAction, o
             transition={{ duration: 0.32, ease: [0.2, 0.8, 0.2, 1] }}
           >
             <div className="wp-inner">
+              {l.remarks && <div className="wp-remarks"><b>Where things stand:</b> {l.remarks}</div>}
               {l.gapNote && (
                 <div className="wp-why">
                   <b>What's in the way:</b> {l.gapNote}

@@ -292,3 +292,12 @@ html[data-theme="dark"] {
 .removed-text { font-size: 13.5px; line-height: 1.55; }
 .removed-code { font-weight: 700; margin-right: 8px; color: var(--navy); }
 .removed-meta { font-size: 12px; color: var(--muted); margin-top: 5px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+
+/* ---- matrix numbers and the stakeholder's own remarks ---------------------- */
+.wp-no, .sp-no {
+  display: inline-block; min-width: 2.2em; margin-right: 8px;
+  color: var(--muted); font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.sp-no { font-size: 16px; }
+.wp-remarks { font-size: 14px; white-space: pre-line; padding: 2px 2px 6px; }
+.wp-remarks b, .wp-why b { font-weight: 600; }

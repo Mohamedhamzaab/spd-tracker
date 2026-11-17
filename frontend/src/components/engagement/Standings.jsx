@@ -32,7 +32,7 @@ export default function Standings({ model, onOpenLine, selectedId }) {
         transition={{ layout: { duration: reduce ? 0 : 0.75, delay, ease: [0.65, 0, 0.25, 1] } }}
         className={'sd-chip' + (!l.assessed ? '' : l.behind ? ' is-behind' : ' is-there')
           + (goes ? ' is-moved' : '') + (selectedId === l.id ? ' is-sel' : '')}
-        title={`${l.name} (${l.authority})${l.assessed ? `: now ${l.current}, needed ${l.desired}` : ''}`}
+        title={`${l.no ? l.no + ' ' : ''}${l.name} (${l.authority})${l.assessed ? `: now ${l.current}, needed ${l.desired}` : ''}`}
         onClick={() => onOpenLine(l)}
       >
         <span className="sd-dot" aria-hidden="true" />

@@ -63,6 +63,9 @@ export function buildModel(matrixRows, actions) {
     critical: !!m.is_critical,
     gapNote: m.gap_remarks,
     gapBy: m.gap_action_by,
+    // Its number in the weekly matrix (7, 4.2…) and the matrix's Remarks.
+    no: m.matrix_no,
+    remarks: m.remarks,
     raw: m,
     actions: [],
     count: { p: 0, o: 0, c: 0 },

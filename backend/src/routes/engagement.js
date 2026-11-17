@@ -143,7 +143,8 @@ router.get(
   '/matrix',
   wrap(async (_req, res) => {
     const { rows } = await query(
-      `SELECT * FROM v_engagement_matrix ORDER BY authority_name, seq_no`
+      `SELECT * FROM v_engagement_matrix
+        ORDER BY matrix_order NULLS LAST, authority_name, seq_no`
     );
     const quadrant = await query(
       `SELECT action_priority, count(*)::int AS n
@@ -179,6 +180,7 @@ router.patch(
       communication_priority: check(b.communication_priority, PRIORITY, 'Communication priority'),
       gap_remarks: b.gap_remarks === undefined ? undefined : (b.gap_remarks || null),
       gap_action_by: b.gap_action_by === undefined ? undefined : (b.gap_action_by || null),
+      remarks: b.remarks === undefined ? undefined : (String(b.remarks || '').trim() || null),
     };
     const sets = [];
     const args = [id];
@@ -244,7 +246,7 @@ router.get(
     const sql =
       'SELECT * FROM v_engagement_action' +
       (where.length ? ' WHERE ' + where.join(' AND ') : '') +
-      ' ORDER BY authority_no, sub_reference, action_no';
+      ' ORDER BY authority_no NULLS LAST, line_order, action_no';
     const { rows } = await query(sql, params);
     const ids = rows.map((r) => r.id);
     const [orgs, latest] = await Promise.all([orgsByAction(ids), latestEntryByAction(ids)]);

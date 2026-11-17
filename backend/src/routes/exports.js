@@ -1011,6 +1011,7 @@ router.get(
 
     pdfSection(doc, 'Stakeholder Matrix');
     pdfTable(doc, [
+      { label: 'No.',             get: (m) => m.matrix_no || '—',                 units: 0.7 },
       { label: 'Stakeholder',     get: (m) => m.sub_division_name,                units: 3 },
       { label: 'Authority',       get: (m) => m.authority_code,                   units: 1.4 },
       { label: 'Influence',       get: (m) => m.influence || '—',                 units: 1 },
@@ -1026,6 +1027,7 @@ router.get(
       subtitle: 'Where each stakeholder sits against where the project needs them',
     });
     pdfTable(doc, [
+      { label: 'No.',         get: (m) => m.matrix_no || '—',          units: 0.7 },
       { label: 'Stakeholder', get: (m) => m.sub_division_name,        units: 3 },
       { label: 'Current',     get: (m) => m.engagement_current || '—', units: 1.2 },
       { label: 'Desired',     get: (m) => m.engagement_desired || '—', units: 1.2 },

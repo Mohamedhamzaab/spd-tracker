@@ -895,6 +895,77 @@ WHERE a.deleted_at IS NULL;
 -- pair first (cheap: they are pure derivations), same as v_communication above.
 DROP VIEW IF EXISTS v_engagement_action CASCADE;
 DROP VIEW IF EXISTS v_engagement_matrix CASCADE;
+DROP VIEW IF EXISTS v_engagement_numbering CASCADE;
+
+-- The weekly matrix numbers stakeholders its own way (MoECC is 7, not its
+-- alphabetical place), and the register has to read the same as the file the
+-- team submits. An authority keeps the number it has in that file; a
+-- department keeps its place within the authority. Both are optional: anything
+-- without one is numbered after them, alphabetically.
+ALTER TABLE authorities   ADD COLUMN IF NOT EXISTS matrix_no  INTEGER;
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS matrix_seq INTEGER;
+-- The matrix's own "Remarks" column: where things stand with this stakeholder,
+-- in a sentence (the talking point the Meeting Brief reads out).
+ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS remarks    TEXT;
+
+-- ---------------------------------------------------------------------------
+--  Numbering, as the weekly matrix shows it.
+--
+--  A department is "in the matrix" once it has a rating, a position or an
+--  action; empty placeholders created for correspondence stay out, so they
+--  neither show in the file nor push an authority into sub-numbering.
+--    authority with one listed department   7      actions 7.1, 7.2
+--    authority with several                 4.1    actions 4.1.1, 4.1.2
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE VIEW v_engagement_numbering AS
+WITH line AS (
+    SELECT sd.id, sd.authority_id, sd.seq_no, sd.matrix_seq,
+           (sd.influence IS NOT NULL OR sd.involvement IS NOT NULL
+            OR sd.engagement_current IS NOT NULL OR sd.engagement_desired IS NOT NULL
+            OR EXISTS (SELECT 1 FROM engagement_actions ea
+                        WHERE ea.sub_division_id = sd.id AND ea.deleted_at IS NULL)
+           ) AS in_matrix
+    FROM sub_divisions sd
+    JOIN authorities a ON a.id = sd.authority_id AND a.deleted_at IS NULL
+    WHERE sd.deleted_at IS NULL
+),
+auth AS (
+    SELECT a.id, a.name, a.matrix_no,
+           count(*) FILTER (WHERE l.in_matrix) AS lines
+    FROM authorities a
+    JOIN line l ON l.authority_id = a.id
+    WHERE a.deleted_at IS NULL
+    GROUP BY a.id
+),
+auth_no AS (
+    SELECT id, lines,
+           CASE
+             WHEN matrix_no IS NOT NULL THEN matrix_no::bigint
+             WHEN lines = 0 THEN NULL
+             ELSE (SELECT COALESCE(max(matrix_no), 0) FROM authorities WHERE deleted_at IS NULL)
+                  + row_number() OVER (PARTITION BY (matrix_no IS NULL AND lines > 0)
+                                       ORDER BY name, id)
+           END AS n
+    FROM auth
+),
+ranked AS (
+    SELECT l.id, l.authority_id, l.in_matrix,
+           row_number() OVER (PARTITION BY l.authority_id, l.in_matrix
+                              ORDER BY l.matrix_seq NULLS LAST, l.seq_no, l.id) AS r
+    FROM line l
+)
+SELECT
+    rk.id AS sub_division_id,
+    rk.in_matrix,
+    an.n  AS authority_no,
+    CASE WHEN NOT rk.in_matrix OR an.n IS NULL THEN NULL
+         WHEN an.lines > 1 THEN an.n || '.' || rk.r
+         ELSE an.n::text
+    END AS line_no,
+    -- Sorts the register the way the file reads; unlisted departments last.
+    an.n * 1000 + CASE WHEN rk.in_matrix THEN rk.r ELSE 500 + rk.r END AS line_order
+FROM ranked rk
+JOIN auth_no an ON an.id = rk.authority_id;
 
 -- ---------------------------------------------------------------------------
 --  Stakeholder matrix: the power/interest classification and the engagement
@@ -941,35 +1012,32 @@ SELECT
     des.step  AS desired_step,
     -- Positive when the stakeholder sits below where they need to be.
     CASE WHEN cur.step IS NULL OR des.step IS NULL THEN NULL
-         ELSE des.step - cur.step END AS gap_size
+         ELSE des.step - cur.step END AS gap_size,
+    sd.remarks,
+    num.in_matrix,
+    num.authority_no      AS matrix_authority_no,
+    num.line_no           AS matrix_no,
+    num.line_order        AS matrix_order
 FROM sub_divisions sd
 JOIN authorities a ON a.id = sd.authority_id AND a.deleted_at IS NULL
 LEFT JOIN ladder cur ON cur.name = sd.engagement_current
 LEFT JOIN ladder des ON des.name = sd.engagement_desired
+LEFT JOIN v_engagement_numbering num ON num.sub_division_id = sd.id
 WHERE sd.deleted_at IS NULL;
 
 -- ---------------------------------------------------------------------------
 --  The action register. Two derivations carry the whole feature:
 --
 --  action_code  the workbook's hierarchical number, computed rather than
---               stored. An authority holding several sub-divisions numbers
---               4 -> 4.1 -> 4.1.1; one holding a single sub-division collapses
---               to 5 -> 5.1, which is exactly what the workbook does.
+--               stored: the department's matrix number (v_engagement_numbering)
+--               plus the action's place under it - 4.1.1 under KAHRAMAA Water,
+--               7.1 under MoECC, which is exactly what the workbook does.
 --  status       Pending until someone registers progress, Open/Ongoing once
 --               they have, Closed on a closure entry — with Cancelled and
 --               Superseded as the two deliberate exits.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW v_engagement_action AS
-WITH auth_no AS (
-    SELECT id, row_number() OVER (ORDER BY name, id) AS n
-    FROM authorities WHERE deleted_at IS NULL
-),
-sub_tally AS (
-    SELECT authority_id, count(*) AS n
-    FROM sub_divisions WHERE deleted_at IS NULL
-    GROUP BY authority_id
-),
-seq AS (
+WITH seq AS (
     SELECT id,
            row_number() OVER (PARTITION BY sub_division_id
                               ORDER BY recorded_date NULLS LAST, id) AS n
@@ -996,13 +1064,11 @@ SELECT
     m.action_priority,
     m.is_critical,
     m.gap_status,
-    -- Hierarchical number, collapsing the middle level for single-department
-    -- authorities so the export mirrors the workbook.
-    CASE WHEN COALESCE(st.n, 0) > 1
-         THEN an.n || '.' || sd.seq_no || '.' || sq.n
-         ELSE an.n || '.' || sq.n
-    END AS action_code,
-    an.n AS authority_no,
+    -- The department's number in the weekly matrix, then the action's place
+    -- under it (see v_engagement_numbering): 7.1 for MoECC, 4.2.1 for KAHRAMAA
+    -- Electricity.
+    num.line_no || '.' || sq.n AS action_code,
+    num.authority_no AS authority_no,
     sq.n AS action_no,
     COALESCE(t.progress_count, 0) AS progress_count,
     COALESCE(t.entry_count, 0)    AS entry_count,
@@ -1022,13 +1088,14 @@ SELECT
     (ea.due_date IS NOT NULL
        AND ea.due_date < CURRENT_DATE
        AND ea.resolution IS NULL
-       AND COALESCE(t.closure_count, 0) = 0) AS is_overdue
+       AND COALESCE(t.closure_count, 0) = 0) AS is_overdue,
+    num.line_no,
+    num.line_order
 FROM engagement_actions ea
 JOIN sub_divisions sd  ON sd.id = ea.sub_division_id AND sd.deleted_at IS NULL
 JOIN authorities   a   ON a.id  = sd.authority_id    AND a.deleted_at IS NULL
-JOIN auth_no       an  ON an.id = a.id
+JOIN v_engagement_numbering num ON num.sub_division_id = sd.id
 JOIN seq           sq  ON sq.id = ea.id
-LEFT JOIN sub_tally st ON st.authority_id = a.id
 LEFT JOIN tally     t  ON t.action_id = ea.id
 LEFT JOIN v_engagement_matrix m ON m.sub_division_id = sd.id
 WHERE ea.deleted_at IS NULL;

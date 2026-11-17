@@ -27,6 +27,7 @@ export default function StakeholderPanel({ line: l, isEditor, onClose, onOpenAct
         engagement_current: v.current || null, engagement_desired: v.desired || null,
         influence: v.power || null, involvement: v.interest || null,
         gap_action_by: v.gapBy.trim() || null, gap_remarks: v.gapNote.trim() || null,
+        remarks: v.remarks.trim() || null,
       });
       onSaved();
     } catch (e) {
@@ -52,7 +53,7 @@ export default function StakeholderPanel({ line: l, isEditor, onClose, onOpenAct
       >
         <header className="sp-head">
           <div>
-            <h2>{l.short}</h2>
+            <h2>{l.no && <span className="sp-no">{l.no}</span>}{l.short}</h2>
             <p>{l.authority}, {l.ref}{l.critical ? ', critical' : ''}</p>
           </div>
           <button type="button" className="sp-x" onClick={onClose} aria-label="Close" autoFocus>✕</button>
@@ -67,6 +68,7 @@ export default function StakeholderPanel({ line: l, isEditor, onClose, onOpenAct
             <div><dt>Priority</dt><dd>{l.priority || 'Not rated'}</dd></div>
             <div><dt>Actions</dt><dd>{l.actions.length ? `${l.count.c} closed, ${l.count.o} ongoing, ${l.count.p} pending` : 'None yet'}</dd></div>
           </dl>
+          {!isEditor && l.remarks && <div className="wp-remarks"><b>Where things stand:</b> {l.remarks}</div>}
           {!isEditor && l.gapNote && <div className="wp-why"><b>What's in the way:</b> {l.gapNote}{l.gapBy && <span className="own">{l.gapBy}</span>}</div>}
 
           {isEditor && (
@@ -82,6 +84,7 @@ export default function StakeholderPanel({ line: l, isEditor, onClose, onOpenAct
                 <label>Interest<select className="select" value={v.interest} onChange={set('interest')}>
                   <option value="">Not rated</option><option value="H">High</option><option value="L">Low</option></select></label>
               </div>
+              <label>Where things stand<textarea className="input" rows={3} value={v.remarks} onChange={set('remarks')} placeholder="e.g. Meeting held 25 Jun; animal and plant lists to be shared" /></label>
               <label>What's in the way<textarea className="input" rows={2} value={v.gapNote} onChange={set('gapNote')} placeholder="Why they are not where we need them yet" /></label>
               <label>Who acts on it<input className="input" value={v.gapBy} onChange={set('gapBy')} placeholder="ECG, SPD…" /></label>
               <div className="sp-save">
@@ -122,6 +125,6 @@ function formFrom(l) {
   return {
     current: l.current || '', desired: l.desired || '',
     power: l.power || '', interest: l.interest || '',
-    gapNote: l.gapNote || '', gapBy: l.gapBy || '',
+    gapNote: l.gapNote || '', gapBy: l.gapBy || '', remarks: l.remarks || '',
   };
 }
