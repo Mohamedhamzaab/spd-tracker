@@ -36,3 +36,26 @@ test('the data API refuses a session until the account gates are cleared', { ski
     await pool.query('DELETE FROM users WHERE id = $1', [u.id]);
   }
 });
+
+test('after a lockout runs out, one wrong password does not lock the account again', { skip: !local && 'DATABASE_URL is not local' }, async () => {
+  const express = require('express');
+  const bcrypt = require('bcryptjs');
+  const srv = express().use(express.json()).use('/api/auth', require('../src/auth').router).listen(0);
+  const u = (await pool.query(
+    `INSERT INTO users (name, email, role, password_hash, failed_login_count, locked_until)
+     VALUES ('Lock test', 'lock-test@example.test', 'reviewer', $1, 5, now() - interval '1 minute')
+     RETURNING id`, [await bcrypt.hash('right-password', 4)])).rows[0];
+  try {
+    const r = await fetch(`http://localhost:${srv.address().port}/api/auth/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ email: 'lock-test@example.test', password: 'wrong-password' }),
+    });
+    assert.strictEqual(r.status, 401, 'a plain "incorrect", not 423 Locked');
+    const after = (await pool.query('SELECT failed_login_count, locked_until FROM users WHERE id = $1', [u.id])).rows[0];
+    assert.deepStrictEqual(after, { failed_login_count: 1, locked_until: null });
+  } finally {
+    srv.close();
+    await pool.query('DELETE FROM audit_events WHERE target_type = $1 AND target_id = $2', ['user', u.id]);
+    await pool.query('DELETE FROM users WHERE id = $1', [u.id]);
+  }
+});

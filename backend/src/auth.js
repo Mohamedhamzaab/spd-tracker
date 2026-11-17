@@ -253,13 +253,17 @@ router.post(
 
     const ok = await bcrypt.compare(password, user.password_hash);
     if (!ok) {
-      // Increment failures atomically and lock when we cross the threshold.
+      // Increment failures atomically and lock when we cross the threshold. A
+      // lock that has run out starts the count again, so one typo after it
+      // does not lock the account for another 15 minutes.
       const { rows: bumped } = await query(
         `UPDATE users
-         SET failed_login_count = failed_login_count + 1,
+         SET failed_login_count =
+               CASE WHEN locked_until <= now() THEN 1 ELSE failed_login_count + 1 END,
              locked_until = CASE
-               WHEN failed_login_count + 1 >= $2
+               WHEN (CASE WHEN locked_until <= now() THEN 1 ELSE failed_login_count + 1 END) >= $2
                  THEN now() + ($3 || ' minutes')::interval
+               WHEN locked_until <= now() THEN NULL
                ELSE locked_until
              END
          WHERE id = $1
