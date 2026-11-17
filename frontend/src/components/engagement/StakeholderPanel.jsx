@@ -12,10 +12,13 @@ export default function StakeholderPanel({ line: l, isEditor, onClose, onOpenAct
   const [v, setV] = useState(() => formFrom(l));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => { setV(formFrom(l)); setError(''); }, [l.id, l.raw]);
+  // Reset only when this stakeholder's saved values change: a live refresh
+  // hands over a new row object each time and must not wipe unsaved edits.
+  const saved = JSON.stringify(formFrom(l));
+  useEffect(() => { setV(formFrom(l)); setError(''); }, [l.id, saved]);
   useEscapeToClose(onClose);
 
-  const dirty = JSON.stringify(v) !== JSON.stringify(formFrom(l));
+  const dirty = JSON.stringify(v) !== saved;
   async function save() {
     setSaving(true); setError('');
     try {

@@ -3,6 +3,7 @@
 //  a controlled form, file list, toast. Kept in one file so pages stay small.
 // ---------------------------------------------------------------------------
 import { useEffect, useState, useRef, createContext, useContext, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 
 /* ---- sortable table helpers --------------------------------------------- */
 //
@@ -416,9 +417,13 @@ export function useEscapeToClose(onClose) {
   }, []);
 }
 
+// Drawn straight onto <body>: a window opened inside another (a confirm box
+// over a scrolled form) would otherwise be pinned to the outer window's
+// scrolled content - the overlay's backdrop-filter makes it the containing
+// block for position:fixed - and open off-screen.
 export function Modal({ title, sub, onClose, children, footer, wide }) {
   useEscapeToClose(onClose);
-  return (
+  return createPortal(
     <div className="overlay" onMouseDown={onClose}>
       <div
         className={'modal' + (wide ? ' wide' : '')}
@@ -436,7 +441,8 @@ export function Modal({ title, sub, onClose, children, footer, wide }) {
         <div className="modal-body">{children}</div>
         {footer && <div className="modal-foot">{footer}</div>}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

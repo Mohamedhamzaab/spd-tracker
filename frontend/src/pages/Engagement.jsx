@@ -15,6 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
+import { useLive, ENGAGEMENT_EVENTS } from '../lib/liveStream.js';
 import { Loading, ErrorBanner, useToast, DownloadButton } from '../components/ui.jsx';
 import ActionDetail from '../components/ActionDetail.jsx';
 import ActionForm from '../components/ActionForm.jsx';
@@ -38,6 +39,13 @@ function tabFromUrl() {
   return TABS.some((x) => x.key === t) ? t : OLD_TABS[t] || 'picture';
 }
 
+// The matrix is built from sub-divisions and authorities too (v_engagement_matrix).
+const LIVE_EVENTS = [
+  ...ENGAGEMENT_EVENTS,
+  'data.subdivision.created', 'data.subdivision.updated', 'data.subdivision.deleted',
+  'data.authority.created', 'data.authority.updated', 'data.authority.deleted',
+];
+
 export default function Engagement() {
   const { isEditor } = useStore();
   const toast = useToast();
@@ -55,6 +63,8 @@ export default function Engagement() {
       .catch((e) => setError(e.message));
   }, []);
   useEffect(load, [load]);
+  // Anyone's change shows here within a second, so a shared screen stays current.
+  useLive(LIVE_EVENTS, load);
 
   const model = useMemo(
     () => (matrix && actions ? buildModel(matrix, actions) : null), [matrix, actions]);

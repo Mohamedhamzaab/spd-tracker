@@ -67,6 +67,7 @@ export default function Users() {
   const [editing, setEditing] = useState(null);
   const [confirming, setConfirming] = useState(null);
   const [settingPw, setSettingPw] = useState(null);
+  const [asking, setAsking] = useState(null); // { title, message, label, run }
 
   async function reload() {
     setError('');
@@ -257,14 +258,24 @@ export default function Users() {
                           </button>
                           <button
                             className="btn btn-ghost"
-                            onClick={() => onForceReset(u.id)}
+                            onClick={() => setAsking({
+                              title: 'Force a password reset?',
+                              message: `${u.name} is signed out everywhere and their password stops working. A reset link is emailed to ${u.email}.`,
+                              label: 'Force reset',
+                              run: () => onForceReset(u.id),
+                            })}
                             disabled={isSelf}
                             title={isSelf ? 'Use Change Password on your own account' : ''}
                           >
                             Force reset
                           </button>
                           {u.mfa_enrolled && (
-                            <button className="btn btn-ghost" onClick={() => onClearMfa(u.id)}>
+                            <button className="btn btn-ghost" onClick={() => setAsking({
+                              title: 'Clear two-factor sign-in?',
+                              message: `${u.name} is signed out everywhere and must set up two-factor sign-in again the next time they sign in.`,
+                              label: 'Clear MFA',
+                              run: () => onClearMfa(u.id),
+                            })}>
                               Clear MFA
                             </button>
                           )}
@@ -303,6 +314,15 @@ export default function Users() {
           confirmLabel="Delete"
           onClose={() => setConfirming(null)}
           onConfirm={() => onDelete(confirming.id)}
+        />
+      )}
+      {asking && (
+        <ConfirmDialog
+          title={asking.title}
+          message={asking.message}
+          confirmLabel={asking.label}
+          onClose={() => setAsking(null)}
+          onConfirm={async () => { await asking.run(); setAsking(null); }}
         />
       )}
       {settingPw && (

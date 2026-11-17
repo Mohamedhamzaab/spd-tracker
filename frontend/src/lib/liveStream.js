@@ -9,6 +9,14 @@
 import { useEffect, useRef } from 'react';
 import { getToken } from './api.js';
 
+// Stakeholder Engagement changes (routes/engagement.js).
+export const ENGAGEMENT_EVENTS = [
+  'data.engagement.rating_updated',
+  'data.engagement.action_created', 'data.engagement.action_updated', 'data.engagement.action_deleted',
+  'data.engagement.action_restored', 'data.engagement.action_reopened', 'data.engagement.action_closed',
+  'data.engagement.progress_added', 'data.engagement.progress_removed', 'data.engagement.progress_restored',
+];
+
 let source = null;
 let lastToken = null;
 const listeners = new Set();
@@ -58,6 +66,7 @@ function ensureSource() {
       'data.document.uploaded', 'data.document.deleted',
       'data.comment.created', 'data.comment.updated', 'data.comment.deleted',
       'data.task.created', 'data.task.updated', 'data.task.completed', 'data.task.deleted',
+      ...ENGAGEMENT_EVENTS,
       'user.created', 'user.role_changed', 'user.disabled', 'user.enabled',
       'user.deleted', 'user.force_reset',
       'mfa.cleared',

@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
-import { Loading, ErrorBanner, FileDrop, UploadProgress, fileSize, useToast } from './ui.jsx';
+import { Loading, ErrorBanner, FileDrop, UploadProgress, fileSize, useToast, ConfirmDialog } from './ui.jsx';
 import DocViewer, { isPreviewable } from './DocViewer.jsx';
 
 // Build a nested { name, path, folders[], files[] } tree from a flat document
@@ -145,6 +145,7 @@ export default function DocumentsPanel({ parentType, parentId, code, canEdit, on
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(null);
   const [viewerDoc, setViewerDoc] = useState(null);
+  const [removing, setRemoving] = useState(null);
   const [zipping, setZipping] = useState(null); // 'all' | folder path | null
   const [open, setOpen] = useState(() => new Set());
 
@@ -231,7 +232,7 @@ export default function DocumentsPanel({ parentType, parentId, code, canEdit, on
     canEdit: editable,
     onView: setViewerDoc,
     onDownload: (d) => api.downloadDoc(d.id, d.original_name).catch((e) => setError(e.message)),
-    onRemove: removeDoc,
+    onRemove: setRemoving,
   };
 
   return (
@@ -285,6 +286,15 @@ export default function DocumentsPanel({ parentType, parentId, code, canEdit, on
       )}
 
       {viewerDoc && <DocViewer doc={viewerDoc} onClose={() => setViewerDoc(null)} />}
+      {removing && (
+        <ConfirmDialog
+          title="Remove this document?"
+          message={`${removing.original_name} moves to Trash. Only a super-admin can restore it.`}
+          confirmLabel="Remove"
+          onClose={() => setRemoving(null)}
+          onConfirm={async () => { await removeDoc(removing); setRemoving(null); }}
+        />
+      )}
     </div>
   );
 }
