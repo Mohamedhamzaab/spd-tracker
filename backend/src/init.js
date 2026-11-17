@@ -13,7 +13,6 @@ require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
 const { pool, withTransaction } = require('./db');
-const { renumberMeetings } = require('./renumberComms');
 const { ensureEngagementStakeholders } = require('./engagementSeed');
 const { importEngagementWorkbook } = require('./engagementImport');
 
@@ -164,14 +163,6 @@ async function main() {
     }
   } catch (err) {
     console.error('[init] Engagement import skipped:', err.message);
-  }
-  // Re-flow meeting codes so same-day meetings stay chronological by start time
-  // (applies the time-aware ordering to existing data). Idempotent + non-fatal.
-  try {
-    await withTransaction((client) => renumberMeetings(client));
-    console.log('[init] Meeting codes normalised (chronological by date + time).');
-  } catch (err) {
-    console.error('[init] Meeting code normalisation skipped:', err.message);
   }
   // NOTE: do NOT call pool.end() here. server.js shares the same pool
   // via db.js, and ending it would make every subsequent query fail with

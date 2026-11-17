@@ -7,7 +7,6 @@ const { wrap, httpError, suggestCode } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteAuthority, newGroupId } = require('../softDelete');
-const { renumberCommunications, renumberMeetings } = require('../renumberComms');
 
 const router = express.Router();
 
@@ -196,10 +195,6 @@ router.delete(
       snapshot = found.rows[0];
       group = newGroupId();
       await softDeleteAuthority(client, group, req.user.id, id);
-      // The cascade soft-deletes this authority's communications and meetings;
-      // re-flow both so the active registers stay clean chronological sequences.
-      await renumberCommunications(client);
-      await renumberMeetings(client);
     });
     await logAudit({
       actor_id: req.user.id,

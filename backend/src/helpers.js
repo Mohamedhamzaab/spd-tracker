@@ -34,6 +34,22 @@ function ref(prefix, n, width) {
   return `${prefix}-${String(n).padStart(width, '0')}`;
 }
 
+// The next record code for a table, e.g. nextCode(client, 'communications',
+// 'comm_code', 'C', 4) -> 'C-0042'. A code is given once and never changes:
+// letters, minutes and the weekly file quote it. Trashed rows keep theirs, so
+// they count. Call inside the caller's transaction; the lock makes two saves at
+// once take numbers in turn instead of clashing. table/column are constants.
+// shortcut: a record purged from Trash frees its number if it was the newest;
+// switch to a sequence if purged codes must never come back.
+async function nextCode(client, table, column, prefix, width) {
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [table]);
+  const { rows } = await client.query(
+    `SELECT COALESCE(MAX(CAST(substring(${column} from 3) AS INTEGER)), 0) + 1 AS next
+       FROM ${table}`
+  );
+  return ref(prefix, rows[0].next, width);
+}
+
 // Wrap an async Express handler so thrown errors reach the error middleware.
 function wrap(handler) {
   return (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -49,4 +65,4 @@ function httpError(status, message) {
 // Who carried a communication or held a meeting. Must match the CHECK in schema.sql.
 const ORIGINATORS = ['ECG', 'SPD', 'EGIS'];
 
-module.exports = { suggestCode, ref, wrap, httpError, ORIGINATORS };
+module.exports = { suggestCode, ref, nextCode, wrap, httpError, ORIGINATORS };

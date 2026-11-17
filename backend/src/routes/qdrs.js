@@ -1,16 +1,15 @@
 // ---------------------------------------------------------------------------
 //  QDRS records — the Qatar Design Review System (Ashghal / PWA) log. One row
 //  per "data received" event, linked to the sub-authority (sub_division) it
-//  came from. qdrs_code (Q-0001) is server-assigned and re-flowed by date,
+//  came from. qdrs_code (Q-0001) is server-assigned once and never changes,
 //  exactly like communications. Documents attach via parent_type='qdrs'.
 // ---------------------------------------------------------------------------
 const express = require('express');
 const { query, withTransaction } = require('../db');
-const { wrap, httpError, ref } = require('../helpers');
+const { wrap, httpError, nextCode } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteQdrs, newGroupId } = require('../softDelete');
-const { renumberQdrs } = require('../renumberComms');
 
 const router = express.Router();
 
@@ -97,11 +96,7 @@ router.post(
       const sub = await client.query('SELECT id FROM sub_divisions WHERE id = $1', [subId]);
       if (!sub.rows[0]) throw httpError(404, 'Sub-division not found.');
 
-      const seqRow = await client.query(
-        `SELECT COALESCE(MAX(CAST(substring(qdrs_code from 3) AS INTEGER)), 0) + 1 AS next
-           FROM qdrs_records`
-      );
-      const code = ref('Q', seqRow.rows[0].next, 4);
+      const code = await nextCode(client, 'qdrs_records', 'qdrs_code', 'Q', 4);
 
       const ins = await client.query(
         `INSERT INTO qdrs_records
@@ -118,10 +113,7 @@ router.post(
           (req.user && req.user.name) || null,
         ]
       );
-      const newId = ins.rows[0].id;
-      // Re-flow codes so the log stays chronological (earliest = Q-0001).
-      await renumberQdrs(client);
-      return newId;
+      return ins.rows[0].id;
     });
 
     const row = await query('SELECT * FROM v_qdrs WHERE id = $1', [created]);
@@ -159,7 +151,6 @@ router.post(
         await softDeleteQdrs(client, group, req.user.id, id);
         deleted.push({ id, qdrs_code: found.rows[0].qdrs_code, group });
       }
-      if (deleted.length) await renumberQdrs(client);
     });
 
     for (const d of deleted) {
@@ -240,7 +231,6 @@ router.delete(
       snapshot = found.rows[0];
       group = newGroupId();
       await softDeleteQdrs(client, group, req.user.id, id);
-      await renumberQdrs(client);
     });
     await logAudit({
       actor_id: req.user.id,

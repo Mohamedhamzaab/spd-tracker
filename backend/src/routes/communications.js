@@ -4,11 +4,10 @@
 // ---------------------------------------------------------------------------
 const express = require('express');
 const { query, withTransaction } = require('../db');
-const { wrap, httpError, ref, ORIGINATORS } = require('../helpers');
+const { wrap, httpError, nextCode, ORIGINATORS } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteCommunication, newGroupId } = require('../softDelete');
-const { renumberCommunications } = require('../renumberComms');
 
 const router = express.Router();
 
@@ -220,11 +219,7 @@ router.post(
         relatedTo = rel.rows[0].id;
       }
 
-      const seqRow = await client.query(
-        `SELECT COALESCE(MAX(CAST(substring(comm_code from 3) AS INTEGER)), 0) + 1 AS next
-           FROM communications`
-      );
-      const code = ref('C', seqRow.rows[0].next, 4);
+      const code = await nextCode(client, 'communications', 'comm_code', 'C', 4);
 
       const ins = await client.query(
         `INSERT INTO communications
@@ -251,11 +246,7 @@ router.post(
           b.latest_update || null,
         ]
       );
-      const newId = ins.rows[0].id;
-      // Re-flow codes so the log stays a clean chronological sequence
-      // (earliest comm_date = C-0001, no gaps), even after past deletions.
-      await renumberCommunications(client);
-      return newId;
+      return ins.rows[0].id;
     });
 
     const row = await query('SELECT * FROM v_communication WHERE id = $1', [created]);
@@ -278,8 +269,7 @@ router.post(
 
 // POST /api/communications/bulk-delete  { ids: [..] }
 // Soft-delete several communications at once (each into Trash, individually
-// restorable), then re-flow the codes once so the active list stays a clean
-// chronological sequence.
+// restorable). Their codes stay theirs.
 router.post(
   '/bulk-delete',
   requireEditor,
@@ -301,7 +291,6 @@ router.post(
         await softDeleteCommunication(client, group, req.user.id, id);
         deleted.push({ id, comm_code: found.rows[0].comm_code, direction: found.rows[0].direction, group });
       }
-      if (deleted.length) await renumberCommunications(client);
     });
 
     for (const d of deleted) {
@@ -437,8 +426,6 @@ router.delete(
       snapshot = found.rows[0];
       group = newGroupId();
       await softDeleteCommunication(client, group, req.user.id, id);
-      // Re-flow the codes so the active list stays chronological with no gaps.
-      await renumberCommunications(client);
     });
     await logAudit({
       actor_id: req.user.id,

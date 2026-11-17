@@ -4,11 +4,10 @@
 // ---------------------------------------------------------------------------
 const express = require('express');
 const { query, withTransaction } = require('../db');
-const { wrap, httpError, ref, ORIGINATORS } = require('../helpers');
+const { wrap, httpError, nextCode, ORIGINATORS } = require('../helpers');
 const { requireEditor } = require('../auth');
 const { logAudit } = require('../audit');
 const { softDeleteMeeting, newGroupId } = require('../softDelete');
-const { renumberMeetings } = require('../renumberComms');
 
 const router = express.Router();
 
@@ -136,11 +135,7 @@ router.post(
         primarySubId = sub.rows[0].id;
       }
 
-      const seqRow = await client.query(
-        `SELECT COALESCE(MAX(CAST(substring(meeting_code from 3) AS INTEGER)), 0) + 1 AS next
-           FROM meetings`
-      );
-      const code = ref('M', seqRow.rows[0].next, 3);
+      const code = await nextCode(client, 'meetings', 'meeting_code', 'M', 3);
 
       const momStatus = ['pending', 'draft', 'final'].includes(b.mom_status) ? b.mom_status : 'pending';
       const ins = await client.query(
@@ -167,11 +162,7 @@ router.post(
           originator,
         ]
       );
-      const newId = ins.rows[0].id;
-      // Re-flow codes so the register stays a clean chronological sequence
-      // (earliest meeting_date = M-001, no gaps), even after past deletions.
-      await renumberMeetings(client);
-      return newId;
+      return ins.rows[0].id;
     });
 
     const { rows } = await query(
@@ -199,8 +190,7 @@ router.post(
 );
 
 // POST /api/meetings/bulk-delete  { ids: [..] }
-// Soft-delete several meetings at once (into Trash), then re-flow the codes so
-// the active register stays a clean chronological sequence.
+// Soft-delete several meetings at once (into Trash). Their codes stay theirs.
 router.post(
   '/bulk-delete',
   requireEditor,
@@ -222,7 +212,6 @@ router.post(
         await softDeleteMeeting(client, group, req.user.id, id);
         deleted.push({ id, meeting_code: found.rows[0].meeting_code, group });
       }
-      if (deleted.length) await renumberMeetings(client);
     });
 
     for (const d of deleted) {
@@ -346,8 +335,6 @@ router.delete(
       snapshot = found.rows[0];
       group = newGroupId();
       await softDeleteMeeting(client, group, req.user.id, id);
-      // Re-flow the codes so the active list stays chronological with no gaps.
-      await renumberMeetings(client);
     });
     await logAudit({
       actor_id: req.user.id,

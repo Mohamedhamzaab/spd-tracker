@@ -132,10 +132,11 @@ app.use((err, req, res, next) => {
   }
   const status = err.status || 500;
   if (status >= 500) {
-    logger.error({ err, path: req.originalUrl, method: req.method }, 'Server error');
+    const reqPath = req.originalUrl.split('?')[0]; // no query string: it can carry tokens
+    logger.error({ err, path: reqPath, method: req.method }, 'Server error');
     captureException(err, {
       user: req.user ? { id: req.user.id, email: req.user.email, username: req.user.name, role: req.user.role } : undefined,
-      request: { method: req.method, path: req.originalUrl, ip: req.ip },
+      request: { method: req.method, path: reqPath, ip: req.ip },
     });
   }
   // Thrown httpErrors carry a safe, user-facing message. Unexpected 500s may

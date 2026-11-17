@@ -15,7 +15,6 @@ const { query, withTransaction } = require('../db');
 const { wrap, httpError } = require('../helpers');
 const { requireSuperAdmin } = require('../auth');
 const { restoreGroup } = require('../softDelete');
-const { renumberCommunications, renumberMeetings, renumberQdrs } = require('../renumberComms');
 const { logAudit } = require('../audit');
 const storage = require('../storage');
 
@@ -141,35 +140,7 @@ router.post(
       snapshot = r.rows[0];
       group = r.rows[0].deletion_group_id;
 
-      // Does this restore bring any communications / meetings back? (Either
-      // restoring one directly, or a group whose cascade included some.)
-      let touchesComms = type === 'communication';
-      let touchesMeetings = type === 'meeting';
-      let touchesQdrs = type === 'qdrs';
-      if (group) {
-        if (!touchesComms) {
-          const c = await client.query(
-            'SELECT 1 FROM communications WHERE deletion_group_id = $1 LIMIT 1',
-            [group]
-          );
-          if (c.rows[0]) touchesComms = true;
-        }
-        if (!touchesMeetings) {
-          const mm = await client.query(
-            'SELECT 1 FROM meetings WHERE deletion_group_id = $1 LIMIT 1',
-            [group]
-          );
-          if (mm.rows[0]) touchesMeetings = true;
-        }
-        if (!touchesQdrs) {
-          const qq = await client.query(
-            'SELECT 1 FROM qdrs_records WHERE deletion_group_id = $1 LIMIT 1',
-            [group]
-          );
-          if (qq.rows[0]) touchesQdrs = true;
-        }
-      }
-
+      // A restored record comes back with the code it always had.
       if (group) {
         restored = await restoreGroup(client, group);
       } else {
@@ -182,12 +153,6 @@ router.post(
         );
         restored = 1;
       }
-
-      // Re-flow codes so the restored record slots back into its date position
-      // and the active list stays a clean chronological sequence.
-      if (touchesComms) await renumberCommunications(client);
-      if (touchesMeetings) await renumberMeetings(client);
-      if (touchesQdrs) await renumberQdrs(client);
     });
 
     await logAudit({

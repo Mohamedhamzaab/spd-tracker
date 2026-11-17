@@ -334,16 +334,23 @@ router.post(
     const src = readSource(b);
 
     const created = await withTransaction(async (client) => {
+      // FOR UPDATE: two actions raised at once for one stakeholder take their
+      // numbers in turn.
       const sub = await client.query(
-        'SELECT id FROM sub_divisions WHERE id = $1 AND deleted_at IS NULL', [subId]
+        'SELECT id FROM sub_divisions WHERE id = $1 AND deleted_at IS NULL FOR UPDATE', [subId]
       );
       if (!sub.rows[0]) throw httpError(404, 'Stakeholder not found.');
       await assertSourceExists(client, src.type, src.id);
+      // The next place under this stakeholder, counting trashed actions, so no
+      // number is ever handed out twice.
       const { rows } = await client.query(
         `INSERT INTO engagement_actions
            (sub_division_id, description, source_type, source_id, source_ref_external,
-            recorded_date, notes, due_milestone, due_date, created_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+            recorded_date, notes, due_milestone, due_date, created_by, action_no)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
+                 (SELECT COALESCE(max(action_no), 0) + 1
+                    FROM engagement_actions WHERE sub_division_id = $1))
+         RETURNING id`,
         [subId, description, src.type, src.id, src.ref, b.recorded_date,
          b.notes || null, b.due_milestone || null, b.due_date || null, req.user.id]
       );

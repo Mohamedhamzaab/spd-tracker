@@ -149,8 +149,11 @@ async function importEngagementWorkbook(client) {
     const { rows } = await client.query(
       `INSERT INTO engagement_actions
          (sub_division_id, description, source_type, source_id, source_ref_external,
-          recorded_date, notes, due_milestone)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+          recorded_date, notes, due_milestone, action_no)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,
+               (SELECT COALESCE(max(action_no), 0) + 1
+                  FROM engagement_actions WHERE sub_division_id = $1))
+       RETURNING id`,
       [sid, a.description, sourceType, sourceId, sourceRef,
        a.recorded_date || null, pending ? a.remarks || null : null, a.milestone || null]
     );

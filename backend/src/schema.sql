@@ -436,7 +436,7 @@ CREATE INDEX IF NOT EXISTS idx_trusted_devices_user ON trusted_devices(user_id);
 --  QDRS records — the Qatar Design Review System (Ashghal / PWA) log. One row
 --  per "data received" event: when data/responses arrived via QDRS, from which
 --  sub-authority (sub-division), plus the uploaded documents. qdrs_code
---  (Q-0001) is server-assigned and re-flowed by date, exactly like comms.
+--  (Q-0001) is server-assigned once and never changes, exactly like comms.
 -- ---------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS qdrs_records (
     id              SERIAL PRIMARY KEY,
@@ -561,9 +561,9 @@ CREATE TABLE IF NOT EXISTS engagement_orgs (
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- One row per action. No status column by design (see note 2 above), and no
--- stored code — the hierarchical number is computed in v_engagement_action so
--- it can never drift out of step with the register.
+-- One row per action. No status column by design (see note 2 above). The
+-- action's place under its stakeholder (action_no, added below) is stored, so
+-- 4.2.3 stays 4.2.3 when an earlier action is deleted or a back-dated one added.
 CREATE TABLE IF NOT EXISTS engagement_actions (
     id                      SERIAL PRIMARY KEY,
     sub_division_id         INTEGER NOT NULL REFERENCES sub_divisions(id) ON DELETE CASCADE,
@@ -908,6 +908,27 @@ ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS matrix_seq INTEGER;
 -- in a sentence (the talking point the Meeting Brief reads out).
 ALTER TABLE sub_divisions ADD COLUMN IF NOT EXISTS remarks    TEXT;
 
+-- An action's place under its stakeholder (the 3 in 4.2.3). Given once when the
+-- action is raised and never changed: the weekly file, emails and minutes quote
+-- it. Trashed actions keep theirs, so a restore brings the same number back.
+ALTER TABLE engagement_actions ADD COLUMN IF NOT EXISTS action_no INTEGER;
+-- One-time fill from the numbering the register showed until now (live actions
+-- by date raised, then trashed ones after them), so every code already in a
+-- submitted file stays right. A no-op once any action has a stored number.
+WITH ranked AS (
+    SELECT id,
+           row_number() OVER (PARTITION BY sub_division_id
+                              ORDER BY (deleted_at IS NOT NULL), recorded_date NULLS LAST, id) AS n
+      FROM engagement_actions
+)
+UPDATE engagement_actions ea
+   SET action_no = ranked.n
+  FROM ranked
+ WHERE ea.id = ranked.id
+   AND NOT EXISTS (SELECT 1 FROM engagement_actions WHERE action_no IS NOT NULL);
+CREATE UNIQUE INDEX IF NOT EXISTS engagement_actions_sub_no_key
+    ON engagement_actions (sub_division_id, action_no);
+
 -- ---------------------------------------------------------------------------
 --  Numbering, as the weekly matrix shows it.
 --
@@ -1040,13 +1061,7 @@ WHERE sd.deleted_at IS NULL;
 --               Superseded as the two deliberate exits.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW v_engagement_action AS
-WITH seq AS (
-    SELECT id,
-           row_number() OVER (PARTITION BY sub_division_id
-                              ORDER BY recorded_date NULLS LAST, id) AS n
-    FROM engagement_actions WHERE deleted_at IS NULL
-),
-tally AS (
+WITH tally AS (
     SELECT action_id,
            count(*) FILTER (WHERE kind = 'progress') AS progress_count,
            count(*) FILTER (WHERE kind = 'closure')  AS closure_count,
@@ -1082,12 +1097,11 @@ SELECT
         WHEN sd.engagement_current = sd.engagement_desired THEN '✓ Aligned'
         ELSE 'Gap: ' || sd.engagement_current || ' → ' || sd.engagement_desired
     END AS gap_status,
-    -- The department's number in the weekly matrix, then the action's place
-    -- under it (see v_engagement_numbering): 7.1 for MoECC, 4.2.1 for KAHRAMAA
-    -- Electricity.
-    num.line_no || '.' || sq.n AS action_code,
+    -- The department's number in the weekly matrix, then the action's stored
+    -- place under it (see v_engagement_numbering): 7.1 for MoECC, 4.2.1 for
+    -- KAHRAMAA Electricity.
+    num.line_no || '.' || ea.action_no AS action_code,
     num.authority_no AS authority_no,
-    sq.n AS action_no,
     COALESCE(t.progress_count, 0) AS progress_count,
     COALESCE(t.entry_count, 0)    AS entry_count,
     t.last_entry_date,
@@ -1113,6 +1127,5 @@ FROM engagement_actions ea
 JOIN sub_divisions sd  ON sd.id = ea.sub_division_id AND sd.deleted_at IS NULL
 JOIN authorities   a   ON a.id  = sd.authority_id    AND a.deleted_at IS NULL
 JOIN num                ON num.sub_division_id = sd.id
-JOIN seq           sq  ON sq.id = ea.id
 LEFT JOIN tally     t  ON t.action_id = ea.id
 WHERE ea.deleted_at IS NULL;

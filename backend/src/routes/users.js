@@ -8,8 +8,9 @@
 //  POST   /api/users/:id/resend-invite reissue the invite link
 //  PATCH  /api/users/:id             change role / organisation / name /
 //                                    is_disabled
-//  POST   /api/users/:id/force-reset bump token_version (kicks user out of
-//                                    every device) and email a reset link
+//  POST   /api/users/:id/force-reset clear the password, bump token_version
+//                                    (kicks user out of every device) and
+//                                    email a reset link
 //  POST   /api/users/:id/set-temp-password  set a generated temporary password
 //                                    and hand it over manually (no email) — for
 //                                    users whose org blocks our invite mail.
@@ -306,9 +307,12 @@ router.post(
     const u = rows[0];
     if (!u) throw httpError(404, 'User not found.');
 
+    // Drop the password too: a reset is for a password that may be known to
+    // someone else, so only the emailed link may set the next one.
     await query(
       `UPDATE users
-       SET password_must_change = TRUE,
+       SET password_hash = NULL,
+           password_must_change = TRUE,
            token_version = token_version + 1,
            failed_login_count = 0,
            locked_until = NULL

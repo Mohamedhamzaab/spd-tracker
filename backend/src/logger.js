@@ -94,6 +94,10 @@ function captureException(err, contexts = {}) {
 }
 
 // --- HTTP middleware --------------------------------------------------------
+// Path only: query strings carry secrets (the live stream's ?token=, invite and
+// reset links), and anyone who can read the logs could replay them.
+const pathOf = (req) => String(req.url || '').split('?')[0];
+
 function httpLogger() {
   return pinoHttp({
     logger,
@@ -102,12 +106,12 @@ function httpLogger() {
       if (res.statusCode >= 400) return 'warn';
       return 'info';
     },
-    customSuccessMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
-    customErrorMessage: (req, res) => `${req.method} ${req.url} ${res.statusCode}`,
+    customSuccessMessage: (req, res) => `${req.method} ${pathOf(req)} ${res.statusCode}`,
+    customErrorMessage: (req, res) => `${req.method} ${pathOf(req)} ${res.statusCode}`,
     serializers: {
       req: (req) => ({
         method: req.method,
-        url: req.url,
+        url: pathOf(req),
         // Don't include the auth header.
       }),
       res: (res) => ({ statusCode: res.statusCode }),

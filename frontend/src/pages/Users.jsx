@@ -132,7 +132,7 @@ export default function Users() {
   async function onForceReset(id) {
     try {
       await api.forceResetUser(id);
-      toast('Reset triggered. Existing sessions revoked.');
+      toast('Reset link sent. Their old password and sessions no longer work.');
       reload();
     } catch (err) {
       setError(err.message || 'Failed.');
@@ -231,7 +231,7 @@ export default function Users() {
                         {u.is_disabled ? (
                           <Pill tone="red">Disabled</Pill>
                         ) : !u.has_password ? (
-                          <Pill tone="amber">Invite pending</Pill>
+                          <Pill tone="amber">{u.last_login_at ? 'Reset pending' : 'Invite pending'}</Pill>
                         ) : (
                           <Pill tone="grey">Active</Pill>
                         )}
