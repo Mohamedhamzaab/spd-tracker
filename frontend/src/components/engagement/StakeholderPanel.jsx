@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import { api } from '../../lib/api.js';
-import { ErrorBanner, fmtDate } from '../ui.jsx';
+import { ErrorBanner, fmtDate, useEscapeToClose } from '../ui.jsx';
 import { LADDER, cut, plural } from './model.js';
 import { StanceTrack, StatusTag, Owners } from './bits.jsx';
 
@@ -13,11 +13,7 @@ export default function StakeholderPanel({ line: l, isEditor, onClose, onOpenAct
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   useEffect(() => { setV(formFrom(l)); setError(''); }, [l.id, l.raw]);
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  useEscapeToClose(onClose);
 
   const dirty = JSON.stringify(v) !== JSON.stringify(formFrom(l));
   async function save() {

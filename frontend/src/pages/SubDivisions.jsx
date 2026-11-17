@@ -354,7 +354,8 @@ export function SubForm({ lists, authorities, existing, onClose, onSaved }) {
       api
         .subDivision(existing.id)
         .then((full) => setContacts(full.contacts || []))
-        .catch(() => setContacts([]));
+        // On failure contacts stay null, so saving leaves the stored ones alone.
+        .catch(() => setError('Could not load the additional contacts. Saving will keep them as they are.'));
     }
   }, []);
 

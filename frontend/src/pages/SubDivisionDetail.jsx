@@ -518,11 +518,12 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
     if (!targetSub) return setError('Please choose a sub-division.');
     if (!values.comm_date) return setError('A date is required.');
     setBusy(true);
+    // Create once. If a prior attempt created the comm but the upload failed,
+    // reuse it on retry so we never log a duplicate. Declared before `try` so
+    // the catch also sees a comm created in this very click.
+    let commId = createdId;
+    let commCode = createdCode;
     try {
-      // Create once. If a prior attempt created the comm but the upload failed,
-      // reuse it on retry so we never log a duplicate.
-      let commId = createdId;
-      let commCode = createdCode;
       if (!commId) {
         const created = await api.createComm({ ...values, sub_division_id: targetSub });
         commId = created.id;
@@ -536,7 +537,7 @@ export function CommForm({ lists, subId, subDivisions, onClose, onSaved }) {
       onSaved(commCode);
     } catch (e) {
       setError(
-        createdId
+        commId
           ? 'Communication saved, but the documents failed to upload. Click "Log communication" again to retry, or attach them later by opening the communication. (' + e.message + ')'
           : e.message
       );

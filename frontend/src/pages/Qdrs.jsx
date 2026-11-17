@@ -149,14 +149,15 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
     if (!values.sub_division_id) return setError('A sub-authority is required.');
     if (!values.qdrs_date) return setError('A date is required.');
     setBusy(true);
+    // Before `try`: the catch must see a record created in this very click.
+    let id = createdId;
+    let code = createdCode;
     try {
       if (editing) {
         await api.updateQdrs(existing.id, values);
         onSaved(existing.qdrs_code);
         return;
       }
-      let id = createdId;
-      let code = createdCode;
       if (!id) {
         const created = await api.createQdrs(values);
         id = created.id;
@@ -170,7 +171,7 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
       onSaved(code);
     } catch (e) {
       setError(
-        createdId
+        id
           ? 'Saved, but the documents failed to upload. Click again to retry, or attach them later by opening the record. (' + e.message + ')'
           : e.message
       );

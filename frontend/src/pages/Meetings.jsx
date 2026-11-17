@@ -646,6 +646,9 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
     if (!values.authority_id) return setError('An authority is required.');
     if (!values.meeting_date) return setError('A date is required.');
     setBusy(true);
+    // Before `try`: the catch must see a meeting created in this very click.
+    let meetingId = createdId;
+    let meetingCode = createdCode;
     try {
       const payload = {
         ...values,
@@ -662,8 +665,6 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
 
       // Create once. If a previous attempt already created the meeting (but
       // the file upload failed), reuse it instead of creating a duplicate.
-      let meetingId = createdId;
-      let meetingCode = createdCode;
       if (!meetingId) {
         const created = await api.createMeeting(payload);
         meetingId = created.id;
@@ -680,7 +681,7 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
       onSaved(meetingCode);
     } catch (e) {
       setError(
-        createdId
+        meetingId
           ? 'Meeting saved, but the documents failed to upload. Click "Add meeting" again to retry, or attach them later by editing the meeting. (' + e.message + ')'
           : e.message
       );

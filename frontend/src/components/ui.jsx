@@ -397,12 +397,27 @@ export function ReplyStatusPill({ status }) {
 }
 
 /* ---- modal -------------------------------------------------------------- */
-export function Modal({ title, sub, onClose, children, footer, wide }) {
+// Windows open right now, oldest first. Escape closes only the newest, so a
+// file opened over a form closes without taking the form (and its edits) along.
+const openWindows = [];
+export function useEscapeToClose(onClose) {
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    openWindows.push(close);
+    const onKey = (e) => {
+      if (e.key === 'Escape' && openWindows[openWindows.length - 1] === close) close.current();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+    return () => {
+      openWindows.splice(openWindows.indexOf(close), 1);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, []);
+}
+
+export function Modal({ title, sub, onClose, children, footer, wide }) {
+  useEscapeToClose(onClose);
   return (
     <div className="overlay" onMouseDown={onClose}>
       <div

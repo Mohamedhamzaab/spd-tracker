@@ -8,7 +8,7 @@
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../lib/api.js';
-import { Loading, ErrorBanner } from './ui.jsx';
+import { Loading, ErrorBanner, useEscapeToClose } from './ui.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 
 // CAD viewers are heavy, so load them only when a drawing is opened — and load
@@ -97,16 +97,16 @@ export default function DocViewer({ doc, onClose }) {
   }, [doc.id]);
 
   // Esc closes the viewer; +/- zoom; 0 resets.
+  useEscapeToClose(onClose);
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === '+' || e.key === '=') zoomIn();
+      if (e.key === '+' || e.key === '=') zoomIn();
       else if (e.key === '-' || e.key === '_') zoomOut();
       else if (e.key === '0') resetZoom();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  }, []);
 
   const pct = Math.round(zoom * 100);
   // Grow the element past the viewport when zoomed so the scroll container can
