@@ -976,7 +976,10 @@ JOIN auth_no an ON an.id = rk.authority_id;
 CREATE OR REPLACE VIEW v_engagement_matrix AS
 WITH ladder(step, name) AS (
     VALUES (1,'Unaware'), (2,'Resistant'), (3,'Neutral'), (4,'Supportive'), (5,'Leading')
-)
+),
+-- Numbered once per query. The numbering view has window functions, so the
+-- planner cannot fold it in, and joined directly it is re-run for every row.
+num AS MATERIALIZED (SELECT * FROM v_engagement_numbering)
 SELECT
     sd.id                 AS sub_division_id,
     sd.authority_id,
@@ -1022,7 +1025,7 @@ FROM sub_divisions sd
 JOIN authorities a ON a.id = sd.authority_id AND a.deleted_at IS NULL
 LEFT JOIN ladder cur ON cur.name = sd.engagement_current
 LEFT JOIN ladder des ON des.name = sd.engagement_desired
-LEFT JOIN v_engagement_numbering num ON num.sub_division_id = sd.id
+LEFT JOIN num ON num.sub_division_id = sd.id
 WHERE sd.deleted_at IS NULL;
 
 -- ---------------------------------------------------------------------------
@@ -1053,7 +1056,9 @@ tally AS (
     FROM engagement_action_progress
     WHERE deleted_at IS NULL
     GROUP BY action_id
-)
+),
+-- Numbered once per query (see v_engagement_matrix for why).
+num AS MATERIALIZED (SELECT * FROM v_engagement_numbering)
 SELECT
     ea.*,
     sd.sub_reference,
@@ -1061,9 +1066,22 @@ SELECT
     sd.authority_id,
     a.code         AS authority_code,
     a.name         AS authority_name,
-    m.action_priority,
-    m.is_critical,
-    m.gap_status,
+    -- The department's quadrant and gap, by the same formulas as
+    -- v_engagement_matrix. Read straight off the row: joining that view here
+    -- would re-run its numbering for every action.
+    CASE
+        WHEN sd.influence = 'H' AND sd.involvement = 'H' THEN 'Manage Closely'
+        WHEN sd.influence = 'H' AND sd.involvement = 'L' THEN 'Keep Satisfied'
+        WHEN sd.influence = 'L' AND sd.involvement = 'H' THEN 'Keep Informed'
+        WHEN sd.influence = 'L' AND sd.involvement = 'L' THEN 'Monitor'
+        ELSE NULL
+    END AS action_priority,
+    (sd.influence = 'H' AND sd.involvement = 'H') AS is_critical,
+    CASE
+        WHEN sd.engagement_current IS NULL OR sd.engagement_desired IS NULL THEN NULL
+        WHEN sd.engagement_current = sd.engagement_desired THEN '✓ Aligned'
+        ELSE 'Gap: ' || sd.engagement_current || ' → ' || sd.engagement_desired
+    END AS gap_status,
     -- The department's number in the weekly matrix, then the action's place
     -- under it (see v_engagement_numbering): 7.1 for MoECC, 4.2.1 for KAHRAMAA
     -- Electricity.
@@ -1094,8 +1112,7 @@ SELECT
 FROM engagement_actions ea
 JOIN sub_divisions sd  ON sd.id = ea.sub_division_id AND sd.deleted_at IS NULL
 JOIN authorities   a   ON a.id  = sd.authority_id    AND a.deleted_at IS NULL
-JOIN v_engagement_numbering num ON num.sub_division_id = sd.id
+JOIN num                ON num.sub_division_id = sd.id
 JOIN seq           sq  ON sq.id = ea.id
 LEFT JOIN tally     t  ON t.action_id = ea.id
-LEFT JOIN v_engagement_matrix m ON m.sub_division_id = sd.id
 WHERE ea.deleted_at IS NULL;
