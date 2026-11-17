@@ -12,10 +12,8 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
-const { pool, withTransaction } = require('./db');
+const { pool } = require('./db');
 const { logAudit } = require('./audit');
-const { ensureEngagementStakeholders } = require('./engagementSeed');
-const { importEngagementWorkbook } = require('./engagementImport');
 
 async function applySchema() {
   const sql = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
@@ -120,53 +118,8 @@ async function main() {
   }
   await ensureSuperAdmin();
   await repairFilenames();
-  // Close the gap between the register and the Stakeholder Engagement Matrix:
-  // a stakeholder can only be rated once it exists here. Runs only until the
-  // engagement register has been imported; after that the app is the master.
-  try {
-    const added = await withTransaction((client) => ensureEngagementStakeholders(client));
-    if (added.skipped) {
-      console.log('[init] Engagement reconciliation: register already imported - skipped.');
-    } else if (added.authorities.length || added.subDivisions.length) {
-      console.log(
-        `[init] Engagement reconciliation: added ${added.authorities.length} authority(ies)` +
-        `${added.authorities.length ? ' [' + added.authorities.join(', ') + ']' : ''}` +
-        ` and ${added.subDivisions.length} sub-division(s)` +
-        `${added.subDivisions.length ? ' [' + added.subDivisions.join(', ') + ']' : ''}.`
-      );
-    } else {
-      console.log('[init] Engagement reconciliation: register already complete.');
-    }
-  } catch (err) {
-    console.error('[init] Engagement reconciliation skipped:', err.message);
-  }
-  // Seed the action register from the workbook, once, on an empty register.
-  try {
-    const r = await withTransaction((client) => importEngagementWorkbook(client));
-    if (r.skipped) {
-      console.log(`[init] Engagement import: ${r.skipped}.`);
-    } else {
-      console.log(
-        `[init] Engagement import: ${r.actions} actions, ${r.ratings} stakeholder ratings, ` +
-        `${r.progress} timeline entries (${r.closures} closures). ` +
-        `Sources: ${r.linked} linked to a registered record, ${r.external} external.`
-      );
-      if (r.unmatchedRefs.length) {
-        const uniq = [...new Set(r.unmatchedRefs)];
-        console.log(
-          `[init] Engagement import: ${uniq.length} document reference(s) had no match in the ` +
-          `register and were kept as external evidence — ${uniq.slice(0, 5).join(' | ')}` +
-          (uniq.length > 5 ? ` | +${uniq.length - 5} more` : '')
-        );
-      }
-      if (r.missingStakeholders.length) {
-        console.warn('[init] Engagement import: unresolved stakeholders —',
-          [...new Set(r.missingStakeholders)].join(', '));
-      }
-    }
-  } catch (err) {
-    console.error('[init] Engagement import skipped:', err.message);
-  }
+  // The engagement register is kept on the site (the master since 17 Nov 2026).
+  // A new environment gets it from a backup: npm run backup / npm run restore.
   // NOTE: do NOT call pool.end() here. server.js shares the same pool
   // via db.js, and ending it would make every subsequent query fail with
   // "Cannot use a pool after calling end on the pool".

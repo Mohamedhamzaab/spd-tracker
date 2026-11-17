@@ -79,6 +79,9 @@ cp .env.example .env             # only the first time; then edit values
 npm run migrate                  # create tables (idempotent)
 npm run seed                     # ONE-TIME - loads 16/23/16 starter data; destructive on rerun
 npm run dev                      # node --watch reload on save
+npm test                         # node:test, LOCAL DB only, leaves no rows behind
+# The engagement register is not seeded: copy it from a backup
+# (npm run backup on the source, npm run restore -- <file> --force here).
 
 # Terminal 2 - frontend (Vite on :5173, proxies /api → :4000)
 cd frontend

@@ -664,7 +664,7 @@ CREATE TABLE IF NOT EXISTS engagement_action_progress (
 );
 
 -- A handful of register entries carry no date and no reference of their own.
--- The import stays faithful to that rather than inventing one, so the column
+-- The workbook import (Aug 2026) kept those as they were, so the column
 -- is nullable here; the API still requires a date on anything created in the
 -- app. (Both statements are no-ops once already applied.)
 ALTER TABLE engagement_actions ALTER COLUMN recorded_date DROP NOT NULL;

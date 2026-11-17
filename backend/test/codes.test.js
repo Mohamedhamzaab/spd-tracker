@@ -34,6 +34,30 @@ test('an action keeps its code when an earlier one is deleted or a back-dated on
     assert.ok(Number((await code(backdated)).split('.').pop()) > Number(before.split('.').pop()));
   }));
 
+// Joined directly, the numbering view (window functions) re-ran for every row
+// and took the action list past 20 s on production. The local data gets a fast
+// plan either way, so timing can't catch it here: check the rule itself.
+test('views read the numbering view once, through MATERIALIZED', () => {
+  const sql = require('fs').readFileSync(require('path').join(__dirname, '../src/schema.sql'), 'utf8')
+    .replace(/--.*$/gm, '');
+  const uses = sql.match(/\b(FROM|JOIN)\s+v_engagement_numbering\b/g) || [];
+  const materialized = sql.match(/AS MATERIALIZED \(SELECT \* FROM v_engagement_numbering\)/g) || [];
+  assert.ok(uses.length > 0);
+  assert.strictEqual(uses.length, materialized.length, 'a view joins v_engagement_numbering without MATERIALIZED');
+});
+
+test('every live action is in the register with its own code', opts, async () => {
+  const { rows } = await pool.query('SELECT action_code FROM v_engagement_action');
+  const live = (await pool.query(
+    `SELECT count(*)::int AS n FROM engagement_actions ea
+       JOIN sub_divisions sd ON sd.id = ea.sub_division_id AND sd.deleted_at IS NULL
+       JOIN authorities a ON a.id = sd.authority_id AND a.deleted_at IS NULL
+      WHERE ea.deleted_at IS NULL`)).rows[0].n;
+  assert.strictEqual(rows.length, live, 'no live action is dropped from the register');
+  assert.ok(rows.every((r) => r.action_code), 'every action has a code');
+  assert.strictEqual(new Set(rows.map((r) => r.action_code)).size, rows.length, 'no two actions share a code');
+});
+
 test('a new letter never takes a trashed letter\'s code, and two saves take turns', opts, async () => {
   const held = await pool.connect();
   const other = await pool.connect();
