@@ -595,9 +595,12 @@ export function DownloadButton({ download, className = 'btn btn-ghost', title, c
 const ToastContext = createContext(null);
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState(null);
+  const timer = useRef(null);
   const show = useCallback((message, kind = 'ok') => {
     setToast({ message, kind });
-    setTimeout(() => setToast(null), 3200);
+    // A new message gets its full 3.2 s; the previous one's timer would cut it short.
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => setToast(null), 3200);
   }, []);
   return (
     <ToastContext.Provider value={show}>

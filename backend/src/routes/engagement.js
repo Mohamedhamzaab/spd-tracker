@@ -2,7 +2,6 @@
 //  Stakeholder Engagement — the matrix, the assessment and the action register
 //  that replaced the hand-maintained workbook.
 //
-//  GET    /api/engagement/summary            counts for the header strip
 //  GET    /api/engagement/matrix             ratings per stakeholder + quadrant
 //  PATCH  /api/engagement/matrix/:subId      set a stakeholder's ratings
 //  GET    /api/engagement/actions            the register, filtered
@@ -105,38 +104,6 @@ async function latestEntryByAction(ids) {
   );
   return Object.fromEntries(rows.map((r) => [r.action_id, r]));
 }
-
-// --- summary strip ----------------------------------------------------------
-router.get(
-  '/summary',
-  wrap(async (_req, res) => {
-    const a = await query(
-      `SELECT
-         count(*)                                            AS total,
-         count(*) FILTER (WHERE status = 'Pending')          AS pending,
-         count(*) FILTER (WHERE status = 'Open/Ongoing')     AS ongoing,
-         count(*) FILTER (WHERE status = 'Closed')           AS closed,
-         count(*) FILTER (WHERE status = 'Cancelled')        AS cancelled,
-         count(*) FILTER (WHERE status = 'Superseded')       AS superseded,
-         count(*) FILTER (WHERE is_overdue)                  AS overdue,
-         count(*) FILTER (WHERE has_external_evidence
-                            AND status <> 'Closed')          AS unreferenced,
-         count(*) FILTER (WHERE is_critical
-                            AND status IN ('Pending','Open/Ongoing')) AS critical_open
-       FROM v_engagement_action`
-    );
-    const m = await query(
-      `SELECT
-         count(*) FILTER (WHERE is_critical)                       AS critical,
-         count(*) FILTER (WHERE gap_status LIKE 'Gap:%')           AS with_gap,
-         count(*) FILTER (WHERE gap_status = '✓ Aligned')          AS aligned,
-         count(*) FILTER (WHERE influence IS NULL
-                             OR involvement IS NULL)               AS unrated
-       FROM v_engagement_matrix`
-    );
-    res.json({ actions: a.rows[0], matrix: m.rows[0] });
-  })
-);
 
 // --- the matrix -------------------------------------------------------------
 router.get(

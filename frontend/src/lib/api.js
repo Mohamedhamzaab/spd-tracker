@@ -41,6 +41,32 @@ async function errorMessage(res, fallback) {
   return nonJsonMessage(res.status, fallback);
 }
 
+// Files (downloads, previews, exports) are fetched rather than linked to,
+// because a plain link cannot carry the sign-in token.
+async function authedFetch(path, fallback) {
+  const res = await fetch('/api' + path, {
+    headers: { Authorization: `Bearer ${getToken()}` },
+  });
+  if (!res.ok) {
+    const err = new Error(await errorMessage(res, fallback));
+    err.status = res.status;
+    throw err;
+  }
+  return res;
+}
+
+// Hand a fetched file to the browser's own download.
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  if (filename) a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 // Set by the store: told when the server has ended this session.
 let sessionEnded = () => {};
 export function onSessionEnded(fn) {
@@ -262,7 +288,6 @@ export const api = {
   deleteQdrs: (id) => req('/qdrs/' + id, { method: 'DELETE' }),
 
   // --- stakeholder engagement ---------------------------------------------
-  engSummary: () => req('/engagement/summary'),
   engMatrix: () => req('/engagement/matrix'),
   engSetRating: (subId, b) =>
     req('/engagement/matrix/' + subId, { method: 'PATCH', body: b }),
@@ -282,7 +307,6 @@ export const api = {
   engResolve: (id, b) => req('/engagement/actions/' + id + '/resolve', { method: 'POST', body: b }),
   engSources: (params) => req('/engagement/sources' + qs(params)),
   engOrgs: () => req('/engagement/orgs'),
-  bulkDeleteQdrs: (ids) => req('/qdrs/bulk-delete', { method: 'POST', body: { ids } }),
 
   // users (super_admin)
   users: () => req('/users'),
@@ -320,28 +344,10 @@ export const api = {
   updateView: (id, b) => req('/views/' + id, { method: 'PATCH', body: b }),
   deleteView: (id) => req('/views/' + id, { method: 'DELETE' }),
 
-  // exports — open in a new tab so the browser handles the download UI.
-  // The bearer token is in localStorage, but downloads need to round-trip via
-  // fetch with the Authorization header. So we stream the response to a Blob
-  // and trigger a save dialog manually.
+  // exports (Excel / PDF)
   downloadExport: async (path, filename) => {
-    const res = await fetch('/api' + path, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) {
-      const err = new Error(await errorMessage(res, 'Export failed.'));
-      err.status = res.status;
-      throw err;
-    }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    if (filename) a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const res = await authedFetch(path, 'Export failed.');
+    saveBlob(await res.blob(), filename);
   },
 
   // trash
@@ -356,18 +362,7 @@ export const api = {
   // entries (files that came from a dropped/selected folder). The relative
   // path travels in a parallel rel_paths array because busboy strips any
   // directory from the multipart filename.
-  uploadDocs: (parentType, parentId, items) => {
-    const list = normalizeDocItems(items);
-    const fd = new FormData();
-    const relPaths = [];
-    for (const { file, relPath } of list) {
-      fd.append('files', file);
-      relPaths.push(relPath || '');
-    }
-    fd.append('rel_paths', JSON.stringify(relPaths));
-    return req(`/documents/${parentType}/${parentId}`, { method: 'POST', body: fd });
-  },
-
+  //
   // Upload an arbitrary number of files/folders by splitting them into
   // request-sized batches (Cloudflare rejects any single request over 100 MB).
   // Junk OS files and disallowed extensions are dropped up front and reported
@@ -420,38 +415,16 @@ export const api = {
 
   // document download streams a file; fetch with the token then save locally
   downloadDoc: async (id, name) => {
-    const res = await fetch('/api/documents/' + id + '/download', {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) throw new Error(await errorMessage(res, 'Download failed.'));
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name || 'document';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const res = await authedFetch('/documents/' + id + '/download', 'Download failed.');
+    saveBlob(await res.blob(), name || 'document');
   },
 
   // Download every attachment on a record as one zip (folder structure is
   // recreated inside). Pass `folder` to limit the zip to one folder subtree.
   downloadDocsZip: async (parentType, parentId, filename, folder) => {
-    const res = await fetch(
-      `/api/documents/${parentType}/${parentId}/zip` + qs(folder ? { folder } : null),
-      { headers: { Authorization: `Bearer ${getToken()}` } }
-    );
-    if (!res.ok) throw new Error(await errorMessage(res, 'Download failed.'));
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename || 'documents.zip';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    const res = await authedFetch(
+      `/documents/${parentType}/${parentId}/zip` + qs(folder ? { folder } : null), 'Download failed.');
+    saveBlob(await res.blob(), filename || 'documents.zip');
   },
 
   // Fetch a document (authenticated) and return an in-memory blob: URL so it
@@ -460,40 +433,21 @@ export const api = {
   // server sends back as-is: a "letter.pdf" declared as a web page must not
   // open as one inside the app.
   fetchDocBlobUrl: async (id, type) => {
-    const res = await fetch('/api/documents/' + id + '/download', {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) throw new Error(await errorMessage(res, 'Could not load the document.'));
+    const res = await authedFetch('/documents/' + id + '/download', 'Could not load the document.');
     const blob = await res.blob();
     return URL.createObjectURL(type ? new Blob([blob], { type }) : blob);
   },
 
   // Fetch a document (authenticated) as an ArrayBuffer, for client-side
   // parsers that need the raw bytes (Word via docx-preview, Excel via SheetJS).
-  fetchDocArrayBuffer: async (id) => {
-    const res = await fetch('/api/documents/' + id + '/download', {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) throw new Error(await errorMessage(res, 'Could not load the document.'));
-    return res.arrayBuffer();
-  },
+  fetchDocArrayBuffer: async (id) =>
+    (await authedFetch('/documents/' + id + '/download', 'Could not load the document.')).arrayBuffer(),
 
   // Fetch a native .dxf drawing and return a blob: URL for dxf-viewer.
-  fetchDxfBlobUrl: async (id) => {
-    const res = await fetch('/api/documents/' + id + '/dxf', {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) throw new Error(await errorMessage(res, 'Could not load the drawing.'));
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
-  },
+  fetchDxfBlobUrl: async (id) =>
+    URL.createObjectURL(await (await authedFetch('/documents/' + id + '/dxf', 'Could not load the drawing.')).blob()),
 
   // Fetch a .dwg rendered to SVG (server-side via LibreDWG) as text.
-  fetchCadSvg: async (id) => {
-    const res = await fetch('/api/documents/' + id + '/svg', {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
-    if (!res.ok) throw new Error(await errorMessage(res, 'Could not render the drawing.'));
-    return res.text();
-  },
+  fetchCadSvg: async (id) =>
+    (await authedFetch('/documents/' + id + '/svg', 'Could not render the drawing.')).text(),
 };

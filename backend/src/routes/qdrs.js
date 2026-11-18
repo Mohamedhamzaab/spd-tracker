@@ -129,44 +129,6 @@ router.post(
   })
 );
 
-// POST /api/qdrs/bulk-delete  { ids: [..] }
-router.post(
-  '/bulk-delete',
-  requireEditor,
-  wrap(async (req, res) => {
-    const ids = Array.isArray(req.body.ids)
-      ? [...new Set(req.body.ids.map(Number).filter(Boolean))]
-      : [];
-    if (!ids.length) throw httpError(400, 'No QDRS records selected.');
-
-    const deleted = [];
-    await withTransaction(async (client) => {
-      for (const id of ids) {
-        const found = await client.query(
-          'SELECT id, qdrs_code FROM qdrs_records WHERE id = $1 AND deleted_at IS NULL',
-          [id]
-        );
-        if (!found.rows[0]) continue;
-        const group = newGroupId();
-        await softDeleteQdrs(client, group, req.user.id, id);
-        deleted.push({ id, qdrs_code: found.rows[0].qdrs_code, group });
-      }
-    });
-
-    for (const d of deleted) {
-      await logAudit({
-        actor_id: req.user.id,
-        event: 'data.qdrs.deleted',
-        target_type: 'qdrs',
-        target_id: d.id,
-        payload: { qdrs_code: d.qdrs_code, deletion_group_id: d.group, bulk: true },
-        req,
-      });
-    }
-    res.json({ ok: true, deleted: deleted.length });
-  })
-);
-
 // PUT /api/qdrs/:id
 router.put(
   '/:id',
