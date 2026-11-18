@@ -116,6 +116,13 @@ export function fmtDate(value) {
     d.getFullYear()
   ).slice(2)}`;
 }
+// The local date n days back as YYYY-MM-DD. toISOString() gives the UTC
+// date, which in Doha is still yesterday between midnight and 3am.
+export function isoDaysAgo(n = 0) {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 export function pct(n) {
   return `${((Number(n) || 0) * 100).toFixed(1)}%`;
 }

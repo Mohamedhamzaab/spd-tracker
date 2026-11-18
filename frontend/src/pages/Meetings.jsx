@@ -7,7 +7,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill, OriginatorPill,
-  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress, DownloadButton,
+  fmtDate, isoDaysAgo, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress, DownloadButton,
 } from '../components/ui.jsx';
 import ViewsBar from '../components/ViewsBar.jsx';
 import TasksPanel from '../components/TasksPanel.jsx';
@@ -552,7 +552,7 @@ export function MeetingForm({ lists, authorities, existing, defaults, onClose, o
       : {
           authority_id: '', primary_sub_id: '', other_sub_divisions: '',
           attendees: '',
-          meeting_date: new Date().toISOString().slice(0, 10),
+          meeting_date: isoDaysAgo(),
           meeting_time: '',
           purpose: '', mode: '', location: '',
           mom_status: 'pending', mom_reference: '', mom_link: '',

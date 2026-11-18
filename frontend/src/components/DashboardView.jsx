@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Pill, ReplyStatusPill, fmtDate } from './ui.jsx';
+import { Pill, ReplyStatusPill, fmtDate, isoDaysAgo } from './ui.jsx';
 
 const RED = '#dc2626';        // sent / outbound
 const MAROON = '#7f1d1d';     // received / inbound
@@ -401,11 +401,6 @@ function FreqLine({ data }) {
 }
 
 /* ---- period view (date-window snapshot) --------------------------------- */
-function isoDaysAgo(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
 function PeriodView({ period, onRange }) {
   const [from, setFrom] = useState(period.from || isoDaysAgo(7));
   const [to, setTo] = useState(period.to || isoDaysAgo(0));

@@ -6,7 +6,7 @@
 // ---------------------------------------------------------------------------
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
-import { Modal, ErrorBanner } from './ui.jsx';
+import { Modal, ErrorBanner, isoDaysAgo } from './ui.jsx';
 import SourcePicker from './SourcePicker.jsx';
 
 export default function ActionForm({ existing, defaults, onClose, onSaved }) {
@@ -20,7 +20,7 @@ export default function ActionForm({ existing, defaults, onClose, onSaved }) {
   const [v, setV] = useState(() => ({
     sub_division_id: String(existing?.sub_division_id || defaults?.sub_division_id || ''),
     description: existing?.description || '',
-    recorded_date: (existing?.recorded_date || new Date().toISOString().slice(0, 10)).slice(0, 10),
+    recorded_date: (existing?.recorded_date || isoDaysAgo()).slice(0, 10),
     due_milestone: existing?.due_milestone || '',
     due_date: (existing?.due_date || '').slice(0, 10),
     notes: existing?.notes || '',

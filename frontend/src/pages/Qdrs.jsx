@@ -9,7 +9,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Modal, FormFields, ConfirmDialog, Pill,
-  fmtDate, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress,
+  fmtDate, isoDaysAgo, fileSize, useToast, useTableSort, SortableTH, FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import DocumentsPanel from '../components/DocumentsPanel.jsx';
 import { useLive } from '../lib/liveStream.js';
@@ -115,7 +115,7 @@ export function QdrsForm({ lists, subDivisions, existing, defaults, onClose, onS
         }
       : {
           sub_division_id: '',
-          qdrs_date: new Date().toISOString().slice(0, 10),
+          qdrs_date: isoDaysAgo(),
           category: '', reference: '', summary: '',
           ...(defaults || {}),
         }

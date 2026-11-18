@@ -8,7 +8,7 @@ import { api } from '../lib/api.js';
 import { useStore } from '../lib/store.jsx';
 import {
   Loading, Empty, ErrorBanner, Section, Modal, FormFields, ConfirmDialog,
-  EngagementPill, StatusPill, DirectionPill, OriginatorPill, ReplyStatusPill, Pill, fmtDate, fileSize, useToast,
+  EngagementPill, StatusPill, DirectionPill, OriginatorPill, ReplyStatusPill, Pill, fmtDate, isoDaysAgo, fileSize, useToast,
   FileDrop, UploadProgress,
 } from '../components/ui.jsx';
 import AuditFeed from '../components/AuditFeed.jsx';
@@ -467,7 +467,7 @@ function commFieldDefs(lists, subDivisions) {
 
 function emptyCommValues() {
   return {
-    comm_date: new Date().toISOString().slice(0, 10),
+    comm_date: isoDaysAgo(),
     direction: 'Outbound',
     originator: 'ECG',
     purpose: '',

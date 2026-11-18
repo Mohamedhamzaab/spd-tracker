@@ -5,15 +5,10 @@
 // ---------------------------------------------------------------------------
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import { Loading, ErrorBanner, pct } from '../components/ui.jsx';
+import { Loading, ErrorBanner, pct, isoDaysAgo } from '../components/ui.jsx';
 import DashboardView from '../components/DashboardView.jsx';
 import { useLive } from '../lib/liveStream.js';
 
-function isoDaysAgo(n) {
-  const d = new Date();
-  d.setDate(d.getDate() - n);
-  return d.toISOString().slice(0, 10);
-}
 
 const DASH_LIVE_EVENTS = [
   'data.authority.created', 'data.authority.updated', 'data.authority.deleted',

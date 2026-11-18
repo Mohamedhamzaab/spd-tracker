@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { Modal, ErrorBanner, Loading, Pill, ConfirmDialog, fmtDate, useToast } from './ui.jsx';
+import { Modal, ErrorBanner, Loading, Pill, ConfirmDialog, fmtDate, isoDaysAgo, useToast } from './ui.jsx';
 import SourcePicker from './SourcePicker.jsx';
 import ActionForm from './ActionForm.jsx';
 
@@ -269,7 +269,7 @@ function Item({ label, value }) {
 function ProgressForm({ actionId, kind, onClose, onSaved }) {
   const closing = kind === 'closure';
   const [v, setV] = useState({
-    entry_date: new Date().toISOString().slice(0, 10),
+    entry_date: isoDaysAgo(),
     note: '',
     source_type: '', source_id: null, source_ref_external: '',
   });
