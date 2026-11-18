@@ -13,9 +13,12 @@ import {
 import ViewsBar from '../components/ViewsBar.jsx';
 import { useLive } from '../lib/liveStream.js';
 
+// Restoring an authority from Trash brings its sub-divisions back too.
 const SUB_LIVE_EVENTS = [
   'data.subdivision.created', 'data.subdivision.updated', 'data.subdivision.deleted',
+  'data.subdivision.restored', 'data.authority.restored',
   'data.communication.created', 'data.communication.updated', 'data.communication.deleted',
+  'data.communication.restored',
 ];
 
 const ENGAGEMENT_STAGES = ['Identified', 'Contacted', 'Response Received', 'Outcome Secured'];

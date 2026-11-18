@@ -43,7 +43,9 @@ function tabFromUrl() {
 const LIVE_EVENTS = [
   ...ENGAGEMENT_EVENTS,
   'data.subdivision.created', 'data.subdivision.updated', 'data.subdivision.deleted',
+  'data.subdivision.restored',
   'data.authority.created', 'data.authority.updated', 'data.authority.deleted',
+  'data.authority.restored',
 ];
 
 export default function Engagement() {

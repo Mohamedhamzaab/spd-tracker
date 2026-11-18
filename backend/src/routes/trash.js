@@ -26,6 +26,9 @@ const TABLE = {
   qdrs: 'qdrs_records',
   document: 'documents',
 };
+// Event names use the spelling the rest of the app sends and listens for
+// (data.subdivision.created ...), not the URL's sub_division.
+const eventName = (type, action) => `data.${type === 'sub_division' ? 'subdivision' : type}.${action}`;
 
 const router = express.Router();
 router.use(requireSuperAdmin);
@@ -162,7 +165,7 @@ router.post(
 
     await logAudit({
       actor_id: req.user.id,
-      event: 'data.' + type + '.restored',
+      event: eventName(type, 'restored'),
       target_type: type,
       target_id: id,
       payload: { deletion_group_id: group, rows_restored: restored },
@@ -262,7 +265,7 @@ router.delete(
 
     await logAudit({
       actor_id: req.user.id,
-      event: 'data.' + type + '.purged',
+      event: eventName(type, 'purged'),
       target_type: type,
       target_id: id,
       payload: { files_unlinked: docs.length, storage_backend: storage.activeBackend() },
